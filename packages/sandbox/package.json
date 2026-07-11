@@ -1,0 +1,28 @@
+{
+  "name": "@mcpops/sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && vitest run"
+  },
+  "dependencies": {
+    "@mcpops/platform-modules": "workspace:*",
+    "@mcpops/runtime-sdk": "workspace:*",
+    "esbuild": "^0.24.2"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,16 @@
+services:
+  worker:
+    environment:
+      EXECUTOR_PROVIDER: container
+      CONTAINER_EXECUTOR_IMAGE: ${CONTAINER_EXECUTOR_IMAGE:?Set a reviewed, pre-pulled Node.js runner image}
+      CONTAINER_EXECUTOR_RUNTIME: ${CONTAINER_EXECUTOR_RUNTIME:-}
+      CONTAINER_EXECUTOR_WORK_ROOT: /var/lib/mcpops-executor
+      CONTAINER_EXECUTOR_HOST_WORK_ROOT: ${MCP_OPS_EXECUTOR_HOST_WORK_ROOT:?Set the absolute host path to .executor-work}
+      CONTAINER_EXECUTOR_MEMORY_MB: ${CONTAINER_EXECUTOR_MEMORY_MB:-256}
+      CONTAINER_EXECUTOR_CPUS: ${CONTAINER_EXECUTOR_CPUS:-0.5}
+      CONTAINER_EXECUTOR_PIDS: ${CONTAINER_EXECUTOR_PIDS:-64}
+      CONTAINER_EXECUTOR_TMPFS_MB: ${CONTAINER_EXECUTOR_TMPFS_MB:-16}
+      CONTAINER_EXECUTOR_USER: ${CONTAINER_EXECUTOR_USER:-65532:65532}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MCP_OPS_EXECUTOR_HOST_WORK_ROOT:?Set the absolute host path to .executor-work}:/var/lib/mcpops-executor

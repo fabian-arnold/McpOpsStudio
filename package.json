@@ -1,0 +1,25 @@
+{
+  "name": "mcp-ops-studio",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "turbo build",
+    "config:validate": "node scripts/validate-production-config.mjs",
+    "dev": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up --build --watch",
+    "dev:local": "pnpm db:generate && pnpm --filter \"./packages/*\" build && turbo dev --parallel",
+    "dev:down": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml down --remove-orphans",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "test:e2e": "node scripts/e2e.mjs",
+    "db:generate": "pnpm --filter @mcpops/db generate",
+    "db:migrate": "pnpm --filter @mcpops/db migrate",
+    "db:seed": "pnpm --filter @mcpops/db seed"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.19.3",
+    "prisma": "^6.19.3",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,73 @@
+services:
+  control-plane:
+    build:
+      target: development
+      args:
+        APP: control-plane
+    command: ["/usr/local/bin/start-control-plane"]
+    environment:
+      NODE_ENV: development
+      MCP_OPS_WATCH_MODE: "true"
+      WEB_ORIGIN: http://localhost:8080
+      API_INTERNAL_URL: http://127.0.0.1:3001
+    develop:
+      watch:
+        - action: sync
+          path: ../apps/api
+          target: /workspace/apps/api
+          ignore: [node_modules/, dist/, package.json]
+        - action: sync
+          path: ../apps/web
+          target: /workspace/apps/web
+          ignore: [node_modules/, .next/, package.json]
+        - action: rebuild
+          path: ../apps/api/package.json
+        - action: rebuild
+          path: ../apps/web/package.json
+        - action: rebuild
+          path: ../packages
+        - action: rebuild
+          path: ../prisma
+        - action: rebuild
+          path: ../package.json
+        - action: rebuild
+          path: ../pnpm-lock.yaml
+        - action: rebuild
+          path: ../tsconfig.base.json
+
+  worker:
+    build:
+      target: development
+      args:
+        APP: worker
+    command: ["/usr/local/bin/start-worker"]
+    environment:
+      NODE_ENV: development
+      MCP_OPS_WATCH_MODE: "true"
+    develop:
+      watch:
+        - action: sync
+          path: ../apps/runtime
+          target: /workspace/apps/runtime
+          ignore: [node_modules/, dist/, package.json]
+        - action: sync
+          path: ../apps/worker
+          target: /workspace/apps/worker
+          ignore: [node_modules/, dist/, package.json]
+        - action: rebuild
+          path: ../apps/runtime/package.json
+        - action: rebuild
+          path: ../apps/worker/package.json
+        - action: rebuild
+          path: ../packages
+        - action: rebuild
+          path: ../prisma
+        - action: rebuild
+          path: ../package.json
+        - action: rebuild
+          path: ../pnpm-lock.yaml
+        - action: rebuild
+          path: ../tsconfig.base.json
+
+  mock-crm:
+    command: ["node", "--watch", "server.mjs"]

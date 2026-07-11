@@ -1,0 +1,624 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  active
+  archived
+}
+
+enum UserRole {
+  owner
+  admin
+  developer
+  operator
+  viewer
+}
+
+enum RuntimeEndpointStatus {
+  draft
+  deployed
+  disabled
+  failed
+}
+
+enum RuntimeEndpointKind {
+  mcp
+  http
+}
+
+enum RiskLevel {
+  read
+  write
+  destructive
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+}
+
+enum SecretAccessMode {
+  read
+}
+
+enum AuthPolicyType {
+  public
+  api_key
+  bearer_token
+  basic_auth
+  jwt
+  oidc
+  entra_id
+  webhook_signature
+}
+
+enum DeploymentStatus {
+  queued
+  building
+  deploying
+  active
+  failed
+  rolled_back
+}
+
+enum InvocationSource {
+  mcp
+  http
+  test
+  internal
+}
+
+enum ExecutionStatus {
+  success
+  error
+  denied
+  timeout
+  validation_error
+}
+
+enum ActorType {
+  user
+  caller
+  system
+}
+
+model Project {
+  id                       String                    @id @default(uuid()) @db.Uuid
+  name                     String
+  slug                     String                    @unique
+  description              String                    @default("")
+  status                   ProjectStatus             @default(active)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  environments             Environment[]
+  endpoints                RuntimeEndpoint[]
+  functions                Function[]
+  libraries                ProjectLibrary[]
+  secrets                  Secret[]
+  authPolicies             AuthPolicy[]
+  networkPolicies          NetworkPolicy[]
+  storageNamespaces        StorageNamespace[]
+  executions               FunctionExecution[]
+  auditEvents              AuditEvent[]
+  databaseConnections      DatabaseConnection[]
+  reviewedQueryDefinitions ReviewedQueryDefinition[]
+  projectDeployments       ProjectDeployment[]
+
+  @@map("projects")
+}
+
+model User {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String                 @unique
+  passwordHash          String
+  role                  UserRole               @default(viewer)
+  active                Boolean                @default(true)
+  mustChangePassword    Boolean                @default(false)
+  sessionVersion        Int                    @default(1)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  functionVersions      FunctionVersion[]      @relation("FunctionVersionCreator")
+  reviewedQueryVersions ReviewedQueryVersion[]
+
+  @@map("users")
+}
+
+model Session {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  tokenHash     String   @unique
+  csrfTokenHash String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model Environment {
+  id                        String                    @id @default(uuid()) @db.Uuid
+  projectId                 String                    @db.Uuid
+  project                   Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                      String
+  slug                      String
+  baseUrl                   String
+  variables                 Json                      @default("{}")
+  activeProjectDeploymentId String?                   @unique @db.Uuid
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  endpoints                 RuntimeEndpoint[]
+  secrets                   Secret[]
+  storageNamespaces         StorageNamespace[]
+  auditEvents               AuditEvent[]
+  databaseConnections       DatabaseConnection[]
+  reviewedQueryDefinitions  ReviewedQueryDefinition[]
+  projectDeployments        ProjectDeployment[]       @relation("EnvironmentProjectDeployments")
+  activeProjectDeployment   ProjectDeployment?        @relation("ActiveProjectDeployment", fields: [activeProjectDeploymentId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, slug])
+  @@map("environments")
+}
+
+model RuntimeEndpoint {
+  id                  String                @id @default(uuid()) @db.Uuid
+  projectId           String                @db.Uuid
+  environmentId       String                @db.Uuid
+  name                String
+  slug                String
+  description         String                @default("")
+  kind                RuntimeEndpointKind
+  status              RuntimeEndpointStatus @default(draft)
+  runtimeVersion      String                @default("1")
+  runtimeConfig       Json                  @default("{}")
+  activeDeploymentId  String?               @unique @db.Uuid
+  defaultAuthPolicyId String?               @db.Uuid
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  project             Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment         Environment           @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  activeDeployment    Deployment?           @relation("ActiveDeployment", fields: [activeDeploymentId], references: [id], onDelete: SetNull)
+  defaultAuthPolicy   AuthPolicy?           @relation("EndpointDefaultAuthPolicy", fields: [defaultAuthPolicyId], references: [id], onDelete: SetNull)
+  mcpToolBindings     McpToolBinding[]
+  httpRouteBindings   HttpRouteBinding[]
+  networkPolicy       NetworkPolicy?
+  deployments         Deployment[]          @relation("EndpointDeployments")
+  executions          FunctionExecution[]
+  auditEvents         AuditEvent[]
+
+  @@unique([projectId, kind, slug])
+  @@index([projectId, kind, status])
+  @@map("runtime_endpoints")
+}
+
+model Function {
+  id                  String               @id @default(uuid()) @db.Uuid
+  projectId           String               @db.Uuid
+  name                String
+  slug                String
+  title               String
+  description         String               @default("")
+  code                String               @default("")
+  inputSchema         Json
+  outputSchema        Json
+  timeoutMs           Int                  @default(30000)
+  enabled             Boolean              @default(true)
+  riskLevel           RiskLevel            @default(read)
+  requiredPermissions Json
+  cachePolicy         Json?
+  version             Int                  @default(1)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions            FunctionVersion[]
+  mcpToolBindings     McpToolBinding[]
+  httpRouteBindings   HttpRouteBinding[]
+  grants              SecretGrant[]
+  storageEntries      StorageEntry[]
+  executions          FunctionExecution[]
+  auditEvents         AuditEvent[]
+  functionQueryGrants FunctionQueryGrant[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+  @@map("functions")
+}
+
+model FunctionVersion {
+  id               String   @id @default(uuid()) @db.Uuid
+  functionId       String   @db.Uuid
+  version          Int
+  code             String
+  compiledCode     String?
+  sourceMap        String?
+  checksum         String
+  validationResult Json
+  createdAt        DateTime @default(now())
+  createdByUserId  String?  @db.Uuid
+  function         Function @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  createdBy        User?    @relation("FunctionVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  executions       FunctionExecution[]
+
+  @@unique([functionId, version])
+  @@index([checksum])
+  @@map("function_versions")
+}
+
+model McpToolBinding {
+  id          String              @id @default(uuid()) @db.Uuid
+  endpointId  String              @db.Uuid
+  functionId  String              @db.Uuid
+  toolName    String
+  title       String
+  description String              @default("")
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  endpoint    RuntimeEndpoint     @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  function    Function            @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  executions  FunctionExecution[]
+
+  @@unique([endpointId, toolName])
+  @@index([functionId])
+  @@map("mcp_tool_bindings")
+}
+
+model HttpRouteBinding {
+  id              String              @id @default(uuid()) @db.Uuid
+  endpointId      String              @db.Uuid
+  functionId      String              @db.Uuid
+  method          HttpMethod
+  path            String
+  inputMapping    Json?
+  responseMapping Json?
+  enabled         Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  endpoint        RuntimeEndpoint     @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  function        Function            @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  executions      FunctionExecution[]
+
+  @@unique([endpointId, method, path])
+  @@index([functionId])
+  @@map("http_route_bindings")
+}
+
+model ProjectLibrary {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @db.Uuid
+  name              String
+  importPath        String
+  description       String   @default("")
+  code              String
+  exportedFunctions Json
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, importPath, version])
+  @@index([projectId, name])
+  @@map("project_libraries")
+}
+
+model Secret {
+  id                  String               @id @default(uuid()) @db.Uuid
+  projectId           String               @db.Uuid
+  environmentId       String               @db.Uuid
+  name                String
+  encryptedValue      String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment         Environment          @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  grants              SecretGrant[]
+  databaseConnections DatabaseConnection[]
+
+  @@unique([projectId, environmentId, name])
+  @@map("secrets")
+}
+
+model SecretGrant {
+  id         String           @id @default(uuid()) @db.Uuid
+  functionId String           @db.Uuid
+  secretName String
+  secretId   String?          @db.Uuid
+  accessMode SecretAccessMode @default(read)
+  createdAt  DateTime         @default(now())
+  function   Function         @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  secret     Secret?          @relation(fields: [secretId], references: [id], onDelete: SetNull)
+
+  @@unique([functionId, secretName])
+  @@map("secret_grants")
+}
+
+/// A reviewed PostgreSQL connection. The referenced Secret contains the encrypted
+/// connection value; neither this row nor deployment snapshots contain plaintext.
+model DatabaseConnection {
+  id               String                    @id @default(uuid()) @db.Uuid
+  projectId        String                    @db.Uuid
+  environmentId    String                    @db.Uuid
+  secretId         String                    @db.Uuid
+  name             String
+  description      String                    @default("")
+  enabled          Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  project          Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment      Environment               @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  secret           Secret                    @relation(fields: [secretId], references: [id], onDelete: Restrict)
+  queryDefinitions ReviewedQueryDefinition[]
+
+  @@unique([projectId, environmentId, name])
+  @@index([projectId, environmentId, enabled])
+  @@index([secretId])
+  @@map("database_connections")
+}
+
+/// Stable identity for a reviewed query. Executable SQL lives only in immutable
+/// ReviewedQueryVersion rows.
+model ReviewedQueryDefinition {
+  id            String                 @id @default(uuid()) @db.Uuid
+  projectId     String                 @db.Uuid
+  environmentId String                 @db.Uuid
+  connectionId  String                 @db.Uuid
+  queryId       String
+  name          String
+  description   String                 @default("")
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  project       Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment   Environment            @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  connection    DatabaseConnection     @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  versions      ReviewedQueryVersion[]
+  grants        FunctionQueryGrant[]
+
+  @@unique([connectionId, queryId])
+  @@index([projectId, environmentId])
+  @@map("reviewed_query_definitions")
+}
+
+/// Immutable reviewed SQL and its bounded execution contract. `enabled` is an
+/// operational kill switch; all other fields are append-only through the API.
+model ReviewedQueryVersion {
+  id                String                  @id @default(uuid()) @db.Uuid
+  queryDefinitionId String                  @db.Uuid
+  version           Int
+  sql               String
+  parameterOrder    Json
+  parameterSchema   Json
+  resultSchema      Json?
+  timeoutMs         Int                     @default(5000)
+  maxRows           Int                     @default(100)
+  maxBytes          Int                     @default(1048576)
+  enabled           Boolean                 @default(true)
+  createdAt         DateTime                @default(now())
+  createdByUserId   String?                 @db.Uuid
+  queryDefinition   ReviewedQueryDefinition @relation(fields: [queryDefinitionId], references: [id], onDelete: Restrict)
+  createdBy         User?                   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  grants            FunctionQueryGrant[]
+
+  @@unique([queryDefinitionId, version])
+  @@index([queryDefinitionId, enabled])
+  @@map("reviewed_query_versions")
+}
+
+/// Relational capability grant binding a function to one exact reviewed query
+/// version. A grant can be revoked without deleting its audit history.
+model FunctionQueryGrant {
+  id                String                  @id @default(uuid()) @db.Uuid
+  functionId        String                  @db.Uuid
+  queryDefinitionId String                  @db.Uuid
+  queryVersionId    String                  @db.Uuid
+  enabled           Boolean                 @default(true)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  function          Function                @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  queryDefinition   ReviewedQueryDefinition @relation(fields: [queryDefinitionId], references: [id], onDelete: Restrict)
+  queryVersion      ReviewedQueryVersion    @relation(fields: [queryVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([functionId, queryDefinitionId])
+  @@index([functionId, enabled])
+  @@index([queryVersionId])
+  @@map("function_query_grants")
+}
+
+model AuthPolicy {
+  id               String            @id @default(uuid()) @db.Uuid
+  projectId        String            @db.Uuid
+  name             String
+  type             AuthPolicyType
+  config           Json
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  defaultEndpoints RuntimeEndpoint[] @relation("EndpointDefaultAuthPolicy")
+
+  @@unique([projectId, name])
+  @@map("auth_policies")
+}
+
+model NetworkPolicy {
+  id                String          @id @default(uuid()) @db.Uuid
+  projectId         String          @db.Uuid
+  endpointId        String          @unique @db.Uuid
+  allowedHosts      Json
+  allowedMethods    Json
+  allowedPorts      Json
+  allowPrivateHosts Json            @default("[]")
+  maxResponseBytes  Int             @default(1048576)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpoint          RuntimeEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("network_policies")
+}
+
+model StorageNamespace {
+  id            String         @id @default(uuid()) @db.Uuid
+  projectId     String         @db.Uuid
+  environmentId String         @db.Uuid
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment   Environment    @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  entries       StorageEntry[]
+
+  @@unique([projectId, environmentId, name])
+  @@index([projectId])
+  @@map("storage_namespaces")
+}
+
+model StorageEntry {
+  id          String           @id @default(uuid()) @db.Uuid
+  namespaceId String           @db.Uuid
+  functionId  String           @db.Uuid
+  tenantScope String           @default("__global__")
+  key         String
+  value       Json
+  expiresAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  namespace   StorageNamespace @relation(fields: [namespaceId], references: [id], onDelete: Cascade)
+  function    Function         @relation(fields: [functionId], references: [id], onDelete: Cascade)
+
+  @@unique([namespaceId, functionId, tenantScope, key])
+  @@index([expiresAt])
+  @@map("storage_entries")
+}
+
+model Deployment {
+  id                  String              @id @default(uuid()) @db.Uuid
+  endpointId          String              @db.Uuid
+  projectDeploymentId String?             @db.Uuid
+  version             Int
+  status              DeploymentStatus    @default(queued)
+  snapshot            Json
+  runtimeConfig       Json
+  checksum            String
+  createdAt           DateTime            @default(now())
+  completedAt         DateTime?
+  endpoint            RuntimeEndpoint     @relation("EndpointDeployments", fields: [endpointId], references: [id], onDelete: Cascade)
+  projectDeployment   ProjectDeployment?  @relation(fields: [projectDeploymentId], references: [id], onDelete: Cascade)
+  activeForEndpoint   RuntimeEndpoint?    @relation("ActiveDeployment")
+  logs                DeploymentLog[]
+  executions          FunctionExecution[]
+
+  @@unique([endpointId, version])
+  @@index([endpointId, status])
+  @@index([projectDeploymentId, status])
+  @@map("deployments")
+}
+
+model ProjectDeployment {
+  id                        String              @id @default(uuid()) @db.Uuid
+  projectId                 String              @db.Uuid
+  environmentId             String              @db.Uuid
+  sourceProjectDeploymentId String?             @db.Uuid
+  version                   Int
+  status                    DeploymentStatus    @default(queued)
+  snapshot                  Json                @default("{}")
+  checksum                  String              @default("")
+  createdAt                 DateTime            @default(now())
+  completedAt               DateTime?
+  project                   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment               Environment         @relation("EnvironmentProjectDeployments", fields: [environmentId], references: [id], onDelete: Restrict)
+  activeForEnvironment      Environment?        @relation("ActiveProjectDeployment")
+  sourceProjectDeployment   ProjectDeployment?  @relation("ProjectDeploymentPromotion", fields: [sourceProjectDeploymentId], references: [id], onDelete: Restrict)
+  promotions                ProjectDeployment[] @relation("ProjectDeploymentPromotion")
+  endpointDeployments       Deployment[]
+
+  @@unique([projectId, environmentId, version])
+  @@index([projectId, createdAt])
+  @@index([sourceProjectDeploymentId])
+  @@map("project_deployments")
+}
+
+model DeploymentLog {
+  id           String     @id @default(uuid()) @db.Uuid
+  deploymentId String     @db.Uuid
+  level        String
+  message      String
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@index([deploymentId, createdAt])
+  @@map("deployment_logs")
+}
+
+model FunctionExecution {
+  id                 String            @id @default(uuid()) @db.Uuid
+  projectId          String            @db.Uuid
+  endpointId         String            @db.Uuid
+  functionId         String            @db.Uuid
+  functionVersionId  String            @db.Uuid
+  mcpToolBindingId   String?           @db.Uuid
+  httpRouteBindingId String?           @db.Uuid
+  deploymentId       String            @db.Uuid
+  requestId          String
+  correlationId      String?
+  invocationSource   InvocationSource
+  callerIdentity     Json
+  input              Json
+  output             Json?
+  error              Json?
+  durationMs         Int
+  status             ExecutionStatus
+  parentExecutionId  String?           @db.Uuid
+  rootExecutionId    String?           @db.Uuid
+  createdAt          DateTime          @default(now())
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  endpoint           RuntimeEndpoint   @relation(fields: [endpointId], references: [id], onDelete: Restrict)
+  function           Function          @relation(fields: [functionId], references: [id], onDelete: Restrict)
+  functionVersion    FunctionVersion   @relation(fields: [functionVersionId], references: [id], onDelete: Restrict)
+  mcpToolBinding     McpToolBinding?   @relation(fields: [mcpToolBindingId], references: [id], onDelete: SetNull)
+  httpRouteBinding   HttpRouteBinding? @relation(fields: [httpRouteBindingId], references: [id], onDelete: SetNull)
+  deployment         Deployment        @relation(fields: [deploymentId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, requestId])
+  @@index([projectId, createdAt])
+  @@index([endpointId, functionId, status, createdAt])
+  @@index([functionVersionId])
+  @@index([correlationId])
+  @@index([parentExecutionId])
+  @@index([rootExecutionId])
+  @@map("function_executions")
+}
+
+model AuditEvent {
+  id            String           @id @default(uuid()) @db.Uuid
+  projectId     String?          @db.Uuid
+  environmentId String?          @db.Uuid
+  endpointId    String?          @db.Uuid
+  functionId    String?          @db.Uuid
+  actorType     ActorType
+  actorId       String?
+  action        String
+  targetType    String
+  targetId      String?
+  metadata      Json
+  createdAt     DateTime         @default(now())
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  environment   Environment?     @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  endpoint      RuntimeEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+  function      Function?        @relation(fields: [functionId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([endpointId, action, createdAt])
+  @@map("audit_events")
+}

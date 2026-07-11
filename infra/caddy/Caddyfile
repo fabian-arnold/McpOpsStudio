@@ -1,0 +1,70 @@
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	encode gzip zstd
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	handle /mcp/* {
+		reverse_proxy {
+			header_up x-internal-token {$INTERNAL_API_TOKEN}
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle /http/* {
+		reverse_proxy {
+			header_up x-internal-token {$INTERNAL_API_TOKEN}
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle /health* {
+		reverse_proxy {
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle /ready {
+		reverse_proxy {
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle /metrics {
+		reverse_proxy {
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+	}
+}

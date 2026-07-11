@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 20% 98%;
+  --foreground: 222 34% 12%;
+  --card: 0 0% 100%;
+  --muted: 220 18% 95%;
+  --muted-foreground: 218 11% 45%;
+  --border: 218 18% 88%;
+  --primary: 252 78% 58%;
+  --primary-foreground: 0 0% 100%;
+  --destructive: 0 72% 54%;
+}
+
+.dark {
+  --background: 224 25% 7%;
+  --foreground: 218 25% 92%;
+  --card: 223 22% 10%;
+  --muted: 222 20% 14%;
+  --muted-foreground: 218 12% 62%;
+  --border: 221 17% 18%;
+  --primary: 252 88% 68%;
+  --primary-foreground: 224 30% 9%;
+  --destructive: 0 68% 55%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+button,
+input,
+textarea,
+select {
+  outline: none;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  box-shadow:
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 4px hsl(var(--primary));
+}
+::selection {
+  background: hsl(var(--primary) / 0.24);
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dot-grid {
+  background-image: radial-gradient(
+    hsl(var(--border)) 0.7px,
+    transparent 0.7px
+  );
+  background-size: 17px 17px;
+}
+.code-editor .monaco-editor,
+.code-editor .monaco-editor-background,
+.code-editor .margin {
+  background: transparent !important;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border bg-card shadow-panel;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[.14em] text-muted-foreground;
+  }
+  .field {
+    @apply w-full rounded-lg border bg-background px-3 py-2 text-sm transition placeholder:text-muted-foreground focus:border-primary;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-foreground;
+  }
+}

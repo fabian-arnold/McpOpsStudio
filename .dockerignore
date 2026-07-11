@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+**/node_modules
+**/.next
+**/dist
+**/coverage
+.turbo
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
+.git
+.env
+coverage
+.executor-work
