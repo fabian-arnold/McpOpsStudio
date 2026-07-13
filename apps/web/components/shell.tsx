@@ -23,6 +23,7 @@ import {
   Moon,
   ServerCog,
   Settings,
+  SlidersHorizontal,
   ShieldCheck,
   Sun,
   TerminalSquare,
@@ -61,6 +62,11 @@ const projectNav: NavItem[] = [
   { href: "/secrets", label: "Secrets", icon: LockKeyhole },
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/deployments", label: "Deployments", icon: Boxes },
+  {
+    href: "/project-settings",
+    label: "Project settings",
+    icon: SlidersHorizontal,
+  },
 ];
 const globalNav: NavItem[] = [
   {

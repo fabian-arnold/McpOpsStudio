@@ -39,6 +39,8 @@ import {
   globalSearchQuerySchema,
   endpointSettingsUpdateSchema,
   projectCreateSchema,
+  projectDeleteSchema,
+  projectSettingsUpdateSchema,
   projectUpdateSchema,
   userCreateSchema,
   userUpdateSchema,
@@ -453,6 +455,7 @@ app.post("/api/projects", async (request, reply) => {
           projectId: created.id,
           name: "Development",
           slug: "development",
+          capturePayloads: true,
           baseUrl:
             process.env.PUBLIC_RUNTIME_URL ??
             process.env.RUNTIME_PUBLIC_URL ??
@@ -484,6 +487,156 @@ app.post("/api/projects", async (request, reply) => {
     return created;
   });
   return reply.status(201).send(project);
+});
+app.get("/api/project-settings", async (request, reply) => {
+  const session = sessionContext(request);
+  const project = await prisma.project.findUnique({
+    where: { id: session.projectId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      status: true,
+      updatedAt: true,
+      environments: {
+        where: { slug: "development" },
+        select: { id: true, capturePayloads: true },
+        take: 1,
+      },
+    },
+  });
+  if (!project)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Selected project not found",
+        requestId: requestId(request),
+      },
+    });
+  return {
+    id: project.id,
+    name: project.name,
+    slug: project.slug,
+    description: project.description,
+    status: project.status,
+    updatedAt: project.updatedAt,
+    captureDevelopmentPayloads:
+      project.environments[0]?.capturePayloads ?? false,
+  };
+});
+app.patch("/api/project-settings", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin"]);
+  const input = parse(projectSettingsUpdateSchema, request.body);
+  const { captureDevelopmentPayloads, ...projectInput } = input;
+  const development =
+    captureDevelopmentPayloads === undefined
+      ? null
+      : await prisma.environment.findFirst({
+          where: { projectId: session.projectId, slug: "development" },
+          select: { id: true },
+        });
+  if (captureDevelopmentPayloads !== undefined && !development)
+    return reply.status(409).send({
+      error: {
+        code: "DEVELOPMENT_ENVIRONMENT_REQUIRED",
+        message: "Create the Development environment before enabling capture.",
+        requestId: requestId(request),
+      },
+    });
+  const updated = await prisma.$transaction(async (tx) => {
+    const project = await tx.project.update({
+      where: { id: session.projectId },
+      data: projectInput,
+    });
+    if (development && captureDevelopmentPayloads !== undefined)
+      await tx.environment.update({
+        where: { id: development.id },
+        data: { capturePayloads: captureDevelopmentPayloads },
+      });
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: development?.id,
+        actorType: "user",
+        actorId: session.userId,
+        action: "project.settings.updated",
+        targetType: "project",
+        targetId: session.projectId,
+        metadata: {
+          name: project.name,
+          slug: project.slug,
+          fields: Object.keys(input),
+        },
+      },
+    });
+    return project;
+  });
+  return {
+    ...updated,
+    captureDevelopmentPayloads: captureDevelopmentPayloads ?? undefined,
+  };
+});
+app.delete("/api/project-settings", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin"]);
+  const input = parse(projectDeleteSchema, request.body);
+  const [project, replacement] = await Promise.all([
+    prisma.project.findUnique({ where: { id: session.projectId } }),
+    prisma.project.findFirst({
+      where: { id: { not: session.projectId }, status: "active" },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+  if (!project)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Selected project not found",
+        requestId: requestId(request),
+      },
+    });
+  if (input.confirmation !== project.slug)
+    return reply.status(400).send({
+      error: {
+        code: "CONFIRMATION_MISMATCH",
+        message: "Enter the exact Project slug to confirm deletion.",
+        requestId: requestId(request),
+      },
+    });
+  if (!replacement)
+    return reply.status(409).send({
+      error: {
+        code: "LAST_PROJECT",
+        message: "Create another active Project before deleting this one.",
+        requestId: requestId(request),
+      },
+    });
+  await prisma.$transaction(async (tx) => {
+    await tx.functionExecution.deleteMany({
+      where: { projectId: session.projectId },
+    });
+    await tx.project.delete({ where: { id: session.projectId } });
+    await tx.auditEvent.create({
+      data: {
+        actorType: "user",
+        actorId: session.userId,
+        action: "project.deleted",
+        targetType: "project",
+        targetId: session.projectId,
+        metadata: { name: project.name, slug: project.slug },
+      },
+    });
+  });
+  const csrfToken = issueSession(reply, {
+    userId: session.userId,
+    projectId: replacement.id,
+    role: session.role,
+    email: session.email,
+    sessionVersion: session.sessionVersion,
+  });
+  return { ok: true, selectedProject: replacement, csrfToken };
 });
 app.patch("/api/projects/:projectId", async (request, reply) => {
   const session = sessionContext(request);

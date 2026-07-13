@@ -191,7 +191,12 @@ export type LoadedEndpoint = {
   slug: string;
   kind: "mcp" | "http";
   project: { id: string; name: string; slug: string };
-  environment: { id: string; name: string; slug: string };
+  environment: {
+    id: string;
+    name: string;
+    slug: string;
+    capturePayloads?: boolean;
+  };
   deployment: { id: string; version: number; checksum: string };
   snapshot: DeploymentSnapshot;
 };

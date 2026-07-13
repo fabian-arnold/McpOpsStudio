@@ -220,11 +220,13 @@ async function main(): Promise<void> {
       projectId: project.id,
       name: "Development",
       slug: "development",
+      capturePayloads: true,
       baseUrl: developmentRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },
     update: {
       name: "Development",
+      capturePayloads: true,
       baseUrl: developmentRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },

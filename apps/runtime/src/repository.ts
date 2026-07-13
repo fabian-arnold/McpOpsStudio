@@ -26,7 +26,12 @@ type EndpointRow = {
   slug: string;
   kind: "mcp" | "http";
   project: { id: string; name: string; slug: string };
-  environment: { id: string; name: string; slug: string };
+  environment: {
+    id: string;
+    name: string;
+    slug: string;
+    capturePayloads?: boolean;
+  };
   activeDeployment: {
     id: string;
     version: number;
@@ -85,7 +90,12 @@ function normalizeEndpoint(row: EndpointRow | null): LoadedEndpoint | null {
     slug: row.slug,
     kind: row.kind,
     project: row.project,
-    environment: row.environment,
+    environment: {
+      ...row.environment,
+      capturePayloads:
+        row.environment.slug === "development" &&
+        row.environment.capturePayloads === true,
+    },
     deployment: {
       id: row.activeDeployment.id,
       version: row.activeDeployment.version,
@@ -100,6 +110,7 @@ type ReleasedEnvironmentRow = {
   name: string;
   slug: string;
   baseUrl: string;
+  capturePayloads?: boolean;
   activeProjectDeployment: { snapshot: unknown } | null;
 };
 
@@ -162,6 +173,9 @@ function normalizeReleasedEndpoint(
       id: environment.id,
       name: environment.name,
       slug: environment.slug,
+      capturePayloads:
+        environment.slug === "development" &&
+        environment.capturePayloads === true,
     },
     deployment: {
       id: String(artifact.deploymentId),

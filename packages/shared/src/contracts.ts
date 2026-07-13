@@ -34,6 +34,20 @@ export const projectCreateSchema = z
   })
   .strict();
 export const projectUpdateSchema = projectCreateSchema.partial().strict();
+export const projectSettingsUpdateSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120).optional(),
+    slug: slugSchema.optional(),
+    description: z.string().trim().max(2000).optional(),
+    captureDevelopmentPayloads: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one Project setting is required",
+  });
+export const projectDeleteSchema = z
+  .object({ confirmation: slugSchema })
+  .strict();
 export const userCreateSchema = z
   .object({
     email: z.string().email(),
