@@ -3661,6 +3661,119 @@ const projectReleaseSchema = z.object({
   sourceProjectDeploymentId: z.string().uuid(),
 });
 
+const developmentDraftActions = [
+  "endpoint.created",
+  "endpoint.updated",
+  "endpoint.settings.updated",
+  "endpoint.enabled",
+  "endpoint.disabled",
+  "function.created",
+  "function.updated",
+  "mcp_binding.created",
+  "mcp_binding.updated",
+  "mcp_binding.deleted",
+  "http_binding.created",
+  "http_binding.updated",
+  "http_binding.deleted",
+  "network_policy.updated",
+  "auth_policy.created",
+  "auth_policy.updated",
+  "auth_policy.deleted",
+  "auth_policy.assigned",
+  "auth_policy.reordered",
+  "auth_policy.removed",
+  "project_library.version_created",
+  "template.installed",
+  "manifest.applied",
+] as const;
+
+app.get("/api/deployments/status", async (request) => {
+  const session = sessionContext(request);
+  const development = await prisma.environment.findFirst({
+    where: { projectId: session.projectId, slug: "development" },
+    select: { id: true, activeProjectDeploymentId: true },
+  });
+  const production = await prisma.environment.findFirst({
+    where: { projectId: session.projectId, slug: "production" },
+    select: {
+      activeProjectDeployment: {
+        select: {
+          id: true,
+          completedAt: true,
+          sourceProjectDeployment: { select: { id: true, version: true } },
+        },
+      },
+    },
+  });
+  if (!development)
+    return {
+      hasPendingChanges: false,
+      hasPendingRelease: false,
+      hasDeployableEndpoints: false,
+      activeDeployment: null,
+      productionDeployment: null,
+      inProgressDeployment: null,
+      latestDraftChange: null,
+    };
+  const [activeDeployment, inProgressDeployment, endpointCount] =
+    await Promise.all([
+      development.activeProjectDeploymentId
+        ? prisma.projectDeployment.findUnique({
+            where: { id: development.activeProjectDeploymentId },
+            select: { id: true, version: true, completedAt: true },
+          })
+        : null,
+      prisma.projectDeployment.findFirst({
+        where: {
+          projectId: session.projectId,
+          environmentId: development.id,
+          status: { in: ["queued", "building", "deploying"] },
+        },
+        select: { id: true, version: true, status: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.runtimeEndpoint.count({
+        where: {
+          projectId: session.projectId,
+          environmentId: development.id,
+          status: { not: "disabled" },
+        },
+      }),
+    ]);
+  const latestDraftChange = await prisma.auditEvent.findFirst({
+    where: {
+      projectId: session.projectId,
+      action: { in: [...developmentDraftActions] },
+      ...(activeDeployment?.completedAt
+        ? { createdAt: { gt: activeDeployment.completedAt } }
+        : {}),
+    },
+    select: { action: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return {
+    hasPendingChanges:
+      endpointCount > 0 && (!activeDeployment || Boolean(latestDraftChange)),
+    hasPendingRelease:
+      Boolean(activeDeployment) &&
+      production?.activeProjectDeployment?.sourceProjectDeployment?.id !==
+        activeDeployment?.id,
+    hasDeployableEndpoints: endpointCount > 0,
+    activeDeployment,
+    productionDeployment: production?.activeProjectDeployment
+      ? {
+          id: production.activeProjectDeployment.id,
+          version:
+            production.activeProjectDeployment.sourceProjectDeployment
+              ?.version ?? null,
+          completedAt: production.activeProjectDeployment.completedAt,
+        }
+      : null,
+    inProgressDeployment,
+    latestDraftChange,
+  };
+});
+
 app.post("/api/deployments", async (request, reply) => {
   const session = sessionContext(request);
   requireRole(session, ["owner", "admin", "developer", "operator"]);

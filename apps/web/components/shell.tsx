@@ -26,11 +26,14 @@ import {
   Sun,
   TerminalSquare,
   Network,
+  Rocket,
   X,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/cn";
 import { api, ApiError, errorMessage } from "@/lib/api";
+import { useToast } from "@/components/providers";
+import { roleAllows } from "@/lib/session";
 import type {
   EnvironmentSummary,
   ProjectSummary,
@@ -52,6 +55,29 @@ const projectNav = [
 const installationNav = [
   { href: "/administration", label: "Administration", icon: FolderKanban },
 ];
+
+type DevelopmentStatus = {
+  hasPendingChanges: boolean;
+  hasPendingRelease: boolean;
+  hasDeployableEndpoints: boolean;
+  activeDeployment: {
+    id: string;
+    version: number;
+    completedAt?: string | null;
+  } | null;
+  productionDeployment: {
+    id: string;
+    version: number | null;
+    completedAt?: string | null;
+  } | null;
+  inProgressDeployment: {
+    id: string;
+    version: number;
+    status: string;
+    createdAt: string;
+  } | null;
+  latestDraftChange: { action: string; createdAt: string } | null;
+};
 
 function Brand() {
   return (
@@ -121,6 +147,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [environments, setEnvironments] = useState<EnvironmentSummary[]>();
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [environmentsUnavailable, setEnvironmentsUnavailable] = useState(false);
+  const [developmentStatus, setDevelopmentStatus] =
+    useState<DevelopmentStatus>();
+  const [deploymentBusy, setDeploymentBusy] = useState(false);
+  const toast = useToast();
   const refreshProjects = useCallback(async () => {
     try {
       const loadedProjects = await api<ProjectSummary[]>("/api/projects");
@@ -131,10 +161,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setProjectsUnavailable(true);
     }
   }, []);
+  const refreshDevelopmentStatus = useCallback(async () => {
+    try {
+      setDevelopmentStatus(
+        await api<DevelopmentStatus>("/api/deployments/status"),
+      );
+    } catch {
+      setDevelopmentStatus(undefined);
+    }
+  }, []);
   useEffect(
     () => setDark(document.documentElement.classList.contains("dark")),
     [],
   );
+  useEffect(() => {
+    void refreshDevelopmentStatus();
+    const timer = window.setInterval(
+      () => void refreshDevelopmentStatus(),
+      3_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [refreshDevelopmentStatus]);
   useEffect(() => {
     let active = true;
     api<SessionIdentity>("/api/auth/me")
@@ -199,6 +246,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } catch (error) {
       setProjectSwitchError(errorMessage(error));
       setProjectSwitching(false);
+    }
+  }
+  async function deployDevelopment() {
+    if (
+      deploymentBusy ||
+      developmentStatus?.inProgressDeployment ||
+      !developmentStatus?.hasPendingChanges
+    )
+      return;
+    setDeploymentBusy(true);
+    try {
+      const deployment = await api<{ id: string; version: number }>(
+        "/api/deployments",
+        { method: "POST", body: "{}" },
+      );
+      toast({
+        title: `Development v${deployment.version} queued`,
+        description: "Current Project changes are being built together.",
+        tone: "success",
+      });
+      await refreshDevelopmentStatus();
+    } catch (error) {
+      toast({
+        title: "Development deployment failed",
+        description: errorMessage(error),
+        tone: "error",
+      });
+    } finally {
+      setDeploymentBusy(false);
     }
   }
   const activeProjects =
@@ -397,6 +473,106 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
           <div className="ml-auto flex items-center gap-1">
+            {developmentStatus && (
+              <>
+                <button
+                  onClick={() => void deployDevelopment()}
+                  disabled={
+                    deploymentBusy ||
+                    Boolean(developmentStatus.inProgressDeployment) ||
+                    !developmentStatus.hasPendingChanges ||
+                    !roleAllows(identity?.role, [
+                      "owner",
+                      "admin",
+                      "developer",
+                      "operator",
+                    ])
+                  }
+                  title={
+                    developmentStatus.inProgressDeployment
+                      ? `Development v${developmentStatus.inProgressDeployment.version} is deploying`
+                      : developmentStatus.hasPendingChanges
+                        ? "Deploy all pending Project changes to Development"
+                        : developmentStatus.activeDeployment
+                          ? `Development v${developmentStatus.activeDeployment.version} is up to date`
+                          : "No Development deployment is available"
+                  }
+                  className={cn(
+                    "flex h-9 items-center gap-2 rounded-lg border px-2.5 text-xs font-medium transition disabled:cursor-default",
+                    developmentStatus.inProgressDeployment
+                      ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                      : developmentStatus.hasPendingChanges
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 disabled:opacity-60 dark:text-amber-300"
+                        : "bg-card text-muted-foreground",
+                  )}
+                >
+                  <Rocket
+                    size={14}
+                    className={
+                      developmentStatus.inProgressDeployment || deploymentBusy
+                        ? "animate-pulse"
+                        : undefined
+                    }
+                  />
+                  <span className="hidden md:inline">
+                    {developmentStatus.inProgressDeployment
+                      ? `Deploying v${developmentStatus.inProgressDeployment.version}`
+                      : developmentStatus.hasPendingChanges
+                        ? "Undeployed changes"
+                        : developmentStatus.activeDeployment
+                          ? `Development v${developmentStatus.activeDeployment.version}`
+                          : "Development"}
+                  </span>
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      developmentStatus.inProgressDeployment
+                        ? "bg-blue-500"
+                        : developmentStatus.hasPendingChanges
+                          ? "bg-amber-500"
+                          : "bg-emerald-500",
+                    )}
+                  />
+                </button>
+                <Link
+                  href="/deployments"
+                  title={
+                    developmentStatus.hasPendingRelease
+                      ? developmentStatus.activeDeployment
+                        ? `Development v${developmentStatus.activeDeployment.version} is ready to release to Production`
+                        : "Production release is pending"
+                      : developmentStatus.productionDeployment?.version
+                        ? `Production is on v${developmentStatus.productionDeployment.version}`
+                        : "Production has no release"
+                  }
+                  aria-label="Production release status"
+                  className={cn(
+                    "mr-1 flex h-9 items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium transition hover:bg-muted",
+                    developmentStatus.hasPendingRelease
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      : "bg-card text-muted-foreground",
+                  )}
+                >
+                  <span className="hidden lg:inline">
+                    {developmentStatus.hasPendingRelease
+                      ? "Release"
+                      : developmentStatus.productionDeployment?.version
+                        ? `Prod v${developmentStatus.productionDeployment.version}`
+                        : "Prod"}
+                  </span>
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      developmentStatus.hasPendingRelease
+                        ? "bg-amber-500"
+                        : developmentStatus.productionDeployment
+                          ? "bg-emerald-500"
+                          : "bg-slate-400",
+                    )}
+                  />
+                </Link>
+              </>
+            )}
             <button
               onClick={toggleTheme}
               className="grid size-9 place-items-center rounded-lg hover:bg-muted"
