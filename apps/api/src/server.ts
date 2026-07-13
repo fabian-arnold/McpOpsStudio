@@ -3172,7 +3172,7 @@ app.post("/api/deployments/release", async (request, reply) => {
     where: {
       id: sourceProjectDeploymentId,
       projectId: session.projectId,
-      status: { in: ["active", "rolled_back"] },
+      status: "active",
       environment: { slug: "development" },
     },
     include: {
@@ -3183,7 +3183,7 @@ app.post("/api/deployments/release", async (request, reply) => {
     return reply.status(409).send({
       error: {
         code: "INVALID_RELEASE_SOURCE",
-        message: "Select a completed development deployment.",
+        message: "Select the active development deployment.",
         requestId: requestId(request),
       },
     });
@@ -3196,6 +3196,22 @@ app.post("/api/deployments/release", async (request, reply) => {
       error: {
         code: "PRODUCTION_ENVIRONMENT_REQUIRED",
         message: "Create the production environment before releasing.",
+        requestId: requestId(request),
+      },
+    });
+  const existingRelease = await prisma.projectDeployment.findFirst({
+    where: {
+      projectId: session.projectId,
+      environmentId: production.id,
+      sourceProjectDeploymentId: source.id,
+    },
+    select: { id: true },
+  });
+  if (existingRelease)
+    return reply.status(409).send({
+      error: {
+        code: "RELEASE_ALREADY_EXISTS",
+        message: `Development v${source.version} already has a production release. Restore that production deployment instead of releasing it again.`,
         requestId: requestId(request),
       },
     });
@@ -3320,6 +3336,7 @@ app.post("/api/deployments/release", async (request, reply) => {
       projectId: session.projectId,
       environmentId: production.id,
       sourceProjectDeploymentId: source.id,
+      version: source.version,
       endpoints: artifacts,
     };
     const projectChecksum = checksum(canonicalJson(projectSnapshot));
@@ -3341,13 +3358,21 @@ app.post("/api/deployments/release", async (request, reply) => {
         targetType: "project_deployment",
         targetId: projectDeployment.id,
         metadata: {
-          version: projectDeployment.version,
+          version: source.version,
           sourceProjectDeploymentId: source.id,
           checksum: projectChecksum,
         },
       },
     });
-    return { ...projectDeployment, snapshot: projectSnapshot, checksum: projectChecksum };
+    return {
+      ...projectDeployment,
+      // Production exposes the immutable development version it promotes. The
+      // database sequence remains private so existing release history never
+      // needs to be renumbered during upgrades.
+      version: source.version,
+      snapshot: projectSnapshot,
+      checksum: projectChecksum,
+    };
   });
   return reply.status(201).send(result);
 });
@@ -3367,6 +3392,7 @@ app.post("/api/deployments/:projectDeploymentId/rollback", async (request, reply
     include: {
       environment: true,
       endpointDeployments: true,
+      sourceProjectDeployment: { select: { version: true } },
     },
   });
   if (!target)
@@ -3377,6 +3403,8 @@ app.post("/api/deployments/:projectDeploymentId/rollback", async (request, reply
         requestId: requestId(request),
       },
     });
+  const targetVersion =
+    target.sourceProjectDeployment?.version ?? target.version;
   await prisma.$transaction(async (tx) => {
     if (target.environment.activeProjectDeploymentId) {
       await tx.projectDeployment.update({
@@ -3417,11 +3445,11 @@ app.post("/api/deployments/:projectDeploymentId/rollback", async (request, reply
         action: "project_deployment.rolled_back",
         targetType: "project_deployment",
         targetId: target.id,
-        metadata: { version: target.version },
+        metadata: { version: targetVersion },
       },
     });
   });
-  return { ok: true, activeProjectDeploymentId: target.id, version: target.version };
+  return { ok: true, activeProjectDeploymentId: target.id, version: targetVersion };
 });
 
 app.get("/api/deployments", async (request, reply) => {
@@ -3468,7 +3496,8 @@ app.get("/api/deployments", async (request, reply) => {
   const page = rows.slice(0, query.limit);
   const items = page.map((deployment) => ({
     id: deployment.id,
-    version: deployment.version,
+    version:
+      deployment.sourceProjectDeployment?.version ?? deployment.version,
     status: deployment.status,
     checksum: deployment.checksum,
     environment: {

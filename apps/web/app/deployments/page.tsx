@@ -63,6 +63,14 @@ export default function DeploymentsPage() {
     () => items?.filter((item) => item.environment.slug === "production") ?? [],
     [items],
   );
+  const activeProductionSourceId = production.find(
+    (item) => item.status === "active",
+  )?.sourceProjectDeployment?.id;
+  const releasedDevelopmentIds = new Set(
+    production.flatMap((item) =>
+      item.sourceProjectDeployment ? [item.sourceProjectDeployment.id] : [],
+    ),
+  );
 
   async function deployDevelopment() {
     setBusy("deploy");
@@ -145,15 +153,21 @@ export default function DeploymentsPage() {
         <div className="grid gap-6 xl:grid-cols-2">
           <DeploymentLane
             title="Development"
-            description="Current project drafts are built here. A successful deployment is eligible for production release."
+            description="Current project drafts are built here. Only the active version can be selected for production release."
             items={development}
             action={(item) => (
               <div className="flex gap-2">
-                {["active", "rolled_back"].includes(item.status) && (
+                {item.status === "active" &&
+                activeProductionSourceId === item.id ? (
+                  <Badge tone="success">In sync</Badge>
+                ) : item.status === "active" &&
+                  releasedDevelopmentIds.has(item.id) ? (
+                  <Badge>Released</Badge>
+                ) : item.status === "active" ? (
                   <Button size="sm" variant="secondary" loading={busy === "release"} onClick={() => void release(item.id)}>
                     <Send size={13} /> Release
                   </Button>
-                )}
+                ) : null}
                 {item.status === "rolled_back" && (
                   <Button size="sm" variant="secondary" loading={busy === "rollback"} onClick={() => void rollback(item.id)}>Rollback</Button>
                 )}

@@ -251,6 +251,11 @@ assert.equal(
   deploy.body.id,
   "production release pins the completed development deployment",
 );
+assert.equal(
+  productionRelease.body.version,
+  deploy.body.version,
+  "production keeps the promoted development project version",
+);
 
 const mcpHeaders = {
   "content-type": "application/json",
