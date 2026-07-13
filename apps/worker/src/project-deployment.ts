@@ -75,12 +75,15 @@ export async function finalizeProjectDeployment(
     .update(canonicalJson(snapshot))
     .digest("hex");
   await prisma.$transaction(async (tx) => {
-    const previousId = projectDeployment.environment.activeProjectDeploymentId;
-    if (previousId && previousId !== projectDeploymentId)
-      await tx.projectDeployment.update({
-        where: { id: previousId },
-        data: { status: "rolled_back" },
-      });
+    await tx.projectDeployment.updateMany({
+      where: {
+        projectId: projectDeployment.projectId,
+        environmentId: projectDeployment.environmentId,
+        status: "active",
+        id: { not: projectDeploymentId },
+      },
+      data: { status: "rolled_back" },
+    });
     await tx.projectDeployment.update({
       where: { id: projectDeploymentId },
       data: {

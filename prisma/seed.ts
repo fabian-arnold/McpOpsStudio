@@ -244,6 +244,9 @@ async function main(): Promise<void> {
       variables: { CRM_API_URL: mockCrmUrl },
     },
   });
+  const preserveActiveDevelopmentDeployment = Boolean(
+    environment.activeProjectDeploymentId,
+  );
   const passwordHash = await hashPassword(
     process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!",
   );
@@ -650,7 +653,9 @@ async function main(): Promise<void> {
           data: {
             endpointId: configuration.endpoint.id,
             version: nextVersion,
-            status: item.status,
+            status: preserveActiveDevelopmentDeployment
+              ? "rolled_back"
+              : item.status,
             snapshot: snapshot as Prisma.InputJsonObject,
             runtimeConfig: {
               seedRelease: item.release,
@@ -681,28 +686,29 @@ async function main(): Promise<void> {
     const [rollbackDeployment, activeDeployment] = deployments;
     if (!rollbackDeployment || !activeDeployment)
       throw new Error("Seed deployments were not created");
-    await prisma.$transaction(async (tx) => {
-      await tx.deployment.updateMany({
-        where: {
-          endpointId: configuration.endpoint.id,
-          status: "active",
-          id: { not: activeDeployment.id },
-        },
-        data: { status: "rolled_back" },
+    if (!preserveActiveDevelopmentDeployment)
+      await prisma.$transaction(async (tx) => {
+        await tx.deployment.updateMany({
+          where: {
+            endpointId: configuration.endpoint.id,
+            status: "active",
+            id: { not: activeDeployment.id },
+          },
+          data: { status: "rolled_back" },
+        });
+        await tx.deployment.update({
+          where: { id: rollbackDeployment.id },
+          data: { status: "rolled_back" },
+        });
+        await tx.deployment.update({
+          where: { id: activeDeployment.id },
+          data: { status: "active" },
+        });
+        await tx.runtimeEndpoint.update({
+          where: { id: configuration.endpoint.id },
+          data: { activeDeploymentId: activeDeployment.id, status: "deployed" },
+        });
       });
-      await tx.deployment.update({
-        where: { id: rollbackDeployment.id },
-        data: { status: "rolled_back" },
-      });
-      await tx.deployment.update({
-        where: { id: activeDeployment.id },
-        data: { status: "active" },
-      });
-      await tx.runtimeEndpoint.update({
-        where: { id: configuration.endpoint.id },
-        data: { activeDeploymentId: activeDeployment.id, status: "deployed" },
-      });
-    });
   }
 
   const deploymentEndpoints = await prisma.runtimeEndpoint.findMany({
@@ -715,6 +721,7 @@ async function main(): Promise<void> {
     },
     orderBy: [{ kind: "asc" }, { slug: "asc" }],
   });
+  let seededActiveProjectDeploymentId: string | undefined;
   for (const version of [1, 2]) {
     const endpointDeployments = deploymentEndpoints.map((endpoint) => {
       const deployment = endpoint.deployments[version - 1];
@@ -753,13 +760,15 @@ async function main(): Promise<void> {
         projectId: project.id,
         environmentId: environment.id,
         version,
-        status: version === 2 ? "active" : "rolled_back",
+        status:
+          version === 2 && !preserveActiveDevelopmentDeployment
+            ? "active"
+            : "rolled_back",
         snapshot: snapshot as Prisma.InputJsonObject,
         checksum: hash(JSON.stringify(snapshot)),
         completedAt: new Date(),
       },
       update: {
-        status: version === 2 ? "active" : "rolled_back",
         snapshot: snapshot as Prisma.InputJsonObject,
         checksum: hash(JSON.stringify(snapshot)),
         completedAt: new Date(),
@@ -769,12 +778,27 @@ async function main(): Promise<void> {
       where: { id: { in: endpointDeployments.map(({ deployment }) => deployment.id) } },
       data: { projectDeploymentId: projectDeployment.id },
     });
-    if (version === 2)
-      await prisma.environment.update({
-        where: { id: environment.id },
-        data: { activeProjectDeploymentId: projectDeployment.id },
-      });
+    if (version === 2) {
+      seededActiveProjectDeploymentId = projectDeployment.id;
+      if (!preserveActiveDevelopmentDeployment)
+        await prisma.environment.update({
+          where: { id: environment.id },
+          data: { activeProjectDeploymentId: projectDeployment.id },
+        });
+    }
   }
+  const authoritativeActiveProjectDeploymentId =
+    environment.activeProjectDeploymentId ?? seededActiveProjectDeploymentId;
+  if (authoritativeActiveProjectDeploymentId)
+    await prisma.projectDeployment.updateMany({
+      where: {
+        projectId: project.id,
+        environmentId: environment.id,
+        status: "active",
+        id: { not: authoritativeActiveProjectDeploymentId },
+      },
+      data: { status: "rolled_back" },
+    });
 }
 
 main()

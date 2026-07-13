@@ -170,6 +170,17 @@ const deploy = await json(`${control}/deployments`, {
   body: "{}",
 });
 await waitForDeployment(deploy.body.id, cookie);
+const activeDevelopmentDeployments = await json(
+  `${control}/deployments?status=active&limit=100`,
+  { headers: { cookie } },
+);
+assert.equal(
+  activeDevelopmentDeployments.body.items.filter(
+    (item) => item.environment.slug === "development",
+  ).length,
+  1,
+  "development keeps exactly one active Project deployment",
+);
 
 const savedOnlyFunction = await ensureFunction({
   name: "e2e_saved_only",
