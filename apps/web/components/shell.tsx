@@ -15,6 +15,8 @@ import {
   LayoutDashboard,
   Library,
   FolderKanban,
+  KeyRound,
+  LockKeyhole,
   LogOut,
   Menu,
   Moon,
@@ -42,6 +44,8 @@ const projectNav = [
   { href: "/mcp-endpoints", label: "MCP Endpoints", icon: TerminalSquare },
   { href: "/http-apis", label: "HTTP APIs", icon: ServerCog },
   { href: "/libraries", label: "Libraries", icon: Library },
+  { href: "/auth-policies", label: "Authentication", icon: KeyRound },
+  { href: "/secrets", label: "Secrets", icon: LockKeyhole },
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/deployments", label: "Deployments", icon: Boxes },
 ];

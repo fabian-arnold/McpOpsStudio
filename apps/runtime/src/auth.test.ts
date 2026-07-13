@@ -7,6 +7,7 @@ import {
   webhookSignaturePolicyConfigSchema,
 } from "@mcpops/shared";
 import {
+  authenticateWithPolicies,
   assertWebhookEndpoint,
   authorizeEndpointAccess,
   identityFromPolicy,
@@ -17,6 +18,87 @@ import {
   verifyStaticCredential,
   verifyWebhookRequest,
 } from "./auth.js";
+import type { LoadedEndpoint } from "./domain.js";
+
+const endpoint = {
+  id: "endpoint-1",
+  name: "Endpoint",
+  slug: "endpoint",
+  kind: "http",
+  project: { id: "project-1", name: "Project", slug: "project" },
+  environment: { id: "environment-1", name: "Development", slug: "development" },
+  deployment: { id: "deployment-1", version: 1, checksum: "checksum" },
+  snapshot: {
+    functions: [],
+    functionCalls: [],
+    mcpBindings: [],
+    httpBindings: [],
+    authPolicies: [],
+    endpointAccessPolicy: { mode: "authenticated", allowedSubjects: [] },
+    networkPolicy: {
+      allowedHosts: [],
+      allowedMethods: ["GET"],
+      allowedPorts: [443],
+      maxResponseBytes: 1_048_576,
+      allowPrivateHosts: [],
+    },
+    env: {},
+    libraries: [],
+    capabilities: { reviewedDatabaseQueries: { enabled: false } },
+    reviewedQueries: [],
+  },
+} satisfies LoadedEndpoint;
+
+describe("ordered endpoint authentication", () => {
+  it("tries policies serially until one authenticates", async () => {
+    const request = { id: "request-1", headers: {} };
+    await expect(
+      authenticateWithPolicies(
+        request as never,
+        endpoint,
+        [
+          { id: "api-key", type: "api_key", config: { header: "x-api-key" } },
+          { id: "public", type: "public", config: { permissions: ["read"] } },
+        ],
+        Buffer.alloc(32),
+        { endpoint: "http" },
+      ),
+    ).resolves.toMatchObject({
+      permissions: ["read"],
+      claims: { authenticationPolicyId: "public" },
+    });
+  });
+
+  it("returns the final authentication failure when none match", async () => {
+    await expect(
+      authenticateWithPolicies(
+        { id: "request-2", headers: {} } as never,
+        endpoint,
+        [
+          { id: "first", type: "api_key", config: { header: "x-first" } },
+          { id: "second", type: "api_key", config: { header: "x-second" } },
+        ],
+        Buffer.alloc(32),
+        { endpoint: "http" },
+      ),
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  it("does not bypass a selected policy configuration failure", async () => {
+    await expect(
+      authenticateWithPolicies(
+        { id: "request-3", headers: { "x-api-key": "supplied" } } as never,
+        endpoint,
+        [
+          { id: "broken", type: "api_key", config: { header: "x-api-key" } },
+          { id: "public", type: "public", config: {} },
+        ],
+        Buffer.alloc(32),
+        { endpoint: "http" },
+      ),
+    ).rejects.toMatchObject({ code: "CONFIGURATION_ERROR" });
+  });
+});
 
 describe("static endpoint credentials", () => {
   it("accepts only an exact API key", () => {

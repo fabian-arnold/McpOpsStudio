@@ -119,6 +119,10 @@ export async function buildDeployment(
           mcpToolBindings: true,
           httpRouteBindings: true,
           defaultAuthPolicy: true,
+          authPolicyAssignments: {
+            include: { authPolicy: true },
+            orderBy: { position: "asc" },
+          },
           networkPolicy: true,
         },
       },
@@ -194,7 +198,7 @@ export async function buildDeployment(
   let activated = false;
   try {
     const requiredPolicyIds = collectRequiredAuthPolicyIds(
-      endpoint.defaultAuthPolicyId,
+      endpoint.authPolicyAssignments.map((item) => item.authPolicyId),
       endpoint.mcpToolBindings,
       endpoint.httpRouteBindings,
     );
@@ -407,8 +411,8 @@ export async function buildDeployment(
         code: library.code,
       })),
       authPolicies,
-      ...(endpoint.defaultAuthPolicyId
-        ? { defaultAuthPolicyId: endpoint.defaultAuthPolicyId }
+      ...(requiredPolicyIds[0]
+        ? { defaultAuthPolicyId: requiredPolicyIds[0] }
         : {}),
       capabilities: {
         reviewedDatabaseQueries: { enabled: reviewedQueryFeatureEnabled },
@@ -812,20 +816,18 @@ export function snapshotReviewedQueries(
 }
 
 export function collectRequiredAuthPolicyIds(
-  defaultPolicyId: string | null,
+  assignedPolicyIds: readonly string[],
   mcpBindings: Array<{ enabled: boolean }>,
   httpBindings: Array<{ enabled: boolean }>,
 ): string[] {
   const enabledMcp = mcpBindings.some((binding) => binding.enabled);
   const enabledRoutes = httpBindings.some((binding) => binding.enabled);
   const needsDefault = enabledMcp || enabledRoutes;
-  if (needsDefault && !defaultPolicyId)
+  if (needsDefault && !assignedPolicyIds.length)
     throw new Error(
-      "An enabled MCP binding or HTTP route requires a default authentication policy",
+      "An enabled MCP binding or HTTP route requires an authentication policy",
     );
-  const ids = new Set<string>();
-  if (defaultPolicyId) ids.add(defaultPolicyId);
-  return [...ids].sort();
+  return [...new Set(assignedPolicyIds)];
 }
 export function snapshotReferencedAuthPolicies(
   projectId: string,

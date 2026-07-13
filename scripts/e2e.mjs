@@ -135,7 +135,79 @@ else
       body: "{}",
     },
   );
-assert.equal(publicPolicy.type, "public", "explicit public authentication can be selected");
+assert.equal(publicPolicy.type, "public", "multiple endpoint authentication policies can be assigned");
+
+const removablePolicy = (
+  await json(`${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies`, {
+    method: "POST",
+    headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+    body: JSON.stringify({
+      name: `E2E removable authentication ${Date.now()}`,
+      type: "public",
+      config: { permissions: ["customers.read"] },
+    }),
+  })
+).body;
+let authenticationDetail = (
+  await json(`${control}/runtime-endpoints/${httpEndpoint.id}`, {
+    headers: { cookie },
+  })
+).body;
+const reorderedPolicyIds = [
+  removablePolicy.id,
+  ...authenticationDetail.assignedAuthPolicies
+    .map((policy) => policy.id)
+    .filter((policyId) => policyId !== removablePolicy.id),
+];
+await json(
+  `${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies/order`,
+  {
+    method: "PUT",
+    headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+    body: JSON.stringify({ policyIds: reorderedPolicyIds }),
+  },
+);
+authenticationDetail = (
+  await json(`${control}/runtime-endpoints/${httpEndpoint.id}`, {
+    headers: { cookie },
+  })
+).body;
+assert.equal(
+  authenticationDetail.assignedAuthPolicies[0].id,
+  removablePolicy.id,
+  "endpoint authentication policies can be reordered",
+);
+const removalResponse = await fetch(
+  `${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies/${removablePolicy.id}`,
+  {
+    method: "DELETE",
+    headers: { cookie, "x-csrf-token": csrf },
+  },
+);
+assert.equal(removalResponse.status, 204, "policy removal returns no content");
+authenticationDetail = (
+  await json(`${control}/runtime-endpoints/${httpEndpoint.id}`, {
+    headers: { cookie },
+  })
+).body;
+assert.ok(
+  !authenticationDetail.assignedAuthPolicies.some(
+    (policy) => policy.id === removablePolicy.id,
+  ),
+  "endpoint authentication policies can be removed",
+);
+const projectPolicyRemovalResponse = await fetch(
+  `${control}/auth-policies/${removablePolicy.id}`,
+  {
+    method: "DELETE",
+    headers: { cookie, "x-csrf-token": csrf },
+  },
+);
+assert.equal(
+  projectPolicyRemovalResponse.status,
+  204,
+  "an unassigned project authentication policy can be deleted",
+);
 
 const functions = await json(`${control}/functions`, { headers: { cookie } });
 const searchCustomers = functions.body.find(

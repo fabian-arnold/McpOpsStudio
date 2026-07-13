@@ -79,6 +79,11 @@ export async function authenticate(
     ).toLowerCase();
     const supplied = request.headers[header];
     const scheme = String(policy.config.scheme ?? "Bearer");
+    if (
+      typeof supplied !== "string" ||
+      !supplied.startsWith(`${scheme} `)
+    )
+      deny(requestId);
     const expected = await policySecret(
       endpoint,
       String(policy.config.secretRef ?? ""),
@@ -86,7 +91,6 @@ export async function authenticate(
       requestId,
     );
     if (
-      typeof supplied !== "string" ||
       !verifyStaticCredential(supplied, `${scheme} ${expected}`)
     )
       deny(requestId);
@@ -98,15 +102,20 @@ export async function authenticate(
     ).toLowerCase();
     const supplied = request.headers[header];
     const username = String(policy.config.username ?? "");
+    if (
+      typeof supplied !== "string" ||
+      !supplied.startsWith("Basic ") ||
+      !username
+    )
+      deny(requestId);
     const expectedPassword = await policySecret(
       endpoint,
       String(policy.config.secretRef ?? ""),
       masterKey,
       requestId,
     );
-    if (typeof supplied !== "string" || !username) deny(requestId);
     if (
-      !verifyBasicAuthorization(supplied as string, username, expectedPassword)
+      !verifyBasicAuthorization(supplied, username, expectedPassword)
     )
       deny(requestId);
     return identityFromPolicy(policy, `basic:${username}`);
@@ -178,6 +187,33 @@ export async function authenticate(
     message: `${policy.type} authentication is configured but not enabled in this deployment.`,
     requestId,
   });
+}
+
+export async function authenticateWithPolicies(
+  request: FastifyRequest,
+  endpoint: LoadedEndpoint,
+  policies: readonly AuthPolicy[],
+  masterKey: Buffer,
+  options: AuthenticationOptions,
+): Promise<CallerIdentity> {
+  let lastAuthenticationError: SafeRuntimeError | undefined;
+  for (const policy of policies) {
+    try {
+      return await authenticate(request, endpoint, policy, masterKey, options);
+    } catch (error) {
+      if (!(error instanceof SafeRuntimeError) || error.code !== "UNAUTHENTICATED")
+        throw error;
+      lastAuthenticationError = error;
+    }
+  }
+  throw (
+    lastAuthenticationError ??
+    new SafeRuntimeError({
+      code: "UNAUTHENTICATED",
+      message: "This endpoint has no active authentication policy.",
+      requestId: request.id,
+    })
+  );
 }
 export function identityFromPolicy(
   policy: AuthPolicy,

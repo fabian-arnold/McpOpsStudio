@@ -163,19 +163,26 @@ describe("declarative deployment policy validation", () => {
       }),
     ).not.toThrow();
   });
-  it("uses one endpoint authentication policy for all bindings", () => {
+  it("preserves the ordered endpoint authentication chain for all bindings", () => {
     const ids = collectRequiredAuthPolicyIds(
-      "default",
+      ["secondary", "default"],
       [{ enabled: true }],
       [{ enabled: true }, { enabled: true }, { enabled: false }],
     );
-    expect(ids).toEqual(["default"]);
+    expect(ids).toEqual(["secondary", "default"]);
     const config = {
       header: "x-api-key",
       secretRef: "CLIENT_KEY",
       permissions: [],
     };
     const snapshot = snapshotReferencedAuthPolicies("org", ids, [
+      {
+        id: "secondary",
+        projectId: "org",
+        name: "Secondary",
+        type: "api_key",
+        config,
+      },
       {
         id: "default",
         projectId: "org",
@@ -184,14 +191,14 @@ describe("declarative deployment policy validation", () => {
         config,
       },
     ]);
-    expect(snapshot.map((policy) => policy.id)).toEqual(["default"]);
+    expect(snapshot.map((policy) => policy.id)).toEqual(["secondary", "default"]);
     expect(snapshot[0]?.config).not.toBe(config);
     expect(() =>
       snapshotReferencedAuthPolicies("org", ids, []),
     ).toThrow(/missing or outside/);
     expect(() =>
-      collectRequiredAuthPolicyIds(null, [{ enabled: true }], []),
-    ).toThrow(/default authentication/);
+      collectRequiredAuthPolicyIds([], [{ enabled: true }], []),
+    ).toThrow(/authentication policy/);
     expect(() => validateAuthSecretReferences(["CLIENT_KEY"], [])).toThrow(
       /endpoint environment/,
     );

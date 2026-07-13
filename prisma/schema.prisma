@@ -191,6 +191,7 @@ model RuntimeEndpoint {
   environment         Environment           @relation(fields: [environmentId], references: [id], onDelete: Restrict)
   activeDeployment    Deployment?           @relation("ActiveDeployment", fields: [activeDeploymentId], references: [id], onDelete: SetNull)
   defaultAuthPolicy   AuthPolicy?           @relation("EndpointDefaultAuthPolicy", fields: [defaultAuthPolicyId], references: [id], onDelete: SetNull)
+  authPolicyAssignments EndpointAuthPolicy[]
   mcpToolBindings     McpToolBinding[]
   httpRouteBindings   HttpRouteBinding[]
   networkPolicy       NetworkPolicy?
@@ -445,9 +446,26 @@ model AuthPolicy {
   updatedAt        DateTime          @updatedAt
   project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   defaultEndpoints RuntimeEndpoint[] @relation("EndpointDefaultAuthPolicy")
+  endpointAssignments EndpointAuthPolicy[]
 
   @@unique([projectId, name])
   @@map("auth_policies")
+}
+
+model EndpointAuthPolicy {
+  id           String          @id @default(uuid()) @db.Uuid
+  endpointId   String          @db.Uuid
+  authPolicyId String          @db.Uuid
+  position     Int
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  endpoint     RuntimeEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  authPolicy   AuthPolicy      @relation(fields: [authPolicyId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, authPolicyId])
+  @@index([endpointId, position])
+  @@index([authPolicyId])
+  @@map("endpoint_auth_policies")
 }
 
 model NetworkPolicy {

@@ -371,7 +371,21 @@ async function main(): Promise<void> {
     });
   const mcpEndpoint = await upsertEndpoint("mcp");
   const httpEndpoint = await upsertEndpoint("http");
-  for (const endpoint of [mcpEndpoint, httpEndpoint])
+  for (const endpoint of [mcpEndpoint, httpEndpoint]) {
+    await prisma.endpointAuthPolicy.upsert({
+      where: {
+        endpointId_authPolicyId: {
+          endpointId: endpoint.id,
+          authPolicyId: authPolicy.id,
+        },
+      },
+      create: {
+        endpointId: endpoint.id,
+        authPolicyId: authPolicy.id,
+        position: 0,
+      },
+      update: {},
+    });
     await prisma.networkPolicy.upsert({
       where: { endpointId: endpoint.id },
       create: {
@@ -391,6 +405,7 @@ async function main(): Promise<void> {
         maxResponseBytes: 1048576,
       },
     });
+  }
   await prisma.storageNamespace.upsert({
     where: {
       projectId_environmentId_name: {

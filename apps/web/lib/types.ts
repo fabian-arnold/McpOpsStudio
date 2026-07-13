@@ -184,6 +184,16 @@ export type RuntimeEndpointDetail = RuntimeEndpoint & {
     enabled?: boolean;
     providerStatus?: string;
   }[];
+  assignedAuthPolicies: {
+    id: string;
+    name: string;
+    type: string;
+    status?: string;
+    config?: Record<string, unknown>;
+    enabled?: boolean;
+    providerStatus?: string;
+    position: number;
+  }[];
   secrets: {
     id: string;
     name: string;

@@ -67,6 +67,10 @@ export const projectRepository = (projectId: string) => ({
         project: { include: { environments: true } },
         environment: true,
         defaultAuthPolicy: true,
+        authPolicyAssignments: {
+          include: { authPolicy: true },
+          orderBy: { position: "asc" },
+        },
         mcpToolBindings: { select: { functionId: true } },
         httpRouteBindings: { select: { functionId: true } },
         _count: { select: { mcpToolBindings: true, httpRouteBindings: true } },
@@ -82,6 +86,10 @@ export const projectRepository = (projectId: string) => ({
         environment: true,
         activeDeployment: true,
         defaultAuthPolicy: true,
+        authPolicyAssignments: {
+          include: { authPolicy: true },
+          orderBy: { position: "asc" },
+        },
         mcpToolBindings: true,
         httpRouteBindings: true,
         networkPolicy: true,

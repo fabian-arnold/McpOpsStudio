@@ -26,9 +26,8 @@ import {
   type CallerIdentity,
 } from "@mcpops/runtime-sdk";
 import { verifyApiKey } from "@mcpops/shared";
-import { authenticate, authorizeEndpointAccess } from "./auth.js";
+import { authenticateWithPolicies, authorizeEndpointAccess } from "./auth.js";
 import type {
-  AuthPolicy,
   HttpBinding,
   LoadedEndpoint,
   SnapshotFunction,
@@ -399,12 +398,15 @@ export async function buildRuntimeApp(
       reply,
     );
     if (!endpoint) return;
-    const policy = findPolicy(endpoint, endpoint.snapshot.defaultAuthPolicyId);
     let caller: CallerIdentity;
     try {
-      caller = await authenticate(request, endpoint, policy, options.masterKey, {
-        endpoint: "mcp",
-      });
+      caller = await authenticateWithPolicies(
+        request,
+        endpoint,
+        endpoint.snapshot.authPolicies,
+        options.masterKey,
+        { endpoint: "mcp" },
+      );
     } catch (error) {
       await auditAuthDenial(endpoint, request.id);
       return sendError(reply, asSafeRuntimeError(error, request.id));
@@ -563,18 +565,23 @@ export async function buildRuntimeApp(
             requestId: request.id,
           },
         });
-    const policy = findPolicy(endpoint, endpoint.snapshot.defaultAuthPolicyId);
     let caller: CallerIdentity;
     try {
-      caller = await authenticate(request, endpoint, policy, options.masterKey, {
-        endpoint: "http",
-        ...(rawBodies.get(request.raw)
-          ? { rawBody: rawBodies.get(request.raw) as Buffer }
-          : {}),
-        replayStore: {
-          claim: (key, ttlSeconds) => invoker.claimReplay(key, ttlSeconds),
+      caller = await authenticateWithPolicies(
+        request,
+        endpoint,
+        endpoint.snapshot.authPolicies,
+        options.masterKey,
+        {
+          endpoint: "http",
+          ...(rawBodies.get(request.raw)
+            ? { rawBody: rawBodies.get(request.raw) as Buffer }
+            : {}),
+          replayStore: {
+            claim: (key, ttlSeconds) => invoker.claimReplay(key, ttlSeconds),
+          },
         },
-      });
+      );
     } catch (error) {
       await auditAuthDenial(endpoint, request.id);
       return sendError(reply, asSafeRuntimeError(error, request.id));
@@ -694,14 +701,6 @@ function runtimeRequestHost(request: FastifyRequest): string | undefined {
   return typeof forwarded === "string"
     ? forwarded.split(",", 1)[0]?.trim()
     : request.headers.host;
-}
-function findPolicy(
-  endpoint: LoadedEndpoint,
-  id: string | null | undefined,
-): AuthPolicy | undefined {
-  return id
-    ? endpoint.snapshot.authPolicies.find((policy) => policy.id === id)
-    : endpoint.snapshot.authPolicies[0];
 }
 function findFunction(
   endpoint: LoadedEndpoint,
