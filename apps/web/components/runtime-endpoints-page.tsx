@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  Copy,
   Power,
   Search,
   ServerCog,
-  TerminalSquare,
 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {
@@ -20,13 +18,13 @@ import {
   LoadError,
   Dialog,
   StatusDot,
-  UnavailableValue,
 } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import type { EnvironmentSummary, RuntimeEndpoint } from "@/lib/types";
 import { useToast } from "@/components/providers";
 import { EndpointCreateDialog } from "@/components/endpoint-create-dialog";
 import { roleAllows, useCurrentUser } from "@/lib/session";
+import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls";
 
 export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
   const label = kind === "mcp" ? "MCP Endpoints" : "HTTP APIs";
@@ -38,7 +36,6 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
   const [query, setQuery] = useState("");
   const [environmentId, setEnvironmentId] = useState("");
   const [environments, setEnvironments] = useState<EnvironmentSummary[]>([]);
-  const toast = useToast();
   const user = useCurrentUser();
   const load = useCallback(() => {
     setEndpoints(undefined);
@@ -64,11 +61,6 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
       ),
     [query, endpoints],
   );
-  function copy(value: string) {
-    navigator.clipboard
-      .writeText(value)
-      .then(() => toast({ title: "Copied to clipboard", tone: "success" }));
-  }
   return (
     <AppShell>
       <PageHeader
@@ -198,35 +190,11 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
                       </div>
                     </div>
                     <div className="mt-4 space-y-2">
-                      <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-2">
-                        <TerminalSquare
-                          size={13}
-                          className="text-muted-foreground"
-                        />
-                        <code className="min-w-0 flex-1 truncate text-[10px]">
-                          {(kind === "mcp"
-                            ? endpoint.endpoints?.mcpUrl
-                            : endpoint.endpoints?.httpBaseUrl) ?? (
-                            <UnavailableValue label="Endpoint not reported" />
-                          )}
-                        </code>
-                        {(kind === "mcp"
-                          ? endpoint.endpoints?.mcpUrl
-                          : endpoint.endpoints?.httpBaseUrl) && (
-                          <button
-                            onClick={() =>
-                              copy(
-                                (kind === "mcp"
-                                  ? endpoint.endpoints?.mcpUrl
-                                  : endpoint.endpoints?.httpBaseUrl)!,
-                              )
-                            }
-                            aria-label={`Copy ${endpoint.name} endpoint`}
-                          >
-                            <Copy size={12} className="text-muted-foreground" />
-                          </button>
-                        )}
-                      </div>
+                      <EnvironmentEndpointUrls
+                        kind={kind}
+                        urls={endpoint.environmentEndpoints}
+                        fallback={endpoint.endpoints}
+                      />
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-muted-foreground">
                           {endpoint.environment.name} · {endpoint.authMode}

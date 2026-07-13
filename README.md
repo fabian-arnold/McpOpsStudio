@@ -102,7 +102,7 @@ docker compose -f infra/docker-compose.yml up --build
 Initialize:
 
 ```bash
-curl -X POST http://localhost:8080/mcp/acme/customer-operations \
+curl -X POST http://localhost:8080/mcp-dev/acme/customer-operations \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "x-api-key: dev-acme-mcp-key" \
@@ -112,12 +112,12 @@ curl -X POST http://localhost:8080/mcp/acme/customer-operations \
 List tools and call `search_customers`:
 
 ```bash
-curl -X POST http://localhost:8080/mcp/acme/customer-operations \
+curl -X POST http://localhost:8080/mcp-dev/acme/customer-operations \
   -H "Content-Type: application/json" \
   -H "x-api-key: dev-acme-mcp-key" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 
-curl -X POST http://localhost:8080/mcp/acme/customer-operations \
+curl -X POST http://localhost:8080/mcp-dev/acme/customer-operations \
   -H "Content-Type: application/json" \
   -H "x-api-key: dev-acme-mcp-key" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_customers","arguments":{"query":"ada","limit":10}}}'
@@ -126,7 +126,7 @@ curl -X POST http://localhost:8080/mcp/acme/customer-operations \
 ## Try the seeded HTTP API
 
 ```bash
-curl "http://localhost:8080/http/acme/customer-operations/v1/customers/search?query=ada&limit=10" \
+curl "http://localhost:8080/http-dev/acme/customer-operations/v1/customers/search?query=ada&limit=10" \
   -H "x-api-key: dev-acme-mcp-key"
 ```
 

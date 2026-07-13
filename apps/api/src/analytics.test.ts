@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEndpointUrls, hourlyTraffic, policySummary, summarizeDeployments, summarizeExecutions } from "./analytics.js";
+import { canonicalEndpointUrls, canonicalEnvironmentEndpointUrls, hourlyTraffic, policySummary, summarizeDeployments, summarizeExecutions } from "./analytics.js";
 
 const now = new Date("2026-07-10T12:30:00.000Z");
 
@@ -30,6 +30,30 @@ describe("control-plane analytics", () => {
       httpBaseUrl: "https://runtime.example.test/http/acme%20eu/customer-ops",
     });
     expect(() => canonicalEndpointUrls("javascript:alert(1)", "acme", "service")).toThrow(/HTTP/);
+  });
+
+  it("derives URLs for every configured environment", () => {
+    expect(
+      canonicalEnvironmentEndpointUrls(
+        [
+          { slug: "development", baseUrl: "http://localhost:8080" },
+          { slug: "production", baseUrl: "https://prod.example.test/" },
+        ],
+        "acme",
+        "customer-ops",
+      ),
+    ).toEqual({
+      development: {
+        runtimeBaseUrl: "http://localhost:8080",
+        mcpUrl: "http://localhost:8080/mcp-dev/acme/customer-ops",
+        httpBaseUrl: "http://localhost:8080/http-dev/acme/customer-ops",
+      },
+      production: {
+        runtimeBaseUrl: "https://prod.example.test",
+        mcpUrl: "https://prod.example.test/mcp/acme/customer-ops",
+        httpBaseUrl: "https://prod.example.test/http/acme/customer-ops",
+      },
+    });
   });
 
   it("derives auth posture only from immutable snapshot policy data when present", () => {

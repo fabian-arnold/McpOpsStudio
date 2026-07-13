@@ -129,6 +129,9 @@ The endpoint is:
 POST /mcp/{projectSlug}/{endpointSlug}
 ```
 
+Production uses `/mcp`; development uses the isolated
+`/mcp-dev/{projectSlug}/{endpointSlug}` path.
+
 The implementation is stateless and validates protocol requests with the official TypeScript MCP SDK schemas. Version 1 advertises tools only.
 
 `tools/list` returns enabled bindings from the active snapshot. `tools/call` validates the bound function's input before execution and returns safe structured content.
@@ -140,6 +143,9 @@ The endpoint prefix is:
 ```text
 /http/{projectSlug}/{endpointSlug}
 ```
+
+Production uses `/http`; development uses the isolated
+`/http-dev/{projectSlug}/{endpointSlug}` path.
 
 Routes support GET, POST, PUT, PATCH and DELETE with simple `:parameter` segments. Input mappings may reference path, query, headers and body. Without a mapping, these sources are merged into the function input.
 

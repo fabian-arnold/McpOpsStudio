@@ -262,7 +262,7 @@ const mcpHeaders = {
   accept: "application/json, text/event-stream",
   "x-api-key": apiKey,
 };
-const tools = await json(`${runtime}/mcp/acme/customer-operations`, {
+const tools = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({
@@ -326,7 +326,7 @@ assert.equal(
   "v2",
   "production executes the released Function version",
 );
-const call = await json(`${runtime}/mcp/acme/customer-operations`, {
+const call = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({
@@ -347,7 +347,7 @@ assert.equal(
 );
 
 const route = await json(
-  `${runtime}/http/acme/customer-operations/v1/customers/search?query=ada&limit=10`,
+  `${runtime}/http-dev/acme/customer-operations/v1/customers/search?query=ada&limit=10`,
   {},
 );
 assert.ok(
@@ -361,9 +361,9 @@ assert.equal(
 );
 
 const customerId = `e2e-${Date.now()}`;
-const noteUrl = `${runtime}/http/acme/customer-operations/v1/customers/${customerId}/note`;
+const noteUrl = `${runtime}/http-dev/acme/customer-operations/v1/customers/${customerId}/note`;
 const noteHeaders = { "content-type": "application/json", "x-api-key": apiKey };
-await json(`${runtime}/mcp/acme/customer-operations`, {
+await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({
@@ -427,7 +427,7 @@ await json(`${control}/deployments/${versionOne.id}/rollback`, {
   headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
   body: "{}",
 });
-const rolledBack = await json(`${runtime}/mcp/acme/customer-operations`, {
+const rolledBack = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({
@@ -670,7 +670,7 @@ const composedDeployment = await json(
   },
 );
 await waitForDeployment(composedDeployment.body.id, cookie);
-const composedCall = await json(`${runtime}/mcp/acme/customer-operations`, {
+const composedCall = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({

@@ -40,7 +40,9 @@ describe("runtime contracts", () => {
   });
   it("limits private proxy authentication to public invocation paths", () => {
     expect(isPublicRuntimePath("/mcp/acme/customer-operations")).toBe(true);
+    expect(isPublicRuntimePath("/mcp-dev/acme/customer-operations")).toBe(true);
     expect(isPublicRuntimePath("/http/acme/customer-operations/v1/search")).toBe(true);
+    expect(isPublicRuntimePath("/http-dev/acme/customer-operations/v1/search")).toBe(true);
     expect(isPublicRuntimePath("/health")).toBe(false);
     expect(isPublicRuntimePath("/internal/capabilities")).toBe(false);
   });

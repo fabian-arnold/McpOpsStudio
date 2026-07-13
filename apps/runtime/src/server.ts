@@ -381,16 +381,20 @@ export async function buildRuntimeApp(
     },
   );
 
-  app.post<{
+  const handleMcp = async (
+    request: FastifyRequest<{
     Params: { projectSlug: string; endpointSlug: string };
     Body: unknown;
-  }>("/mcp/:projectSlug/:endpointSlug", async (request, reply) => {
+    }>,
+    reply: FastifyReply,
+    environmentSlug: "development" | "production",
+  ) => {
     const endpoint = await resolveEndpoint(
       request.params.projectSlug,
       request.params.endpointSlug,
       "mcp",
       runtimeRequestHost(request),
-      runtimeEnvironmentSlug(request),
+      environmentSlug,
       request.id,
       reply,
     );
@@ -519,18 +523,30 @@ export async function buildRuntimeApp(
     return reply.send(
       jsonRpcError(rpc.id ?? null, -32601, "Method not found", request.id),
     );
-  });
+  };
+  app.post<{ Params: { projectSlug: string; endpointSlug: string }; Body: unknown }>(
+    "/mcp/:projectSlug/:endpointSlug",
+    (request, reply) => handleMcp(request, reply, "production"),
+  );
+  app.post<{ Params: { projectSlug: string; endpointSlug: string }; Body: unknown }>(
+    "/mcp-dev/:projectSlug/:endpointSlug",
+    (request, reply) => handleMcp(request, reply, "development"),
+  );
 
-  app.all<{
+  const handleHttp = async (
+    request: FastifyRequest<{
     Params: { projectSlug: string; endpointSlug: string; "*": string };
     Body: unknown;
-  }>("/http/:projectSlug/:endpointSlug/*", async (request, reply) => {
+    }>,
+    reply: FastifyReply,
+    environmentSlug: "development" | "production",
+  ) => {
     const endpoint = await resolveEndpoint(
       request.params.projectSlug,
       request.params.endpointSlug,
       "http",
       runtimeRequestHost(request),
-      runtimeEnvironmentSlug(request),
+      environmentSlug,
       request.id,
       reply,
     );
@@ -601,7 +617,15 @@ export async function buildRuntimeApp(
     for (const [name, value] of Object.entries(mapped.headers))
       reply.header(name, value);
     return reply.code(mapped.statusCode).send(mapped.body);
-  });
+  };
+  app.all<{ Params: { projectSlug: string; endpointSlug: string; "*": string }; Body: unknown }>(
+    "/http/:projectSlug/:endpointSlug/*",
+    (request, reply) => handleHttp(request, reply, "production"),
+  );
+  app.all<{ Params: { projectSlug: string; endpointSlug: string; "*": string }; Body: unknown }>(
+    "/http-dev/:projectSlug/:endpointSlug/*",
+    (request, reply) => handleHttp(request, reply, "development"),
+  );
 
   app.setErrorHandler((error, request, reply) => {
     const caught =
@@ -670,12 +694,6 @@ function runtimeRequestHost(request: FastifyRequest): string | undefined {
   return typeof forwarded === "string"
     ? forwarded.split(",", 1)[0]?.trim()
     : request.headers.host;
-}
-function runtimeEnvironmentSlug(request: FastifyRequest): string | undefined {
-  const value = request.headers["x-mcpops-environment"];
-  return typeof value === "string" && ["development", "production"].includes(value)
-    ? value
-    : undefined;
 }
 function findPolicy(
   endpoint: LoadedEndpoint,
@@ -1004,5 +1022,7 @@ export function normalizeTestSource(
 }
 
 export function isPublicRuntimePath(path: string): boolean {
-  return path.startsWith("/mcp/") || path.startsWith("/http/");
+  return ["/mcp/", "/mcp-dev/", "/http/", "/http-dev/"].some((prefix) =>
+    path.startsWith(prefix),
+  );
 }

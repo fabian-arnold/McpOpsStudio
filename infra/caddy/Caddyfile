@@ -20,7 +20,27 @@
 		}
 	}
 
+	handle /mcp-dev/* {
+		reverse_proxy {
+			header_up x-internal-token {$INTERNAL_API_TOKEN}
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
 	handle /http/* {
+		reverse_proxy {
+			header_up x-internal-token {$INTERNAL_API_TOKEN}
+			dynamic a worker 8080 {
+				refresh 5s
+				versions ipv4
+			}
+		}
+	}
+
+	handle /http-dev/* {
 		reverse_proxy {
 			header_up x-internal-token {$INTERNAL_API_TOKEN}
 			dynamic a worker 8080 {

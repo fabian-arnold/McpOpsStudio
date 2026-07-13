@@ -30,6 +30,7 @@ import {
 import { api, errorMessage } from "@/lib/api";
 import type { Dashboard } from "@/lib/types";
 import { EndpointCreateDialog } from "@/components/endpoint-create-dialog";
+import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls";
 
 const fmt = new Intl.NumberFormat("en", { notation: "compact" });
 function timeAgo(value: string) {
@@ -284,12 +285,11 @@ export default function DashboardPage() {
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between gap-3 text-xs">
-                  <span className="text-muted-foreground">MCP endpoint</span>
-                  <span className="min-w-0 truncate font-mono text-[10px]">
-                    {deployment.endpoints?.mcpUrl ?? <UnavailableValue />}
-                  </span>
-                </div>
+                <EnvironmentEndpointUrls
+                  kind={deployment.endpoint.kind}
+                  urls={deployment.environmentEndpoints}
+                  fallback={deployment.endpoints}
+                />
               </div>
               <Link
                 href="/deployments"

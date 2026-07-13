@@ -66,6 +66,7 @@ import {
 } from "./repository.js";
 import {
   canonicalEndpointUrls,
+  canonicalEnvironmentEndpointUrls,
   hourlyTraffic,
   policySummary,
   summarizeDeployments,
@@ -440,7 +441,10 @@ app.post("/api/projects", async (request, reply) => {
           projectId: created.id,
           name: "Development",
           slug: "development",
-          baseUrl: process.env.RUNTIME_PUBLIC_URL ?? "http://localhost:8080",
+          baseUrl:
+            process.env.PUBLIC_RUNTIME_URL ??
+            process.env.RUNTIME_PUBLIC_URL ??
+            "http://localhost:8080",
         },
         {
           projectId: created.id,
@@ -448,7 +452,9 @@ app.post("/api/projects", async (request, reply) => {
           slug: "production",
           baseUrl:
             process.env.PRODUCTION_RUNTIME_PUBLIC_URL ??
-            "http://prod.localhost:8080",
+            process.env.PUBLIC_RUNTIME_URL ??
+            process.env.RUNTIME_PUBLIC_URL ??
+            "http://localhost:8080",
         },
       ],
     });
@@ -924,7 +930,14 @@ app.get("/api/dashboard", async (request) => {
     }),
     prisma.deployment.findMany({
       where: { endpoint: { projectId }, status: "active" },
-      include: { endpoint: { include: { project: true, environment: true } } },
+      include: {
+        endpoint: {
+          include: {
+            project: { include: { environments: true } },
+            environment: true,
+          },
+        },
+      },
       take: 10,
       orderBy: { completedAt: "desc" },
     }),
@@ -982,6 +995,12 @@ app.get("/api/dashboard", async (request) => {
     },
     endpoints: canonicalEndpointUrls(
       deployment.endpoint.environment.baseUrl,
+      deployment.endpoint.project.slug,
+      deployment.endpoint.slug,
+      deployment.endpoint.environment.slug === "development" ? "-dev" : "",
+    ),
+    environmentEndpoints: canonicalEnvironmentEndpointUrls(
+      deployment.endpoint.project.environments,
       deployment.endpoint.project.slug,
       deployment.endpoint.slug,
     ),
@@ -1111,7 +1130,7 @@ app.post("/api/runtime-endpoints", async (request, reply) => {
         runtimeVersion: "1.0.0",
       },
       include: {
-        project: true,
+        project: { include: { environments: true } },
         environment: true,
         defaultAuthPolicy: true,
         activeDeployment: true,
@@ -3991,7 +4010,10 @@ type EndpointViewRow = {
   status: string;
   createdAt: Date;
   updatedAt: Date;
-  project: { slug: string };
+  project: {
+    slug: string;
+    environments: Array<{ slug: string; baseUrl: string }>;
+  };
   environment: { id: string; name: string; slug: string; baseUrl: string };
   activeDeployment: {
     id: string;
@@ -4012,6 +4034,12 @@ function endpointView<T extends EndpointViewRow>(endpoint: T) {
     ...endpoint,
     endpoints: canonicalEndpointUrls(
       endpoint.environment.baseUrl,
+      endpoint.project.slug,
+      endpoint.slug,
+      endpoint.environment.slug === "development" ? "-dev" : "",
+    ),
+    environmentEndpoints: canonicalEnvironmentEndpointUrls(
+      endpoint.project.environments,
       endpoint.project.slug,
       endpoint.slug,
     ),

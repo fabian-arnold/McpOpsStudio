@@ -1,6 +1,12 @@
 export type RuntimeEndpointStatus = "draft" | "deployed" | "disabled" | "failed";
 export type FunctionRisk = "read" | "write" | "destructive";
 
+export type EndpointUrls = {
+  runtimeBaseUrl: string;
+  mcpUrl: string;
+  httpBaseUrl: string;
+};
+
 export type Dashboard = {
   stats: {
     endpoints: number;
@@ -39,7 +45,8 @@ export type Dashboard = {
     checksum: string;
     completedAt?: string | null;
     endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
-    endpoints?: { runtimeBaseUrl: string; mcpUrl: string; httpBaseUrl: string };
+    endpoints?: EndpointUrls;
+    environmentEndpoints?: Record<string, EndpointUrls>;
   }[];
 };
 
@@ -58,11 +65,8 @@ export type RuntimeEndpoint = {
   mcpToolCount: number;
   httpRouteCount: number;
   authMode: string;
-  endpoints?: {
-    runtimeBaseUrl?: string;
-    mcpUrl?: string;
-    httpBaseUrl?: string;
-  };
+  endpoints?: EndpointUrls;
+  environmentEndpoints?: Record<string, EndpointUrls>;
   createdAt: string;
   updatedAt: string;
   runtimeVersion?: string;

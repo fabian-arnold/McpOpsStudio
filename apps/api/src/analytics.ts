@@ -88,7 +88,12 @@ export function hourlyTraffic(samples: ExecutionSample[], now = new Date(), hour
   return buckets;
 }
 
-export function canonicalEndpointUrls(baseUrl: string, projectSlug: string, endpointSlug: string) {
+export function canonicalEndpointUrls(
+  baseUrl: string,
+  projectSlug: string,
+  endpointSlug: string,
+  pathSuffix = "",
+) {
   const configured = new URL(baseUrl);
   if (!["http:", "https:"].includes(configured.protocol) || configured.username || configured.password) {
     throw new Error("Environment baseUrl must be an HTTP(S) URL without credentials.");
@@ -96,9 +101,27 @@ export function canonicalEndpointUrls(baseUrl: string, projectSlug: string, endp
   const base = `${configured.origin}${configured.pathname}`.replace(/\/+$/, "");
   return {
     runtimeBaseUrl: base,
-    mcpUrl: `${base}/mcp/${encodeURIComponent(projectSlug)}/${encodeURIComponent(endpointSlug)}`,
-    httpBaseUrl: `${base}/http/${encodeURIComponent(projectSlug)}/${encodeURIComponent(endpointSlug)}`,
+    mcpUrl: `${base}/mcp${pathSuffix}/${encodeURIComponent(projectSlug)}/${encodeURIComponent(endpointSlug)}`,
+    httpBaseUrl: `${base}/http${pathSuffix}/${encodeURIComponent(projectSlug)}/${encodeURIComponent(endpointSlug)}`,
   };
+}
+
+export function canonicalEnvironmentEndpointUrls(
+  environments: Array<{ slug: string; baseUrl: string }>,
+  projectSlug: string,
+  endpointSlug: string,
+) {
+  return Object.fromEntries(
+    environments.map((environment) => [
+      environment.slug,
+      canonicalEndpointUrls(
+        environment.baseUrl,
+        projectSlug,
+        endpointSlug,
+        environment.slug === "development" ? "-dev" : "",
+      ),
+    ]),
+  );
 }
 
 type AuthPolicyLike = { id: string; name?: string; type: string; config?: unknown };

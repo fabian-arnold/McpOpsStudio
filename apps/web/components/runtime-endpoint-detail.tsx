@@ -8,9 +8,7 @@ import {
   ArrowLeft,
   Boxes,
   Code2,
-  Copy,
   FileJson,
-  Globe2,
   KeyRound,
   Plus,
   Route,
@@ -39,6 +37,7 @@ import type {
   McpBinding,
   RuntimeEndpointDetail,
 } from "@/lib/types";
+import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls";
 
 type EndpointKind = "mcp" | "http";
 type Tab =
@@ -64,7 +63,6 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
   const { endpointId } = useParams<{ endpointId: string }>();
   const search = useSearchParams();
   const router = useRouter();
-  const toast = useToast();
   const [endpoint, setEndpoint] = useState<RuntimeEndpointDetail>();
   const [error, setError] = useState<string>();
   const tab = (tabs.some((item) => item.id === search.get("tab"))
@@ -162,11 +160,6 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
 }
 
 function Overview({ endpoint, kind }: { endpoint: RuntimeEndpointDetail; kind: EndpointKind }) {
-  const toast = useToast();
-  const url =
-    kind === "mcp"
-      ? endpoint.endpoints?.mcpUrl
-      : endpoint.endpoints?.httpBaseUrl;
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -180,23 +173,12 @@ function Overview({ endpoint, kind }: { endpoint: RuntimeEndpointDetail; kind: E
         <p className="mt-1 text-xs text-muted-foreground">
           Traffic is served only from the active immutable deployment.
         </p>
-        <div className="mt-4 flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-          {kind === "mcp" ? <TerminalSquare size={16} /> : <Globe2 size={16} />}
-          <code className="min-w-0 flex-1 truncate text-xs">{url ?? "Not deployed"}</code>
-          {url && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() =>
-                navigator.clipboard.writeText(url).then(() =>
-                  toast({ title: "Endpoint copied", tone: "success" }),
-                )
-              }
-            >
-              <Copy size={14} />
-            </Button>
-          )}
-        </div>
+        <EnvironmentEndpointUrls
+          className="mt-4"
+          kind={kind}
+          urls={endpoint.environmentEndpoints}
+          fallback={endpoint.endpoints}
+        />
       </section>
     </div>
   );

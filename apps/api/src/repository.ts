@@ -64,7 +64,7 @@ export const projectRepository = (projectId: string) => ({
     prisma.runtimeEndpoint.findMany({
       where: endpointListWhere(projectId, filters),
       include: {
-        project: true,
+        project: { include: { environments: true } },
         environment: true,
         defaultAuthPolicy: true,
         mcpToolBindings: { select: { functionId: true } },
@@ -78,7 +78,7 @@ export const projectRepository = (projectId: string) => ({
     const endpoint = await prisma.runtimeEndpoint.findFirst({
       where: { projectId, ...endpointIdentifierWhere(identifier) },
       include: {
-        project: true,
+        project: { include: { environments: true } },
         environment: true,
         activeDeployment: true,
         defaultAuthPolicy: true,

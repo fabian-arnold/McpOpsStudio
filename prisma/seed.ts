@@ -194,6 +194,12 @@ async function main(): Promise<void> {
     throw new Error(
       "The development seed requires an explicit MOCK_CRM_URL outside development.",
     );
+  const developmentRuntimeUrl =
+    process.env.PUBLIC_RUNTIME_URL ??
+    process.env.RUNTIME_PUBLIC_URL ??
+    "http://localhost:8080";
+  const productionRuntimeUrl =
+    process.env.PRODUCTION_RUNTIME_PUBLIC_URL ?? developmentRuntimeUrl;
   const project = await prisma.project.upsert({
     where: { slug: "acme" },
     create: {
@@ -214,12 +220,12 @@ async function main(): Promise<void> {
       projectId: project.id,
       name: "Development",
       slug: "development",
-      baseUrl: "http://localhost:8080",
+      baseUrl: developmentRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },
     update: {
       name: "Development",
-      baseUrl: "http://localhost:8080",
+      baseUrl: developmentRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },
   });
@@ -229,12 +235,12 @@ async function main(): Promise<void> {
       projectId: project.id,
       name: "Production",
       slug: "production",
-      baseUrl: "http://prod.localhost:8080",
+      baseUrl: productionRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },
     update: {
       name: "Production",
-      baseUrl: "http://prod.localhost:8080",
+      baseUrl: productionRuntimeUrl,
       variables: { CRM_API_URL: mockCrmUrl },
     },
   });
