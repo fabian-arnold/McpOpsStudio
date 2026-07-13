@@ -60,6 +60,8 @@ export default function AuditPage() {
         item.targetType,
         humanize(item.targetType),
         item.targetId,
+        targetDescription(item).label,
+        targetDescription(item).detail,
       ]
         .filter(Boolean)
         .join(" ")
@@ -191,6 +193,7 @@ export default function AuditPage() {
 
 function AuditEventRow({ item }: { item: AuditEvent }) {
   const presentation = actionPresentation(item.action);
+  const target = targetDescription(item);
   const Icon = presentation.icon;
   const exactTime = new Date(item.createdAt).toLocaleString();
 
@@ -204,22 +207,21 @@ function AuditEventRow({ item }: { item: AuditEvent }) {
           <h2 className="text-sm font-semibold">{actionLabel(item.action)}</h2>
           <Badge tone={presentation.tone}>{presentation.category}</Badge>
         </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span title={item.actor}>{actorLabel(item)}</span>
-          <span className="mx-1.5" aria-hidden="true">·</span>
-          <span>{humanize(item.targetType)}</span>
-          {item.targetId && (
-            <>
-              <span className="mx-1.5" aria-hidden="true">·</span>
-              <code
-                className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground"
-                title={item.targetId}
-              >
-                {shortIdentifier(item.targetId)}
-              </code>
-            </>
+          <span>on</span>
+          <span className="font-semibold text-foreground">{target.label}</span>
+          {target.detail && <span>({target.detail})</span>}
+          <Badge>{humanize(item.targetType)}</Badge>
+          {item.targetId && target.label !== shortIdentifier(item.targetId) && (
+            <code
+              className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+              title={`Object ID: ${item.targetId}`}
+            >
+              ID {shortIdentifier(item.targetId)}
+            </code>
           )}
-        </p>
+        </div>
       </div>
       <time
         className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground sm:pt-1"
@@ -256,6 +258,46 @@ function actorLabel(item: AuditEvent) {
 function shortIdentifier(value: string) {
   if (value.length <= 18) return value;
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function targetDescription(item: AuditEvent) {
+  const metadata = item.metadata ?? {};
+  const label = firstMetadataString(metadata, [
+    "name",
+    "email",
+    "queryId",
+    "importPath",
+    "slug",
+  ]);
+  const slug = typeof metadata.slug === "string" ? metadata.slug : undefined;
+  const version =
+    typeof metadata.version === "number" || typeof metadata.version === "string"
+      ? `v${metadata.version}`
+      : undefined;
+  const detail = [slug && slug !== label ? slug : undefined, version]
+    .filter(Boolean)
+    .join(", ");
+
+  if (label) return { label, detail };
+  if (version)
+    return {
+      label: `${humanize(item.targetType)} ${version}`,
+      detail: "",
+    };
+  if (item.targetId)
+    return { label: shortIdentifier(item.targetId), detail: "" };
+  return { label: humanize(item.targetType), detail: "" };
+}
+
+function firstMetadataString(
+  metadata: Record<string, unknown>,
+  keys: string[],
+) {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return undefined;
 }
 
 function relativeTime(value: string) {

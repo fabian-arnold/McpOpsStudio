@@ -509,7 +509,11 @@ app.patch("/api/projects/:projectId", async (request, reply) => {
       action: "project.updated",
       targetType: "project",
       targetId: projectId,
-      metadata: { fields: Object.keys(input) },
+      metadata: {
+        name: updated.name,
+        slug: updated.slug,
+        fields: Object.keys(input),
+      },
     },
   });
   return updated;
@@ -575,7 +579,7 @@ app.post("/api/projects/:projectId/archive", async (request, reply) => {
         action: "project.archived",
         targetType: "project",
         targetId: projectId,
-        metadata: {},
+        metadata: { name: project.name, slug: project.slug },
       },
     });
   });
@@ -738,7 +742,11 @@ app.patch("/api/users/:userId", async (request, reply) => {
       action: updated.active ? "user.updated" : "user.access_removed",
       targetType: "user",
       targetId: userId,
-      metadata: { role: updated.role, active: updated.active },
+      metadata: {
+        email: updated.email,
+        role: updated.role,
+        active: updated.active,
+      },
     },
   });
   return updated;
@@ -1616,6 +1624,8 @@ app.patch(
           targetType: "runtime_endpoint",
           targetId: endpointId,
           metadata: {
+            name: row.name,
+            slug: row.slug,
             runtimeVersion: input.runtimeVersion,
             timeoutMs: input.runtime.timeoutMs,
             maxConcurrentRequests: input.runtime.maxConcurrentRequests,
@@ -1925,7 +1935,12 @@ app.post("/api/functions", async (request, reply) => {
         action: "function.created",
         targetType: "function",
         targetId: created.id,
-        metadata: { version: 1, checksum: sum },
+        metadata: {
+          name: created.name,
+          slug: created.slug,
+          version: 1,
+          checksum: sum,
+        },
       },
     });
     return created;
@@ -2026,6 +2041,8 @@ app.route({
           targetType: "function",
           targetId: functionId,
           metadata: {
+            name: updated.name,
+            slug: updated.slug,
             version: nextVersion,
             ...(input.secretGrantIds
               ? { secretGrantCount: input.secretGrantIds.length }
@@ -5526,7 +5543,7 @@ async function setEndpointEnabled(
       action: enabled ? "endpoint.enabled" : "endpoint.disabled",
       targetType: "runtime_endpoint",
       targetId: endpointId,
-      metadata: { status },
+      metadata: { name: endpoint.name, slug: endpoint.slug, status },
     },
   });
   return { ok: true, status };

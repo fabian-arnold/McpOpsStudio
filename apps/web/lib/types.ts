@@ -169,6 +169,7 @@ export type AuditEvent = {
   actorId?: string;
   targetType: string;
   targetId?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type RuntimeEndpointDetail = RuntimeEndpoint & {
