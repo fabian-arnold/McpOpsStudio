@@ -165,6 +165,8 @@ export type AuditEvent = {
   createdAt: string;
   action: string;
   actor: string;
+  actorType?: "user" | "caller" | "system";
+  actorId?: string;
   targetType: string;
   targetId?: string;
 };
