@@ -13,6 +13,7 @@ import {
   Command,
   FileClock,
   LayoutDashboard,
+  PanelsTopLeft,
   Library,
   FolderKanban,
   KeyRound,
@@ -42,7 +43,14 @@ import type {
   SessionIdentity,
 } from "@/lib/types";
 
-const projectNav = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles?: string[];
+};
+
+const projectNav: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/functions", label: "Functions", icon: Code2 },
   { href: "/map", label: "Endpoint Map", icon: Network },
@@ -54,7 +62,15 @@ const projectNav = [
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/deployments", label: "Deployments", icon: Boxes },
 ];
-const administrationNav = [
+const globalNav: NavItem[] = [
+  {
+    href: "/overview",
+    label: "Overview",
+    icon: PanelsTopLeft,
+    roles: ["owner", "admin"],
+  },
+];
+const administrationNav: NavItem[] = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/users", label: "Users", icon: Users },
   { href: "/audit", label: "Audit log", icon: ShieldCheck },
@@ -100,40 +116,46 @@ function NavList({
   items,
   pathname,
   onNavigate,
+  role,
 }: {
-  items: typeof projectNav;
+  items: NavItem[];
   pathname: string;
   onNavigate?: () => void;
+  role?: string | undefined;
 }) {
   return (
     <div className="space-y-1">
-      {items.map((item) => {
-        const active =
-          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            {...(onNavigate ? { onClick: onNavigate } : {})}
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition",
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Icon key={`${item.href}:icon`} size={16} />
-            <span key={`${item.href}:label`}>{item.label}</span>
-            {active && (
-              <span
-                key={`${item.href}:active`}
-                className="ml-auto size-1 rounded-full bg-primary"
-              />
-            )}
-          </Link>
-        );
-      })}
+      {items
+        .filter((item) => !item.roles || (role && item.roles.includes(role)))
+        .map((item) => {
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              {...(onNavigate ? { onClick: onNavigate } : {})}
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition",
+                active
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon key={`${item.href}:icon`} size={16} />
+              <span key={`${item.href}:label`}>{item.label}</span>
+              {active && (
+                <span
+                  key={`${item.href}:active`}
+                  className="ml-auto size-1 rounded-full bg-primary"
+                />
+              )}
+            </Link>
+          );
+        })}
     </div>
   );
 }
@@ -390,6 +412,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-5">
+        {roleAllows(identity?.role, ["owner", "admin"]) && (
+          <div className="mb-6">
+            <NavList
+              items={globalNav}
+              pathname={pathname}
+              onNavigate={() => setMobileOpen(false)}
+              role={identity?.role}
+            />
+          </div>
+        )}
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.14em] text-muted-foreground">
           Project
         </p>
@@ -397,6 +429,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           items={projectNav}
           pathname={pathname}
           onNavigate={() => setMobileOpen(false)}
+          role={identity?.role}
         />
         <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[.14em] text-muted-foreground">
           Administration
@@ -405,6 +438,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           items={administrationNav}
           pathname={pathname}
           onNavigate={() => setMobileOpen(false)}
+          role={identity?.role}
         />
       </nav>
       <div className="border-t p-3">

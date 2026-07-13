@@ -1,4 +1,5 @@
-export type RuntimeEndpointStatus = "draft" | "deployed" | "disabled" | "failed";
+export type RuntimeEndpointStatus =
+  "draft" | "deployed" | "disabled" | "failed";
 export type FunctionRisk = "read" | "write" | "destructive";
 
 export type EndpointUrls = {
@@ -48,6 +49,64 @@ export type Dashboard = {
     endpoints?: EndpointUrls;
     environmentEndpoints?: Record<string, EndpointUrls>;
   }[];
+};
+
+export type GlobalOverview = {
+  generatedAt: string;
+  window: "24h";
+  stats: {
+    projects: number;
+    activeProjects: number;
+    endpoints: number;
+    functions: number;
+    calls24h: number;
+    failedCalls24h: number;
+    errorRate: number;
+    degradedProjects: number;
+  };
+  projects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    status: "active" | "archived";
+    updatedAt: string;
+    health: "healthy" | "degraded" | "archived";
+    endpoints: {
+      total: number;
+      mcp: number;
+      http: number;
+      deployed: number;
+      failed: number;
+      activeSnapshots: number;
+    };
+    functions: number;
+    execution: {
+      calls24h: number;
+      failedCalls24h: number;
+      errorRate: number;
+      averageLatencyMs: number;
+    };
+    environments: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      activeDeployment: {
+        id: string;
+        version: number;
+        status: string;
+        completedAt: string | null;
+      } | null;
+    }>;
+    latestDeployment: {
+      id: string;
+      version: number;
+      status: string;
+      createdAt: string;
+      completedAt: string | null;
+      environment: { name: string; slug: string };
+    } | null;
+  }>;
 };
 
 export type RuntimeEndpoint = {
