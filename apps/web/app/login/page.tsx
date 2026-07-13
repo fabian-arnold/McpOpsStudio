@@ -109,6 +109,20 @@ export default function LoginPage() {
           <p className="mt-8 text-center text-[11px] text-muted-foreground">
             Self-hosted · Your code and data stay in your infrastructure
           </p>
+          <p className="mt-3 text-center text-[11px] text-muted-foreground">
+            <a className="hover:text-foreground hover:underline" href="/legal">
+              Legal notices
+            </a>{" "}
+            ·{" "}
+            <a
+              className="hover:text-foreground hover:underline"
+              href="https://github.com/fabian-arnold/McpOpsStudio"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Source code
+            </a>
+          </p>
         </div>
       </section>
       <section className="relative hidden min-h-screen overflow-hidden border-l bg-[#0b0c14] lg:block">

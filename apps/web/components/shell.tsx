@@ -17,6 +17,7 @@ import {
   PanelsTopLeft,
   Library,
   FolderKanban,
+  Github,
   KeyRound,
   LockKeyhole,
   LogOut,
@@ -30,6 +31,7 @@ import {
   TerminalSquare,
   Network,
   Rocket,
+  Scale,
   Users,
   X,
 } from "lucide-react";
@@ -450,6 +452,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       </nav>
       <div className="border-t p-3">
+        <a
+          href="https://github.com/fabian-arnold/McpOpsStudio"
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Github size={16} />
+          Source code
+        </a>
+        <a
+          href="/legal"
+          className="flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Scale size={16} />
+          Legal notices
+        </a>
         <a
           href="/docs"
           className="flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"

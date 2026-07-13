@@ -373,3 +373,14 @@ demo mode, the mock CRM, insecure public URLs, and an implicit executor provider
 
 Issues and pull requests should follow the repository's contributor and commit
 style guides.
+
+## License
+
+MCP Ops Studio is free software licensed under the
+[GNU Affero General Public License version 3 or later](LICENSE). If you run a
+modified version for users over a network, you must prominently offer those
+users the corresponding source code for that version.
+
+Copyright (C) 2026 MCP Ops Studio contributors. The software is provided
+without warranty; see [LICENSE](LICENSE) for the complete terms and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency notices.

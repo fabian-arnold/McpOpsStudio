@@ -137,3 +137,10 @@ A pull request should contain:
 - Known limitations or follow-up work
 
 Keep generated build output, `.env`, credentials and local data out of commits. CI must pass before merge.
+
+## Contribution license
+
+MCP Ops Studio is licensed under AGPL-3.0-or-later. By submitting a
+contribution, you agree to license it under those terms and confirm that you
+have the right to do so. Third-party code must retain its original notices and
+must have terms compatible with the project license.
