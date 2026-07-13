@@ -77,6 +77,18 @@ describe("deployment function bundling", () => {
     expect(result.code).toContain("export");
     expect(result.sourceMap).toContain('"version": 3');
   });
+
+  it("identifies the Function source file in compiler failures", async () => {
+    await expect(
+      bundleFunction({
+        code: "export default async function handler(input:) {}",
+        inputSchema: { type: "object" },
+        outputSchema: { type: "object" },
+        libraries: [],
+        sourcefile: "customer-search.ts",
+      }),
+    ).rejects.toThrow(/customer-search\.ts/);
+  });
 });
 describe("declarative deployment policy validation", () => {
   it("accepts an explicit public policy with bounded Function permissions", () => {

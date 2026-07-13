@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Boxes, Rocket, Send } from "lucide-react";
 import { AppShell } from "@/components/shell";
@@ -25,6 +26,14 @@ type ProjectDeployment = {
   sourceProjectDeployment?: { id: string; version: number };
   createdAt: string;
   completedAt?: string;
+  failureCause?: string;
+  failedEndpointName?: string;
+  failedFunctions?: Array<{
+    id: string;
+    name: string;
+    version?: number;
+    inferred?: boolean;
+  }>;
 };
 
 type DeploymentResponse = {
@@ -224,6 +233,28 @@ function DeploymentLane({
                   {item.sourceProjectDeployment ? ` · from development v${item.sourceProjectDeployment.version}` : ""}
                 </p>
                 {item.checksum && <code className="mt-1 block truncate text-[9px] text-muted-foreground">sha256:{item.checksum}</code>}
+                {item.status === "failed" && item.failureCause && (
+                  <div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                    <p className="text-[10px] font-semibold text-red-700 dark:text-red-300">
+                      {item.failedEndpointName
+                        ? `${item.failedEndpointName}: deployment failed`
+                        : "Deployment failed"}
+                    </p>
+                    {item.failedFunctions?.map((fn) => (
+                      <Link
+                        key={fn.id}
+                        href={`/functions/${fn.id}`}
+                        className="mr-3 mt-1 inline-flex text-[10px] font-semibold text-red-700 underline underline-offset-2 hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+                      >
+                        {fn.inferred ? "Likely Function" : "Function"}: {fn.name}
+                        {fn.version ? ` · v${fn.version}` : ""}
+                      </Link>
+                    ))}
+                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-4 text-red-800 dark:text-red-200">
+                      {item.failureCause}
+                    </pre>
+                  </div>
+                )}
               </div>
               {action?.(item)}
             </article>

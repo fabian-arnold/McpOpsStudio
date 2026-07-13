@@ -27,12 +27,14 @@ import {
   TerminalSquare,
   Network,
   Rocket,
+  Users,
   X,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/cn";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useToast } from "@/components/providers";
+import { NotificationCenter } from "@/components/notification-center";
 import { roleAllows } from "@/lib/session";
 import type {
   EnvironmentSummary,
@@ -52,8 +54,10 @@ const projectNav = [
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/deployments", label: "Deployments", icon: Boxes },
 ];
-const installationNav = [
-  { href: "/administration", label: "Administration", icon: FolderKanban },
+const administrationNav = [
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/users", label: "Users", icon: Users },
+  { href: "/audit", label: "Audit log", icon: ShieldCheck },
 ];
 
 type DevelopmentStatus = {
@@ -387,18 +391,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-5">
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.14em] text-muted-foreground">
-          Installation
-        </p>
-        <NavList
-          items={installationNav}
-          pathname={pathname}
-          onNavigate={() => setMobileOpen(false)}
-        />
-        <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[.14em] text-muted-foreground">
           Project
         </p>
         <NavList
           items={projectNav}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+        />
+        <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[.14em] text-muted-foreground">
+          Administration
+        </p>
+        <NavList
+          items={administrationNav}
           pathname={pathname}
           onNavigate={() => setMobileOpen(false)}
         />
@@ -573,6 +577,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               </>
             )}
+            <NotificationCenter projectId={identity?.project.id} />
             <button
               onClick={toggleTheme}
               className="grid size-9 place-items-center rounded-lg hover:bg-muted"

@@ -84,6 +84,10 @@ import {
   deploymentListQuerySchema,
   executionListQuerySchema,
 } from "./listing.js";
+import {
+  inferFailedFunction,
+  type FunctionSource,
+} from "./deployment-failure.js";
 import { platformCapabilities } from "./capabilities.js";
 import {
   previewTemplateInstallation,
@@ -826,7 +830,7 @@ app.get("/api/search", async (request) => {
 });
 app.get("/api/notifications", async (request) => {
   const session = sessionContext(request);
-  const [audits, failedDeployments] = await Promise.all([
+  const [audits, failedDeployments, projectFunctions] = await Promise.all([
     prisma.auditEvent.findMany({
       where: {
         projectId: session.projectId,
@@ -856,12 +860,51 @@ app.get("/api/notifications", async (request) => {
         id: true,
         version: true,
         completedAt: true,
-        endpoint: { select: { id: true, name: true } },
+        projectDeployment: {
+          select: {
+            id: true,
+            version: true,
+            environment: { select: { name: true } },
+          },
+        },
+        endpoint: { select: { id: true, name: true, kind: true } },
+        logs: {
+          where: { level: "error" },
+          select: { message: true, metadata: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
       orderBy: { completedAt: "desc" },
       take: 10,
     }),
+    prisma.function.findMany({
+      where: { projectId: session.projectId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        versions: {
+          select: { version: true, code: true },
+          orderBy: { version: "desc" },
+          take: 1,
+        },
+      },
+    }),
   ]);
+  const functionSources: FunctionSource[] = projectFunctions.flatMap((fn) =>
+    fn.versions[0]
+      ? [
+          {
+            id: fn.id,
+            name: fn.name,
+            slug: fn.slug,
+            version: fn.versions[0].version,
+            code: fn.versions[0].code,
+          },
+        ]
+      : [],
+  );
   const items = [
     ...audits.map((event) => ({
       id: `audit:${event.id}`,
@@ -872,15 +915,40 @@ app.get("/api/notifications", async (request) => {
       targetId: event.targetId,
       createdAt: event.createdAt,
     })),
-    ...failedDeployments.map((deployment) => ({
-      id: `deployment:${deployment.id}`,
-      kind: "deployment",
-      severity: "error",
-      title: `Deployment v${deployment.version} failed`,
-      endpointId: deployment.endpoint.id,
-      endpointName: deployment.endpoint.name,
-      createdAt: deployment.completedAt,
-    })),
+    ...failedDeployments.map((deployment) => {
+      const metadata = record(deployment.logs[0]?.metadata);
+      const loggedFunctions = deploymentFailureFunctions(metadata);
+      const inferredFunction = inferFailedFunction(
+        deployment.logs[0]?.message,
+        functionSources,
+      );
+      const functions = loggedFunctions.length
+        ? loggedFunctions
+        : inferredFunction
+          ? [{ ...inferredFunction, inferred: true }]
+          : [];
+      return {
+        id: `deployment:${deployment.id}`,
+        kind: "deployment",
+        severity: "error",
+        title: deployment.projectDeployment
+          ? `${deployment.projectDeployment.environment.name} deployment v${deployment.projectDeployment.version} failed`
+          : `Deployment v${deployment.version} failed`,
+        message:
+          deployment.logs[0]?.message.slice(0, 8_000) ??
+          "The deployment worker did not report a failure cause.",
+        projectDeploymentId: deployment.projectDeployment?.id,
+        endpointId: deployment.endpoint.id,
+        endpointName: deployment.endpoint.name,
+        functions,
+        href: functions[0]
+          ? `/functions/${functions[0].id}`
+          : deployment.projectDeployment
+            ? `/deployments?deployment=${deployment.projectDeployment.id}`
+            : `${deployment.endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${deployment.endpoint.id}`,
+        createdAt: deployment.completedAt,
+      };
+    }),
   ]
     .sort(
       (left, right) =>
@@ -4221,7 +4289,8 @@ app.get("/api/deployments", async (request, reply) => {
   if (query.cursor)
     await assertScopedCursor("deployment", session.projectId, query.cursor);
   const summarySince = new Date(Date.now() - 7 * DAY_MS);
-  const [rows, summaryRows, activeSnapshots] = await Promise.all([
+  const [rows, summaryRows, activeSnapshots, projectFunctions] =
+    await Promise.all([
     prisma.projectDeployment.findMany({
       where: {
         projectId: session.projectId,
@@ -4232,6 +4301,18 @@ app.get("/api/deployments", async (request, reply) => {
       include: {
         environment: true,
         sourceProjectDeployment: { select: { id: true, version: true } },
+        endpointDeployments: {
+          where: { status: "failed" },
+          select: {
+            endpoint: { select: { name: true } },
+            logs: {
+              where: { level: "error" },
+              select: { message: true, metadata: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
+        },
         _count: { select: { endpointDeployments: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -4254,25 +4335,71 @@ app.get("/api/deployments", async (request, reply) => {
         activeProjectDeploymentId: { not: null },
       },
     }),
+    prisma.function.findMany({
+      where: { projectId: session.projectId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        versions: {
+          select: { version: true, code: true },
+          orderBy: { version: "desc" },
+          take: 1,
+        },
+      },
+    }),
   ]);
+  const functionSources: FunctionSource[] = projectFunctions.flatMap((fn) =>
+    fn.versions[0]
+      ? [
+          {
+            id: fn.id,
+            name: fn.name,
+            slug: fn.slug,
+            version: fn.versions[0].version,
+            code: fn.versions[0].code,
+          },
+        ]
+      : [],
+  );
   const hasMore = rows.length > query.limit;
   const page = rows.slice(0, query.limit);
-  const items = page.map((deployment) => ({
-    id: deployment.id,
-    version: deployment.sourceProjectDeployment?.version ?? deployment.version,
-    status: deployment.status,
-    checksum: deployment.checksum,
-    environment: {
-      id: deployment.environment.id,
-      name: deployment.environment.name,
-      slug: deployment.environment.slug,
-      baseUrl: deployment.environment.baseUrl,
-    },
-    endpointCount: deployment._count.endpointDeployments,
-    sourceProjectDeployment: deployment.sourceProjectDeployment ?? undefined,
-    createdAt: deployment.createdAt,
-    completedAt: deployment.completedAt ?? undefined,
-  }));
+  const items = page.map((deployment) => {
+    const failedLog = deployment.endpointDeployments[0]?.logs[0];
+    const failureMetadata = record(failedLog?.metadata);
+    const loggedFunctions = deploymentFailureFunctions(failureMetadata);
+    const inferredFunction = inferFailedFunction(
+      failedLog?.message,
+      functionSources,
+    );
+    const failedFunctions = loggedFunctions.length
+      ? loggedFunctions
+      : inferredFunction
+        ? [{ ...inferredFunction, inferred: true }]
+        : [];
+    return {
+      id: deployment.id,
+      version:
+        deployment.sourceProjectDeployment?.version ?? deployment.version,
+      status: deployment.status,
+      checksum: deployment.checksum,
+      environment: {
+        id: deployment.environment.id,
+        name: deployment.environment.name,
+        slug: deployment.environment.slug,
+        baseUrl: deployment.environment.baseUrl,
+      },
+      endpointCount: deployment._count.endpointDeployments,
+      sourceProjectDeployment:
+        deployment.sourceProjectDeployment ?? undefined,
+      createdAt: deployment.createdAt,
+      completedAt: deployment.completedAt ?? undefined,
+      failureCause: failedLog?.message.slice(0, 8_000) ?? undefined,
+      failedEndpointName:
+        deployment.endpointDeployments[0]?.endpoint.name ?? undefined,
+      failedFunctions,
+    };
+  });
   if (query.format === "csv")
     return replyCsv(
       reply,
@@ -4678,6 +4805,35 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function deploymentFailureFunctions(metadata: Record<string, unknown>) {
+  const rows = arrayRecords(metadata.functions);
+  if (
+    !rows.length &&
+    typeof metadata.functionId === "string" &&
+    typeof metadata.functionName === "string"
+  )
+    rows.push(metadata);
+  return rows.flatMap((fn) =>
+    typeof fn.functionId === "string" &&
+    typeof fn.functionName === "string"
+      ? [
+          {
+            id: fn.functionId,
+            name: fn.functionName,
+            slug:
+              typeof fn.functionSlug === "string"
+                ? fn.functionSlug
+                : undefined,
+            version:
+              typeof fn.functionVersion === "number"
+                ? fn.functionVersion
+                : undefined,
+          },
+        ]
+      : [],
+  );
 }
 function arrayRecords(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.map(record) : [];

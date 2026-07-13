@@ -47,6 +47,7 @@ export type BuildInput = {
   inputSchema: unknown;
   outputSchema: unknown;
   libraries: Array<{ importPath: string; code: string }>;
+  sourcefile?: string;
 };
 export async function bundleFunction(
   input: BuildInput,
@@ -66,7 +67,7 @@ export async function bundleFunction(
     stdin: {
       contents: input.code,
       loader: "ts",
-      sourcefile: "function.ts",
+      sourcefile: input.sourcefile ?? "function.ts",
       resolveDir: "/virtual",
     },
     outfile: "function.js",
@@ -129,24 +130,34 @@ export async function buildDeployment(
     },
   });
   const endpoint = deployment.endpoint;
-  if (deployment.projectDeploymentId)
-    await prisma.projectDeployment.updateMany({
-      where: { id: deployment.projectDeploymentId, status: "queued" },
-      data: { status: "building" },
-    });
-  if (
-    (endpoint.kind === "mcp" && endpoint.httpRouteBindings.length > 0) ||
-    (endpoint.kind === "http" && endpoint.mcpToolBindings.length > 0)
-  )
-    throw new Error("Runtime endpoint contains bindings for the wrong protocol");
-  const projectFunctions = await prisma.function.findMany({
+  let activated = false;
+  let failureFunctions: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    version: number;
+  }> = [];
+  try {
+    if (deployment.projectDeploymentId)
+      await prisma.projectDeployment.updateMany({
+        where: { id: deployment.projectDeploymentId, status: "queued" },
+        data: { status: "building" },
+      });
+    if (
+      (endpoint.kind === "mcp" && endpoint.httpRouteBindings.length > 0) ||
+      (endpoint.kind === "http" && endpoint.mcpToolBindings.length > 0)
+    )
+      throw new Error(
+        "Runtime endpoint contains bindings for the wrong protocol",
+      );
+    const projectFunctions = await prisma.function.findMany({
     where: { projectId: endpoint.projectId, enabled: true },
     include: {
       versions: { orderBy: { version: "desc" }, take: 1 },
       grants: true,
     },
   });
-  const entryFunctionIds = new Set([
+    const entryFunctionIds = new Set([
     ...(endpoint.kind === "mcp" ? endpoint.mcpToolBindings : [])
       .filter((binding) => binding.enabled)
       .map((binding) => binding.functionId),
@@ -154,17 +165,17 @@ export async function buildDeployment(
       .filter((binding) => binding.enabled)
       .map((binding) => binding.functionId),
   ]);
-  const { functions: selectedFunctions, calls: functionCalls } =
-    resolveFunctionCallGraph(projectFunctions, entryFunctionIds);
-  const requiredFunctionSecrets = [
+    const { functions: selectedFunctions, calls: functionCalls } =
+      resolveFunctionCallGraph(projectFunctions, entryFunctionIds);
+    const requiredFunctionSecrets = [
     ...new Set(
       selectedFunctions.flatMap((fn) =>
         fn.grants.map((grant) => grant.secretName),
       ),
     ),
   ];
-  if (requiredFunctionSecrets.length) {
-    const configured = await prisma.secret.findMany({
+    if (requiredFunctionSecrets.length) {
+      const configured = await prisma.secret.findMany({
       where: {
         projectId: endpoint.projectId,
         environmentId: endpoint.environmentId,
@@ -172,31 +183,41 @@ export async function buildDeployment(
       },
       select: { name: true },
     });
-    const available = new Set(configured.map((secret) => secret.name));
-    const missing = requiredFunctionSecrets.filter(
-      (name) => !available.has(name),
-    );
-    if (missing.length)
-      throw new Error(
-        `Required function secrets are not configured in ${endpoint.environment.name}: ${missing.join(", ")}`,
+      const available = new Set(configured.map((secret) => secret.name));
+      const missing = requiredFunctionSecrets.filter(
+        (name) => !available.has(name),
       );
-  }
-  const libraries = await prisma.projectLibrary.findMany({
-    where: { projectId: endpoint.projectId },
-  });
-  await prisma.deployment.update({
-    where: { id: deploymentId },
-    data: { status: "building" },
-  });
-  await prisma.deploymentLog.create({
-    data: {
-      deploymentId,
-      level: "info",
-      message: `Building ${selectedFunctions.length} reusable functions`,
-    },
-  });
-  let activated = false;
-  try {
+      if (missing.length) {
+        failureFunctions = selectedFunctions
+          .filter((fn) =>
+            fn.grants.some((grant) => missing.includes(grant.secretName)),
+          )
+          .map((fn) => ({
+            id: fn.id,
+            name: fn.name,
+            slug: fn.slug,
+            version: fn.versions[0]?.version ?? 0,
+          }));
+        throw new Error(
+          `Required function secrets are not configured in ${endpoint.environment.name}: ${missing.join(", ")}`,
+        );
+      }
+    }
+    failureFunctions = [];
+    const libraries = await prisma.projectLibrary.findMany({
+      where: { projectId: endpoint.projectId },
+    });
+    await prisma.deployment.update({
+      where: { id: deploymentId },
+      data: { status: "building" },
+    });
+    await prisma.deploymentLog.create({
+      data: {
+        deploymentId,
+        level: "info",
+        message: `Building ${selectedFunctions.length} reusable functions`,
+      },
+    });
     const requiredPolicyIds = collectRequiredAuthPolicyIds(
       endpoint.authPolicyAssignments.map((item) => item.authPolicyId),
       endpoint.mcpToolBindings,
@@ -280,10 +301,23 @@ export async function buildDeployment(
         },
       },
     });
-    if (reviewedQueryRows.length && !reviewedQueryFeatureEnabled)
+    if (reviewedQueryRows.length && !reviewedQueryFeatureEnabled) {
+      const affectedIds = new Set(
+        reviewedQueryRows.map((row) => row.functionId),
+      );
+      failureFunctions = selectedFunctions
+        .filter((fn) => affectedIds.has(fn.id))
+        .map((fn) => ({
+          id: fn.id,
+          name: fn.name,
+          slug: fn.slug,
+          version: fn.versions[0]?.version ?? 0,
+        }));
       throw new Error(
         "Reviewed database query grants require ENABLE_REVIEWED_DB_QUERIES=true",
       );
+    }
+    failureFunctions = [];
     const reviewedQueries = reviewedQueryFeatureEnabled
       ? snapshotReviewedQueries(
           endpoint.projectId,
@@ -296,10 +330,19 @@ export async function buildDeployment(
       const version = fn.versions[0];
       if (!version)
         throw new Error(`Function ${fn.name} has no source version`);
+      failureFunctions = [
+        {
+          id: fn.id,
+          name: fn.name,
+          slug: fn.slug,
+          version: version.version,
+        },
+      ];
       const result = await bundleFunction({
         code: version.code,
         inputSchema: fn.inputSchema,
         outputSchema: fn.outputSchema,
+        sourcefile: `${fn.slug}.ts`,
         libraries: libraries.map((library) => ({
           importPath: library.importPath,
           code: library.code,
@@ -350,6 +393,7 @@ export async function buildDeployment(
           metadata: { checksum: version.checksum, warnings: result.warnings },
         },
       });
+      failureFunctions = [];
     }
     const runtimeConfig = asRecord(deployment.runtimeConfig);
     const env = validateRuntimeEnvironment(runtimeConfig.env);
@@ -510,7 +554,21 @@ export async function buildDeployment(
         data: { status: "failed", completedAt: new Date() },
       }),
       prisma.deploymentLog.create({
-        data: { deploymentId, level: "error", message },
+        data: {
+          deploymentId,
+          level: "error",
+          message,
+          metadata: failureFunctions.length
+            ? {
+                functions: failureFunctions.map((fn) => ({
+                  functionId: fn.id,
+                  functionName: fn.name,
+                  functionSlug: fn.slug,
+                  functionVersion: fn.version,
+                })),
+              }
+            : undefined,
+        },
       }),
       ...(deployment.projectDeploymentId
         ? []
