@@ -97,6 +97,7 @@ model Project {
   slug                     String                    @unique
   description              String                    @default("")
   status                   ProjectStatus             @default(active)
+  bindingMapLayout         Json                      @default("{}")
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   environments             Environment[]

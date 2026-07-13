@@ -91,6 +91,10 @@ import {
 } from "./template-install.js";
 import { buildManifestPlan } from "./manifest-plan.js";
 import { registerReviewedDatabaseRoutes } from "./reviewed-database-routes.js";
+import {
+  bindingMapLayoutSchema,
+  bindingMapNodeIds,
+} from "./binding-map-layout.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -1055,37 +1059,82 @@ app.get("/api/runtime-endpoints", async (request) => {
 });
 app.get("/api/binding-map", async (request) => {
   const session = sessionContext(request);
-  return prisma.runtimeEndpoint.findMany({
-    where: { projectId: session.projectId },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      kind: true,
-      status: true,
-      mcpToolBindings: {
-        select: {
-          id: true,
-          functionId: true,
-          toolName: true,
-          title: true,
-          enabled: true,
+  const [project, endpoints] = await Promise.all([
+    prisma.project.findUniqueOrThrow({
+      where: { id: session.projectId },
+      select: { bindingMapLayout: true },
+    }),
+    prisma.runtimeEndpoint.findMany({
+      where: { projectId: session.projectId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        kind: true,
+        status: true,
+        mcpToolBindings: {
+          select: {
+            id: true,
+            functionId: true,
+            toolName: true,
+            title: true,
+            enabled: true,
+          },
+          orderBy: { toolName: "asc" },
         },
-        orderBy: { toolName: "asc" },
-      },
-      httpRouteBindings: {
-        select: {
-          id: true,
-          functionId: true,
-          method: true,
-          path: true,
-          enabled: true,
+        httpRouteBindings: {
+          select: {
+            id: true,
+            functionId: true,
+            method: true,
+            path: true,
+            enabled: true,
+          },
+          orderBy: [{ path: "asc" }, { method: "asc" }],
         },
-        orderBy: [{ path: "asc" }, { method: "asc" }],
       },
-    },
-    orderBy: [{ kind: "asc" }, { name: "asc" }],
+      orderBy: [{ kind: "asc" }, { name: "asc" }],
+    }),
+  ]);
+  return { endpoints, layout: project.bindingMapLayout };
+});
+app.patch("/api/binding-map/layout", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "developer"]);
+  const input = parse(bindingMapLayoutSchema, request.body);
+  const [endpoints, functions] = await Promise.all([
+    prisma.runtimeEndpoint.findMany({
+      where: { projectId: session.projectId },
+      select: {
+        id: true,
+        mcpToolBindings: { select: { id: true } },
+        httpRouteBindings: { select: { id: true } },
+      },
+    }),
+    prisma.function.findMany({
+      where: { projectId: session.projectId },
+      select: { id: true },
+    }),
+  ]);
+  const validNodeIds = bindingMapNodeIds(endpoints, functions);
+  const unknownNode = input.nodes.find((node) => !validNodeIds.has(node.id));
+  if (unknownNode) {
+    return reply.status(400).send({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "The binding map contains a node outside the selected Project",
+        requestId: requestId(request),
+      },
+    });
+  }
+  const layout = Object.fromEntries(
+    input.nodes.map((node) => [node.id, { x: node.x, y: node.y }]),
+  );
+  await prisma.project.update({
+    where: { id: session.projectId },
+    data: { bindingMapLayout: layout },
   });
+  return { layout };
 });
 app.post("/api/runtime-endpoints", async (request, reply) => {
   const session = sessionContext(request);
