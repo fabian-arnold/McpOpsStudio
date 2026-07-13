@@ -3,14 +3,23 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Circle, FileCode2, Library, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Circle,
+  FileCode2,
+  Library,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
 import { AppShell } from "@/components/shell";
+import { EditorSwitcher } from "@/components/editor-switcher";
 import { TypeScriptEditor } from "@/components/typescript-editor";
 import { Badge, Button, LoadError, Skeleton } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { api, errorMessage } from "@/lib/api";
 import { roleAllows, useCurrentUser } from "@/lib/session";
-import type { ProjectLibrary } from "@/lib/types";
+import type { OpsFunction, ProjectLibrary } from "@/lib/types";
 
 type LibraryDraft = {
   name: string;
@@ -35,6 +44,7 @@ export default function LibraryEditorPage() {
   const user = useCurrentUser();
   const canManage = roleAllows(user?.role, ["owner", "admin", "developer"]);
   const [library, setLibrary] = useState<ProjectLibrary>();
+  const [functions, setFunctions] = useState<OpsFunction[]>([]);
   const [libraries, setLibraries] = useState<ProjectLibrary[]>([]);
   const [versions, setVersions] = useState<ProjectLibrary[]>([]);
   const [draft, setDraft] = useState<LibraryDraft>();
@@ -42,12 +52,17 @@ export default function LibraryEditorPage() {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
+  const [newExport, setNewExport] = useState("");
 
   const load = useCallback(async () => {
     setLoadError(undefined);
     try {
-      const all = await api<ProjectLibrary[]>("/api/libraries");
+      const [all, allFunctions] = await Promise.all([
+        api<ProjectLibrary[]>("/api/libraries"),
+        api<OpsFunction[]>("/api/functions"),
+      ]);
       setLibraries(all);
+      setFunctions(allFunctions);
       if (libraryId === "new") {
         setLibrary(undefined);
         setVersions([]);
@@ -75,6 +90,12 @@ export default function LibraryEditorPage() {
     }
   }, [libraryId]);
   useEffect(() => void load(), [attempt, load]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   const update = (patch: Partial<LibraryDraft>) => {
     setDraft((current) => (current ? { ...current, ...patch } : current));
@@ -89,6 +110,40 @@ export default function LibraryEditorPage() {
         .filter(Boolean) ?? [],
     [draft?.exportedFunctions],
   );
+
+  function addExport() {
+    const name = newExport.trim();
+    if (!draft || !/^[A-Za-z_$][\w$]*$/.test(name)) {
+      toast({
+        title: "Use a valid TypeScript function name",
+        tone: "error",
+      });
+      return;
+    }
+    if (exportedFunctions.includes(name)) {
+      setNewExport("");
+      return;
+    }
+    const nextNames = [...exportedFunctions, name];
+    const hasDeclaration = new RegExp(
+      `export\\s+(?:async\\s+)?function\\s+${name}\\b`,
+    ).test(draft.code);
+    update({
+      exportedFunctions: nextNames.join(", "),
+      code: hasDeclaration
+        ? draft.code
+        : `${draft.code.trimEnd()}\n\nexport function ${name}(value: unknown) {\n  return value;\n}\n`,
+    });
+    setNewExport("");
+  }
+
+  function removeExport(name: string) {
+    update({
+      exportedFunctions: exportedFunctions
+        .filter((item) => item !== name)
+        .join(", "),
+    });
+  }
 
   async function save() {
     if (!draft) return;
@@ -138,7 +193,7 @@ export default function LibraryEditorPage() {
   return (
     <AppShell>
       <div className="-m-4 sm:-m-6 lg:-m-8">
-        <header className="flex min-h-14 flex-col gap-3 border-b bg-card px-4 py-2.5 sm:flex-row sm:items-center">
+        <header className="flex min-h-14 flex-wrap items-center gap-2 border-b bg-card px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-xs">
             <Link
               href="/libraries"
@@ -146,19 +201,21 @@ export default function LibraryEditorPage() {
             >
               <ArrowLeft size={13} /> Libraries
             </Link>
-            <span className="text-muted-foreground">/</span>
-            <span className="truncate font-mono font-medium">
-              {draft.importPath === "@mcpops/lib/"
-                ? "New library"
-                : draft.importPath}
-            </span>
-            {library && <Badge>v{library.version}</Badge>}
-            {dirty && (
-              <Badge tone="warning">
-                <Circle size={7} fill="currentColor" /> Unsaved
-              </Badge>
-            )}
+            <span className="hidden text-muted-foreground sm:inline">/</span>
           </div>
+          <EditorSwitcher
+            functions={functions}
+            libraries={libraries}
+            active={`library:${library?.id ?? "new"}`}
+            dirty={dirty}
+            canManage={canManage}
+          />
+          {library && <Badge>v{library.version}</Badge>}
+          {dirty && (
+            <Badge tone="warning">
+              <Circle size={7} fill="currentColor" /> Unsaved
+            </Badge>
+          )}
           <Button
             className="ml-auto"
             size="sm"
@@ -208,16 +265,55 @@ export default function LibraryEditorPage() {
             </Field>
             <Field
               label="Exported functions"
-              hint="Comma separated; used for import autocomplete."
+              hint="Adding a function also inserts an editable TypeScript stub."
             >
-              <input
-                className="field font-mono"
-                value={draft.exportedFunctions}
-                onChange={(event) =>
-                  update({ exportedFunctions: event.target.value })
-                }
-                disabled={!canManage}
-              />
+              <div className="flex gap-1.5">
+                <input
+                  className="field min-w-0 font-mono"
+                  value={newExport}
+                  placeholder="functionName"
+                  onChange={(event) => setNewExport(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addExport();
+                    }
+                  }}
+                  disabled={!canManage}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={addExport}
+                  disabled={!canManage || !newExport.trim()}
+                  aria-label="Add exported function"
+                >
+                  <Plus size={13} />
+                </Button>
+              </div>
+              {exportedFunctions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {exportedFunctions.map((name) => (
+                    <span
+                      key={name}
+                      className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 font-mono text-[10px]"
+                    >
+                      {name}
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => removeExport(name)}
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label={`Remove ${name} from declared exports`}
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
             </Field>
           </aside>
           <section className="flex min-w-0 flex-col border-r">

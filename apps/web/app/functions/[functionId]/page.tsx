@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Beaker, Circle, Save, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/shell";
+import { EditorSwitcher } from "@/components/editor-switcher";
 import { TypeScriptEditor } from "@/components/typescript-editor";
 import {
   Badge,
@@ -133,6 +134,12 @@ export default function FunctionEditorPage() {
     }
   }, [functionId]);
   useEffect(() => void load(), [attempt, load]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   const schemas = useMemo(() => {
     try {
@@ -277,17 +284,21 @@ export default function FunctionEditorPage() {
   return (
     <AppShell>
       <div className="-m-4 sm:-m-6 lg:-m-8">
-        <header className="flex flex-wrap items-center gap-3 border-b bg-card px-4 py-2.5">
+        <header className="flex flex-wrap items-center gap-2 border-b bg-card px-4 py-2.5">
           <Link
             href="/functions"
             className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft size={13} /> Functions
           </Link>
-          <span className="text-muted-foreground">/</span>
-          <code className="text-xs font-semibold">
-            {draft.slug || "new-function"}
-          </code>
+          <span className="hidden text-muted-foreground sm:inline">/</span>
+          <EditorSwitcher
+            functions={functions}
+            libraries={libraries}
+            active={`function:${fn?.id ?? "new"}`}
+            dirty={dirty}
+            canManage={canEdit}
+          />
           {fn && <Badge>v{fn.version}</Badge>}
           {dirty && (
             <Badge tone="warning">
