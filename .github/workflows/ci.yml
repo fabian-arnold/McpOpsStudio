@@ -45,7 +45,7 @@ jobs:
         run: pnpm exec prisma validate --schema prisma/schema.prisma
 
       - name: Run unit tests
-        run: pnpm -r --if-present test
+        run: pnpm test
 
       - name: Build workspace
         run: pnpm -r --workspace-concurrency=4 build
