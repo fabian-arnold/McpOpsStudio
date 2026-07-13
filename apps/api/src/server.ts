@@ -103,6 +103,11 @@ import {
   bindingMapLayoutSchema,
   bindingMapNodeIds,
 } from "./binding-map-layout.js";
+import {
+  availableEndpointDocumentFormats,
+  endpointDocumentFormats,
+  generateEndpointDocument,
+} from "./endpoint-discovery.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -4918,6 +4923,76 @@ app.get(
       format,
       content: serializeManifest(manifest, format),
       manifest,
+      containsSecretValues: false,
+    };
+  },
+);
+app.get(
+  "/api/runtime-endpoints/:endpointId/discovery",
+  async (request, reply) => {
+    const session = sessionContext(request);
+    const { endpointId } = request.params as { endpointId: string };
+    const { format } = parse(
+      z.object({ format: z.enum(endpointDocumentFormats) }).strict(),
+      request.query,
+    );
+    const endpoint = await projectRepository(session.projectId).endpoint(
+      endpointId,
+    );
+    if (!endpoint)
+      return reply.status(404).send({
+        error: {
+          code: "NOT_FOUND",
+          message: "Runtime endpoint not found",
+          requestId: requestId(request),
+        },
+      });
+    const formats = availableEndpointDocumentFormats(endpoint.kind);
+    if (!formats.includes(format))
+      return reply.status(400).send({
+        error: {
+          code: "UNSUPPORTED_FORMAT",
+          message: `${format} is not available for ${endpoint.kind.toUpperCase()} endpoints`,
+          requestId: requestId(request),
+        },
+      });
+    const environmentUrls = canonicalEnvironmentEndpointUrls(
+      endpoint.project.environments,
+      endpoint.project.slug,
+      endpoint.slug,
+    );
+    const document = generateEndpointDocument(format, {
+      manifest: currentEndpointManifest(endpoint),
+      environments: endpoint.project.environments.flatMap((environment) => {
+        const urls = environmentUrls[environment.slug];
+        return urls
+          ? [
+              {
+                name: environment.slug.replace(/(^|-)([a-z])/g, (_match, lead, letter) =>
+                  `${lead ? " " : ""}${String(letter).toUpperCase()}`,
+                ),
+                slug: environment.slug,
+                mcpUrl: urls.mcpUrl,
+                httpBaseUrl: urls.httpBaseUrl,
+              },
+            ]
+          : [];
+      }),
+      functions: endpoint.functions.map((fn) => ({
+        name: fn.name,
+        inputSchema: fn.inputSchema,
+        outputSchema: fn.outputSchema ?? undefined,
+      })),
+      auth: endpoint.defaultAuthPolicy
+        ? {
+            type: endpoint.defaultAuthPolicy.type,
+            config: endpoint.defaultAuthPolicy.config,
+          }
+        : null,
+    });
+    return {
+      ...document,
+      formats,
       containsSecretValues: false,
     };
   },

@@ -120,6 +120,7 @@ GET  /api/templates
 POST /api/templates/install
 POST /api/runtime-endpoints/:endpointId/templates/:templateId/install
 GET  /api/runtime-endpoints/:endpointId/manifest
+GET  /api/runtime-endpoints/:endpointId/discovery?format=openapi-json
 POST /api/runtime-endpoints/:endpointId/manifest/preview
 POST /api/runtime-endpoints/:endpointId/manifest
 ```
