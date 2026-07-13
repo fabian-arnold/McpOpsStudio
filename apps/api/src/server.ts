@@ -4643,64 +4643,66 @@ app.get("/api/deployments", async (request, reply) => {
   const summarySince = new Date(Date.now() - 7 * DAY_MS);
   const [rows, summaryRows, activeSnapshots, projectFunctions] =
     await Promise.all([
-    prisma.projectDeployment.findMany({
-      where: {
-        projectId: session.projectId,
-        ...(query.environmentId ? { environmentId: query.environmentId } : {}),
-        ...(query.status ? { status: query.status } : {}),
-        ...dateWhere(query.from, query.to),
-      },
-      include: {
-        environment: true,
-        sourceProjectDeployment: { select: { id: true, version: true } },
-        endpointDeployments: {
-          where: { status: "failed" },
-          select: {
-            endpoint: { select: { name: true } },
-            logs: {
-              where: { level: "error" },
-              select: { message: true, metadata: true },
-              orderBy: { createdAt: "desc" },
-              take: 1,
+      prisma.projectDeployment.findMany({
+        where: {
+          projectId: session.projectId,
+          ...(query.environmentId
+            ? { environmentId: query.environmentId }
+            : {}),
+          ...(query.status ? { status: query.status } : {}),
+          ...dateWhere(query.from, query.to),
+        },
+        include: {
+          environment: true,
+          sourceProjectDeployment: { select: { id: true, version: true } },
+          endpointDeployments: {
+            where: { status: "failed" },
+            select: {
+              endpoint: { select: { name: true } },
+              logs: {
+                where: { level: "error" },
+                select: { message: true, metadata: true },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
             },
           },
+          _count: { select: { endpointDeployments: true } },
         },
-        _count: { select: { endpointDeployments: true } },
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    }),
-    prisma.projectDeployment.findMany({
-      where: {
-        projectId: session.projectId,
-        OR: [
-          { createdAt: { gte: summarySince } },
-          { status: { in: ["queued", "building", "deploying"] } },
-        ],
-      },
-      select: { status: true, createdAt: true, completedAt: true },
-    }),
-    prisma.environment.count({
-      where: {
-        projectId: session.projectId,
-        activeProjectDeploymentId: { not: null },
-      },
-    }),
-    prisma.function.findMany({
-      where: { projectId: session.projectId },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        versions: {
-          select: { version: true, code: true },
-          orderBy: { version: "desc" },
-          take: 1,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      prisma.projectDeployment.findMany({
+        where: {
+          projectId: session.projectId,
+          OR: [
+            { createdAt: { gte: summarySince } },
+            { status: { in: ["queued", "building", "deploying"] } },
+          ],
         },
-      },
-    }),
-  ]);
+        select: { status: true, createdAt: true, completedAt: true },
+      }),
+      prisma.environment.count({
+        where: {
+          projectId: session.projectId,
+          activeProjectDeploymentId: { not: null },
+        },
+      }),
+      prisma.function.findMany({
+        where: { projectId: session.projectId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          versions: {
+            select: { version: true, code: true },
+            orderBy: { version: "desc" },
+            take: 1,
+          },
+        },
+      }),
+    ]);
   const functionSources: FunctionSource[] = projectFunctions.flatMap((fn) =>
     fn.versions[0]
       ? [
@@ -4731,8 +4733,7 @@ app.get("/api/deployments", async (request, reply) => {
         : [];
     return {
       id: deployment.id,
-      version:
-        deployment.sourceProjectDeployment?.version ?? deployment.version,
+      version: exposedProjectDeploymentVersion(deployment),
       status: deployment.status,
       checksum: deployment.checksum,
       environment: {
@@ -4742,8 +4743,7 @@ app.get("/api/deployments", async (request, reply) => {
         baseUrl: deployment.environment.baseUrl,
       },
       endpointCount: deployment._count.endpointDeployments,
-      sourceProjectDeployment:
-        deployment.sourceProjectDeployment ?? undefined,
+      sourceProjectDeployment: deployment.sourceProjectDeployment ?? undefined,
       createdAt: deployment.createdAt,
       completedAt: deployment.completedAt ?? undefined,
       failureCause: failedLog?.message.slice(0, 8_000) ?? undefined,
@@ -5238,16 +5238,13 @@ function deploymentFailureFunctions(metadata: Record<string, unknown>) {
   )
     rows.push(metadata);
   return rows.flatMap((fn) =>
-    typeof fn.functionId === "string" &&
-    typeof fn.functionName === "string"
+    typeof fn.functionId === "string" && typeof fn.functionName === "string"
       ? [
           {
             id: fn.functionId,
             name: fn.functionName,
             slug:
-              typeof fn.functionSlug === "string"
-                ? fn.functionSlug
-                : undefined,
+              typeof fn.functionSlug === "string" ? fn.functionSlug : undefined,
             version:
               typeof fn.functionVersion === "number"
                 ? fn.functionVersion
