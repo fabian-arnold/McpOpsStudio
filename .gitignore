@@ -8,3 +8,4 @@ coverage/
 *.log
 prisma/dev.db
 .executor-work/
+docs/.vitepress/cache/

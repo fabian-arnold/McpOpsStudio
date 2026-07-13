@@ -15,13 +15,17 @@
     "test:e2e": "node scripts/e2e.mjs",
     "db:generate": "pnpm --filter @mcpops/db generate",
     "db:migrate": "pnpm --filter @mcpops/db migrate",
-    "db:seed": "pnpm --filter @mcpops/db seed"
+    "db:seed": "pnpm --filter @mcpops/db seed",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@prisma/client": "^6.19.3",
     "prisma": "^6.19.3",
     "turbo": "^2.10.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitepress": "1.6.4"
   },
   "pnpm": {
     "overrides": {

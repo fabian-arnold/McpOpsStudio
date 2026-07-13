@@ -1,11 +1,11 @@
 # MCP Ops Studio Documentation
 
-This directory contains design and operational documentation for contributors and self-hosted operators.
+This directory is the source for the VitePress documentation site and contains
+design and operational guides for contributors and self-hosted operators.
 
-The public documentation homepage lives in [`site/`](site/index.html) and is
-published to GitHub Pages by [the documentation workflow](../.github/workflows/docs-pages.yml).
-It provides a visual overview of the project; the guides below remain the detailed
-technical source of truth.
+Run `pnpm docs:dev` for local authoring, `pnpm docs:build` to generate the static
+site, and `pnpm docs:preview` to inspect the production build. GitHub Actions
+publishes `docs/.vitepress/dist` to GitHub Pages.
 
 ## Guides
 
