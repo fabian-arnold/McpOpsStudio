@@ -2,6 +2,11 @@
 
 This directory contains design and operational documentation for contributors and self-hosted operators.
 
+The public documentation homepage lives in [`site/`](site/index.html) and is
+published to GitHub Pages by [the documentation workflow](../.github/workflows/docs-pages.yml).
+It provides a visual overview of the project; the guides below remain the detailed
+technical source of truth.
+
 ## Guides
 
 - [Architecture](architecture.md) — system boundaries, data flow and repository ownership

@@ -3,6 +3,9 @@
 MCP Ops Studio is a self-hosted platform for turning TypeScript functions into
 MCP servers and HTTP APIs.
 
+[Explore the documentation homepage](https://fabian-arnold.github.io/McpOpsStudio/)
+or continue below for the repository quick start.
+
 It is useful when an application already has an API, but that API is not suitable
 for agents or downstream services as-is. The upstream API may use the wrong
 authentication method, return data in an inconvenient shape, expose too much
