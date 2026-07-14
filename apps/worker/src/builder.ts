@@ -367,7 +367,6 @@ export async function buildDeployment(
         version: version.version,
         name: fn.name,
         slug: fn.slug,
-        title: fn.title,
         description: fn.description,
         code: version.code,
         compiledCode: result.code,

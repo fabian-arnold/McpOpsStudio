@@ -10,7 +10,6 @@ import {
 const draft = {
   name: "lookup",
   slug: "lookup",
-  title: "Lookup",
   code: "export default async function handler() {}",
   inputSchema: { type: "object" },
   outputSchema: { type: "object" },

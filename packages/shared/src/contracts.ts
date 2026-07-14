@@ -121,7 +121,6 @@ export const functionCreateSchema = z
   .object({
     name: z.string().min(2).max(120),
     slug: functionSlugSchema,
-    title: z.string().min(2).max(160),
     description: z.string().max(4000).default(""),
     code: z.string().min(1).max(200_000),
     inputSchema: jsonSchemaSchema,

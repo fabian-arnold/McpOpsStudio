@@ -38,7 +38,7 @@ export default function ProjectFunctionsPage() {
     const needle = query.trim().toLowerCase();
     if (!needle) return functions;
     return functions?.filter((fn) =>
-      `${fn.name} ${fn.title} ${fn.description}`.toLowerCase().includes(needle),
+      `${fn.name} ${fn.slug} ${fn.description}`.toLowerCase().includes(needle),
     );
   }, [functions, query]);
 
@@ -117,9 +117,7 @@ export default function ProjectFunctionsPage() {
                           />
                         </div>
                         <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {fn.description ||
-                            fn.title ||
-                            "No description provided."}
+                          {fn.description || "No description provided."}
                         </p>
                       </div>
                     </div>

@@ -216,7 +216,7 @@ function Bindings({ endpoint, kind, onChanged }: { endpoint: RuntimeEndpointDeta
               {bindings.map((binding) => {
                 const fn = endpoint.functions.find((item) => item.id === binding.functionId);
                 const exposure = kind === "mcp" ? (binding as McpBinding).toolName : `${(binding as HttpBinding).method} ${(binding as HttpBinding).path}`;
-                return <tr key={binding.id} className="border-b last:border-0"><td className="p-3 font-mono">{exposure}</td><td className="p-3"><Link className="hover:text-primary" href={`/functions/${binding.functionId}`}>{fn?.title ?? fn?.name ?? "Unknown"}</Link></td><td className="p-3"><Badge tone={binding.enabled ? "success" : "neutral"}>{binding.enabled ? "enabled" : "disabled"}</Badge></td><td className="p-3 text-right"><DeleteBinding endpointId={endpoint.id} kind={kind} bindingId={binding.id} onDeleted={onChanged} /></td></tr>;
+                return <tr key={binding.id} className="border-b last:border-0"><td className="p-3 font-mono">{exposure}</td><td className="p-3"><Link className="hover:text-primary" href={`/functions/${binding.functionId}`}>{fn?.name ?? "Unknown"}</Link></td><td className="p-3"><Badge tone={binding.enabled ? "success" : "neutral"}>{binding.enabled ? "enabled" : "disabled"}</Badge></td><td className="p-3 text-right"><DeleteBinding endpointId={endpoint.id} kind={kind} bindingId={binding.id} onDeleted={onChanged} /></td></tr>;
               })}
             </tbody>
           </table>
@@ -245,7 +245,7 @@ function BindingDialog({ endpoint, kind, onSaved }: { endpoint: RuntimeEndpointD
   }
   return <Dialog open={open} onOpenChange={setOpen} trigger={<Button size="sm"><Plus size={14} /> Add {kind === "mcp" ? "tool" : "route"}</Button>} title={`Add ${kind === "mcp" ? "MCP tool" : "HTTP route"}`} description="Bind a reusable project Function.">
     <div className="space-y-4">
-      <div><label className="label">Function</label><select className="field" value={functionId} onChange={(event) => setFunctionId(event.target.value)}>{endpoint.functions.map((fn) => <option key={fn.id} value={fn.id}>{fn.title}</option>)}</select></div>
+      <div><label className="label">Function</label><select className="field" value={functionId} onChange={(event) => setFunctionId(event.target.value)}>{endpoint.functions.map((fn) => <option key={fn.id} value={fn.id}>{fn.name}</option>)}</select></div>
       {kind === "http" && <div><label className="label">Method</label><select className="field" value={method} onChange={(event) => setMethod(event.target.value)}>{["GET","POST","PUT","PATCH","DELETE"].map((value) => <option key={value}>{value}</option>)}</select></div>}
       <div><label className="label">{kind === "mcp" ? "Tool name" : "Route path"}</label><input className="field font-mono" value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "mcp" ? "search_customers" : "/v1/customers/search"} /></div>
       {error && <p className="text-xs text-red-500">{error}</p>}

@@ -947,14 +947,13 @@ app.get("/api/search", async (request) => {
         projectId: session.projectId,
         OR: [
           { name: { contains: q, mode: "insensitive" } },
-          { title: { contains: q, mode: "insensitive" } },
+          { slug: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
         ],
       },
       select: {
         id: true,
         name: true,
-        title: true,
       },
       take: limit,
     }),
@@ -988,7 +987,7 @@ app.get("/api/search", async (request) => {
       ...functions.map((fn) => ({
         type: "function",
         id: fn.id,
-        title: fn.title,
+        title: fn.name,
         subtitle: "Project Function",
         href: `/functions/${fn.id}`,
       })),
@@ -1872,7 +1871,6 @@ app.get("/api/runtime-endpoints/:endpointId/test-targets", async (request) => {
       .map((fn) => ({
         functionId: fn.id,
         name: fn.name,
-        title: fn.title,
         riskLevel: fn.riskLevel,
         mcpTools: endpoint.mcpToolBindings
           .filter((binding) => binding.enabled && binding.functionId === fn.id)
@@ -2216,7 +2214,6 @@ app.post("/api/functions", async (request, reply) => {
         projectId: session.projectId,
         name: input.name,
         slug: input.slug,
-        title: input.title,
         description: input.description,
         code: input.code,
         inputSchema: input.inputSchema,
@@ -2317,7 +2314,6 @@ app.route({
         data: {
           name: input.name,
           slug: input.slug,
-          title: input.title,
           description: input.description,
           code: input.code,
           inputSchema: input.inputSchema,
@@ -3970,9 +3966,8 @@ app.post(
       const created = await tx.function.create({
         data: {
           projectId: session.projectId,
-          name: template.id.replaceAll("-", "_"),
+          name: template.name,
           slug: template.id,
-          title: template.name,
           description: template.description,
           code: template.code,
           inputSchema: template.inputSchema,

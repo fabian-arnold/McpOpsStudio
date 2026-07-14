@@ -22,7 +22,6 @@ type Secret = { id: string; name: string; environmentId: string };
 type Draft = {
   name: string;
   slug: string;
-  title: string;
   description: string;
   code: string;
   inputSchema: string;
@@ -37,7 +36,6 @@ type Draft = {
 const blank: Draft = {
   name: "",
   slug: "",
-  title: "",
   description: "",
   code: 'export default async function handler(ctx: RuntimeContext, input: FunctionInput) {\n  ctx.logger.info("Function invoked", { requestId: ctx.invocation.requestId });\n  return { ok: true };\n}\n',
   inputSchema:
@@ -115,7 +113,6 @@ export default function FunctionEditorPage() {
       setDraft({
         name: current.name,
         slug: current.slug,
-        title: current.title,
         description: current.description,
         code: current.code,
         inputSchema: JSON.stringify(current.inputSchema, null, 2),
@@ -163,7 +160,6 @@ export default function FunctionEditorPage() {
     return {
       name: draft.name,
       slug: draft.slug,
-      title: draft.title,
       description: draft.description,
       code: draft.code,
       inputSchema: schemas.input,
@@ -331,22 +327,24 @@ export default function FunctionEditorPage() {
               <input
                 className="field"
                 value={draft.name}
-                onChange={(event) => update({ name: event.target.value })}
+                onChange={(event) => {
+                  const name = event.target.value;
+                  update({
+                    name,
+                    ...(!fn ? { slug: functionSlug(name) } : {}),
+                  });
+                }}
               />
             </Field>
-            <Field label="Slug">
+            <Field
+              label="Slug"
+              hint={fn ? "Stable code identifier" : "Generated from the name"}
+            >
               <input
                 className="field font-mono"
                 value={draft.slug}
                 onChange={(event) => update({ slug: event.target.value })}
                 readOnly={Boolean(fn)}
-              />
-            </Field>
-            <Field label="Title">
-              <input
-                className="field"
-                value={draft.title}
-                onChange={(event) => update({ title: event.target.value })}
               />
             </Field>
             <Field label="Description">
@@ -581,4 +579,13 @@ function list(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function functionSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
 }

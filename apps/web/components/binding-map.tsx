@@ -1024,8 +1024,8 @@ function ConnectDialog({
               ? {
                   functionId: fn.id,
                   toolName: name,
-                  title: fn.title,
-                  description: fn.description || `Invoke ${fn.title}`,
+                  title: fn.name,
+                  description: fn.description || `Invoke ${fn.name}`,
                   enabled: true,
                 }
               : {

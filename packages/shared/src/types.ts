@@ -36,7 +36,6 @@ export type SnapshotFunction = {
   version: number;
   name: string;
   slug: string;
-  title: string;
   description: string;
   code: string;
   compiledCode: string;

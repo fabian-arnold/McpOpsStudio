@@ -442,9 +442,8 @@ async function main(): Promise<void> {
       where: { projectId_slug: { projectId: project.id, slug: demo.slug } },
       create: {
         projectId: project.id,
-        name: demo.slug,
+        name: demo.title,
         slug: demo.slug,
-        title: demo.title,
         description: demo.description,
         code: demo.code,
         inputSchema: demo.inputSchema,
@@ -456,7 +455,7 @@ async function main(): Promise<void> {
         version: 2,
       },
       update: {
-        title: demo.title,
+        name: demo.title,
         description: demo.description,
         code: demo.code,
         inputSchema: demo.inputSchema,

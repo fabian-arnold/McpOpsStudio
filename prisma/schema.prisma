@@ -220,7 +220,6 @@ model Function {
   projectId           String               @db.Uuid
   name                String
   slug                String
-  title               String
   description         String               @default("")
   code                String               @default("")
   inputSchema         Json

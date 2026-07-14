@@ -222,9 +222,8 @@ async function createNotesDemo(
     const fn = await tx.function.create({
       data: {
         projectId: ids.projectId,
-        name: definition.slug,
+        name: definition.title,
         slug: definition.slug,
-        title: definition.title,
         description: definition.description,
         code: definition.code,
         inputSchema: definition.inputSchema,

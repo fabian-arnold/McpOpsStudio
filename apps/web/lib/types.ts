@@ -137,7 +137,6 @@ export type OpsFunction = {
   id: string;
   name: string;
   slug: string;
-  title: string;
   description: string;
   code: string;
   inputSchema: Record<string, unknown>;
