@@ -1,3 +1,16 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+allowBuilds:
+  "@prisma/client": true
+  "@prisma/engines": true
+  argon2: true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  sharp: true
+
+overrides:
+  dompurify: 3.4.11
+  postcss: 8.5.19
