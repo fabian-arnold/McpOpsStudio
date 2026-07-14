@@ -20,6 +20,7 @@ TypeScript through `ctx.functions.call()`.
 
 | If you want to…                                                 | Read…                                                   |
 | --------------------------------------------------------------- | ------------------------------------------------------- |
+| Install a tagged release with Docker Compose                    | [Installation](./installation.md)                       |
 | Understand the system boundaries and deployable roles           | [Architecture](./architecture.md)                       |
 | Run the stack or contribute code                                | [Development](./development.md)                         |
 | Learn how versions, snapshots, releases, and rollback work      | [Runtime and deployments](./runtime-and-deployments.md) |

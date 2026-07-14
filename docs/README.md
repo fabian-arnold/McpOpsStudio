@@ -9,12 +9,14 @@ publishes `docs/.vitepress/dist` to GitHub Pages.
 
 ## Guides
 
+- [Docker Compose installation](installation.md) — install, configure, back up and upgrade a tagged release
 - [Architecture](architecture.md) — system boundaries, data flow and repository ownership
 - [Development](development.md) — local setup, commands, debugging and test strategy
 - [Runtime and deployments](runtime-and-deployments.md) — function lifecycle, snapshots and invocation pipeline
 - [Security](security.md) — trust boundaries, tenancy, secrets and network controls
 - [Control-plane API](api.md) — authentication, error shapes and primary endpoints
 - [Commit style](commit-style.md) — Conventional Commit format, scopes and examples
+- [Software releases](releasing.md) — maintainer tagging, image publication and release verification
 
 Additional project-level references:
 

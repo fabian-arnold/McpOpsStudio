@@ -51,7 +51,22 @@ jobs:
         run: pnpm -r --workspace-concurrency=4 build
 
       - name: Validate Compose configuration
-        run: docker compose -f infra/docker-compose.yml config --quiet
+        env:
+          MCP_OPS_VERSION: v0.0.0-ci
+          POSTGRES_ADMIN_PASSWORD: 11111111111111111111111111111111
+          POSTGRES_PASSWORD: 22222222222222222222222222222222
+          SESSION_SECRET: 3333333333333333333333333333333333333333333333333333333333333333
+          CSRF_SECRET: 4444444444444444444444444444444444444444444444444444444444444444
+          INTERNAL_API_TOKEN: 5555555555555555555555555555555555555555555555555555555555555555
+          SEED_ADMIN_EMAIL: release-admin@example.com
+          SEED_ADMIN_PASSWORD: 66666666666666666666666666666666
+          SEED_MCP_API_KEY: 77777777777777777777777777777777
+          SEED_PRODUCTION_MCP_API_KEY: 88888888888888888888888888888888
+          PUBLIC_CONTROL_PLANE_URL: https://mcpops.example.com
+          PUBLIC_RUNTIME_URL: https://mcpops.example.com
+        run: |
+          docker compose -f infra/docker-compose.yml config --quiet
+          docker compose -f infra/docker-compose.release.yml config --quiet
 
       - name: Check whitespace errors
         run: git diff --check

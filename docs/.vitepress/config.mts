@@ -31,6 +31,7 @@ export default defineConfig({
     siteTitle: "MCP Ops Studio Docs",
     nav: [
       { text: "Overview", link: "/" },
+      { text: "Install", link: "/installation" },
       { text: "Development", link: "/development" },
       { text: "API", link: "/api" },
       { text: "GitHub", link: repository },
@@ -40,6 +41,7 @@ export default defineConfig({
         text: "Introduction",
         items: [
           { text: "Project overview", link: "/" },
+          { text: "Docker Compose installation", link: "/installation" },
           { text: "Development", link: "/development" },
         ],
       },
@@ -58,6 +60,7 @@ export default defineConfig({
         text: "Reference",
         items: [
           { text: "Control-plane API", link: "/api" },
+          { text: "Software releases", link: "/releasing" },
           { text: "Commit style", link: "/commit-style" },
           {
             text: "Contributing",

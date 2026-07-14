@@ -6,6 +6,10 @@ MCP servers and HTTP APIs.
 [Explore the documentation homepage](https://fabian-arnold.github.io/McpOpsStudio/)
 or continue below for the repository quick start.
 
+For a retained self-hosted installation, use the
+[Docker Compose installation guide](docs/installation.md) and pin a tagged
+release. The quick start below builds the current source tree for development.
+
 It is useful when an application already has an API, but that API is not suitable
 for agents or downstream services as-is. The upstream API may use the wrong
 authentication method, return data in an inconvenient shape, expose too much
@@ -364,11 +368,13 @@ demo mode, the mock CRM, insecure public URLs, and an implicit executor provider
 ## Documentation and contributing
 
 - [Documentation index](docs/README.md)
+- [Docker Compose installation](docs/installation.md)
 - [Architecture](docs/architecture.md)
 - [Runtime and deployments](docs/runtime-and-deployments.md)
 - [Security](docs/security.md)
 - [API overview](docs/api.md)
 - [Contributor guide](CONTRIBUTING.md)
+- [Software release process](docs/releasing.md)
 - [Development instructions](AGENTS.md)
 
 Issues and pull requests should follow the repository's contributor and commit

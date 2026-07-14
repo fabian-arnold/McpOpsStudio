@@ -12,7 +12,6 @@ on:
       - "pnpm-workspace.yaml"
   push:
     branches: [main]
-    tags: ["v*"]
 
 permissions:
   contents: read
@@ -29,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web, api, runtime, worker]
+        app: [control-plane, worker, migrate]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -49,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.app }}
+          images: ghcr.io/fabian-arnold/mcpopsstudio-${{ matrix.app }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
