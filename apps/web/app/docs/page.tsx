@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BookOpen,
   Code2,
+  Rocket,
   ServerCog,
   ShieldCheck,
   TerminalSquare,
@@ -10,50 +11,74 @@ import {
 import { AppShell } from "@/components/shell";
 import { Badge, PageHeader } from "@/components/ui";
 
-const sections = [
-  {
-    title: "Function programming model",
-    description:
-      "Author one TypeScript handler and expose an immutable version through MCP, HTTP, or both.",
-    icon: Code2,
-    href: "/functions",
-  },
-  {
-    title: "MCP Endpoints",
-    description:
-      "Assign reusable project Functions as tools and deploy independent MCP endpoints.",
-    icon: TerminalSquare,
-    href: "/mcp-endpoints",
-  },
-  {
-    title: "Deployments and rollback",
-    description:
-      "Build validated snapshots, inspect checksums and logs, and restore a prior immutable version.",
-    icon: ServerCog,
-    href: "/deployments",
-  },
-  {
-    title: "Security and audit",
-    description:
-      "Review trusted-code isolation, secret grants, authorization outcomes, and immutable audit events.",
-    icon: ShieldCheck,
-    href: "/audit",
-  },
-];
+export const dynamic = "force-dynamic";
+
+const defaultDocsUrl = "https://fabian-arnold.github.io/McpOpsStudio/";
+
+function docsHref(base: string, path: string) {
+  return new URL(path.replace(/^\//, ""), base.endsWith("/") ? base : `${base}/`).toString();
+}
 
 export default function DocsPage() {
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? defaultDocsUrl;
+  const userGuides = [
+    {
+      title: "Get started",
+      description: "Install the app, create the owner and first Project, then publish a Function.",
+      icon: Rocket,
+      path: "getting-started",
+    },
+    {
+      title: "Use the application",
+      description: "Learn every menu page, editor, binding table, setting, and operational view.",
+      icon: BookOpen,
+      path: "app/navigation",
+    },
+    {
+      title: "Build Functions",
+      description: "Author TypeScript, schemas and policy, then validate and test a saved version.",
+      icon: Code2,
+      path: "app/function-editor",
+    },
+    {
+      title: "Publish MCP and HTTP",
+      description: "Expose reusable Functions as authenticated MCP tools and typed HTTP routes.",
+      icon: TerminalSquare,
+      path: "app/endpoints",
+    },
+    {
+      title: "Secure endpoints",
+      description: "Configure encrypted Secrets, authentication policies, permissions, and networking.",
+      icon: ShieldCheck,
+      path: "guides/secure-endpoint",
+    },
+    {
+      title: "Deploy and operate",
+      description: "Build Development snapshots, release to Production, observe calls, and roll back.",
+      icon: ServerCog,
+      path: "guides/release-and-rollback",
+    },
+  ];
+
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Reference"
+        eyebrow="Learn"
         title="Documentation"
-        description="Practical entry points for developing and operating MCP Ops Studio."
+        description="Guides for developers who install, build with, and operate MCP Ops Studio."
+        actions={
+          <a className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-medium text-primary-foreground transition hover:brightness-110" href={docsHref(docsUrl, "getting-started")} target="_blank" rel="noreferrer">
+            Open documentation <ArrowRight size={14} />
+          </a>
+        }
       />
       <div className="grid gap-4 lg:grid-cols-2">
-        {sections.map(({ title, description, icon: Icon, href }) => (
-          <Link
+        {userGuides.map(({ title, description, icon: Icon, path }) => (
+          <a
             className="panel group flex gap-4 p-5 transition hover:border-primary/30"
-            href={href}
+            href={docsHref(docsUrl, path)}
+            target="_blank"
+            rel="noreferrer"
             key={title}
           >
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -62,37 +87,33 @@ export default function DocsPage() {
             <span className="min-w-0">
               <span className="flex items-center gap-2 text-sm font-semibold">
                 {title}
-                <ArrowRight
-                  className="opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100"
-                  size={13}
-                />
+                <ArrowRight className="opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" size={13} />
               </span>
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                {description}
-              </span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
             </span>
-          </Link>
+          </a>
         ))}
       </div>
-      <section className="panel mt-5 p-5">
-        <div className="flex items-center gap-2">
-          <BookOpen size={16} className="text-primary" />
-          <h2 className="text-sm font-semibold">Local quick reference</h2>
-          <Badge tone="info">development</Badge>
+      <section className="panel mt-5 flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-300">
+          <Code2 size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Develop MCP Ops Studio</h2>
+            <Badge tone="info">contributors</Badge>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Explore architecture, repository development, testing, migrations, security controls, and release practices.
+          </p>
         </div>
-        <div className="mt-4 grid gap-3 font-mono text-[11px] md:grid-cols-2">
-          <code className="rounded-lg bg-muted/50 p-3">
-            MCP http://localhost:8080/mcp/acme/customer-operations
-          </code>
-          <code className="rounded-lg bg-muted/50 p-3">
-            HTTP http://localhost:8080/http/acme/customer-operations
-          </code>
-        </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          The repository README and files under <code>docs/</code> contain
-          setup, security, architecture, manifest, and contribution details.
-        </p>
+        <a className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border bg-card px-3.5 text-sm font-medium transition hover:bg-muted" href={docsHref(docsUrl, "contributing/platform-development")} target="_blank" rel="noreferrer">
+          Contributor guide <ArrowRight size={14} />
+        </a>
       </section>
+      <p className="mt-5 text-xs text-muted-foreground">
+        Looking for a product screen? Use the application navigation or return to the <Link className="text-primary hover:underline" href="/">Dashboard</Link>.
+      </p>
     </AppShell>
   );
 }

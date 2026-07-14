@@ -18,14 +18,13 @@ TypeScript through `ctx.functions.call()`.
 
 ## Start here
 
-| If you want to…                                                 | Read…                                                   |
-| --------------------------------------------------------------- | ------------------------------------------------------- |
-| Install a tagged release with Docker Compose                    | [Installation](./installation.md)                       |
-| Understand the system boundaries and deployable roles           | [Architecture](./architecture.md)                       |
-| Run the stack or contribute code                                | [Development](./development.md)                         |
-| Learn how versions, snapshots, releases, and rollback work      | [Runtime and deployments](./runtime-and-deployments.md) |
-| Review authentication, secrets, isolation, and network controls | [Security model](./security.md)                         |
-| Integrate with the control plane                                | [Control-plane API](./api.md)                           |
+| If you want to... | Read... |
+| --- | --- |
+| Install and start using your own instance | [Getting started](./getting-started.md) |
+| Learn every application screen and action | [Navigation and roles](./app/navigation.md) |
+| Build and publish a reusable Function | [Build your first Function](./guides/first-function.md) |
+| Operate deployments and runtime traffic | [Runtime and deployments](./runtime-and-deployments.md) |
+| Extend MCP Ops Studio itself | [Platform development](./contributing/platform-development.md) |
 
 ## Quick start
 
@@ -65,10 +64,9 @@ export default async function handler(ctx, input) {
 }
 ```
 
-Functions receive a restricted runtime context for logging, outbound HTTP,
-secrets, storage, cache, audits, reviewed database queries, and internal
-Function calls. They do not receive ambient filesystem, process, shell,
-environment, or unrestricted network access.
+Functions receive a controlled runtime context for logging, allowlisted outbound
+HTTP, Secrets, scoped storage and cache, audits, reviewed database queries, and
+internal Function calls.
 
 ### Core concepts
 
@@ -103,9 +101,9 @@ Browser / MCP / HTTP caller
             └── Redis: deployment jobs and scoped cache
 ```
 
-Draft source is never served by runtime routes. A deployment becomes active
-only after every endpoint artifact builds successfully, so a failed build
-cannot partially replace live traffic.
+Runtime routes serve the active immutable snapshot. A deployment becomes active
+only after every endpoint artifact builds successfully, so live traffic changes
+atomically at the Project level.
 
 ## Control plane
 
@@ -117,9 +115,9 @@ Project.
 
 ### Author reusable Functions
 
-The Function editor keeps source, schemas, policy, secret grants, validation,
-and development testing together. Saving creates an immutable
-`FunctionVersion`; it does not change active traffic.
+The Function editor keeps source, schemas, policy, Secret grants, validation,
+and development testing together. Saving creates an immutable development
+`FunctionVersion`; deploying the Project makes selected versions active together.
 
 ![MCP Ops Studio Function editor showing policy settings and TypeScript source](./screenshots/function-editor.png)
 
@@ -176,10 +174,9 @@ prisma                   Schema, migrations and development seed
 infra                    Two-role Compose deployment and Caddy gateway
 ```
 
-## Current scope
+## Product capabilities
 
-Version 1 supports initialization and tools over MCP plus JSON HTTP bindings.
-Prompts, resources, schedules, event buses, arbitrary npm packages, raw database
-queries, generic gateway middleware, response streaming, enterprise
-control-plane SSO, and Microsoft Agent 365 integration are intentionally not
-presented as production-complete features.
+MCP Ops Studio serves stateless MCP initialization and tools plus typed JSON
+HTTP bindings. Functions use reviewed platform modules, Project Libraries, and
+controlled runtime capabilities for HTTP, Secrets, storage, cache, logging,
+auditing, reviewed queries, and internal Function calls.

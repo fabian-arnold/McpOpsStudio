@@ -12,7 +12,9 @@ Control-plane users authenticate with local email and Argon2 password hashes. Se
 
 Platform roles are owner, admin, developer, operator and viewer. Route handlers must explicitly require the appropriate role.
 
-Control-plane users authenticate with local email/password only. Enterprise OIDC/Entra SSO and Microsoft Graph/MCP connection lifecycle are intentionally out of scope; this is separate from implemented runtime validation of JWTs and Entra access tokens.
+Control-plane users authenticate with local email and password. Runtime endpoints
+can validate JWTs and Microsoft Entra access tokens through explicitly configured
+authentication policies.
 
 ## Multi-tenancy
 
@@ -90,7 +92,8 @@ Authentication and permission denials are persisted safely. Write and destructiv
 
 API key, HTTP Basic, static bearer, HMAC-SHA256 webhook signatures, remote-JWKS JWT, and Microsoft Entra access-token policies are implemented runtime providers. Static policies authenticate a credential and may grant named function permissions; they do not configure roles or scopes. Basic-auth passwords are encrypted Secret records referenced by the policy. JWT and Entra require explicit issuer/audience configuration and are disabled when their feature flag is `false`. JWT/Entra validation enforces HTTPS JWKS, safe-public DNS resolution, issuer, audience, required claims, clock skew, and key rotation. Webhook validation signs the timestamp plus exact raw JSON body, applies a bounded tolerance, and uses Redis replay protection.
 
-Runtime token validation does not provide control-plane sign-in. Enterprise SSO and Microsoft Graph consent/connection management are intentionally not exposed.
+Runtime token validation belongs to endpoint authentication. Control-plane
+sign-in uses the installation-wide local account and role model.
 
 The public `control-plane` role proxies MCP/HTTP traffic to private worker
 replicas. Worker ports are not published, and the internal hop is authenticated

@@ -4,7 +4,7 @@ MCP Ops Studio is a function-first platform. A project-level Function owns code,
 schemas and policy requirements and may be reused by any MCP Endpoint or HTTP API
 in the Project.
 MCP tools and HTTP routes bind external names and request shapes to Functions;
-bindings do not contain executable implementations.
+Functions contain the executable implementation and bindings define exposure.
 
 The application ships as two deployable roles. PostgreSQL and Redis remain
 supporting infrastructure.
@@ -38,8 +38,8 @@ public ports, local authentication, signed sessions, CSRF enforcement, platform
 RBAC, project-scoped CRUD, manifests, deployment requests and rollback. Caddy
 serves the UI and API and proxies `/mcp` and `/http` to the private worker pool.
 
-Static source validation is allowed here. User-authored code must never execute
-in this role.
+Static source validation runs here. User-authored code executes exclusively
+through `FunctionExecutor` in the worker role.
 
 ### Worker
 
@@ -65,9 +65,9 @@ for load balancing.
 ### Executor
 
 `packages/sandbox` defines `FunctionExecutor` and the local child-process
-implementation. The child receives serialized metadata and calls privileged
-capabilities over IPC. It does not receive a normal process environment or raw
-storage, network, secret, database or Redis clients.
+implementation. The child receives serialized metadata and calls typed runtime
+capabilities over IPC for storage, networking, Secrets, database access, and
+cache operations.
 
 The local executor is appropriate only for trusted developers. Production can
 select the disposable-container provider without changing the invocation
@@ -77,9 +77,8 @@ contract; provider selection is explicit and fail-closed.
 
 Functions belong to a Project. MCP Endpoints and HTTP APIs are independent
 security and deployment boundaries that select project Functions through
-protocol-specific bindings. Editing a shared Function does not modify running
-endpoints. Each endpoint must be explicitly deployed to pin the new immutable
-Function version.
+protocol-specific bindings. Editing a shared Function creates development state;
+a Project deployment pins the new immutable Function version for its endpoints.
 
 Code may compose Functions through the controlled capability:
 
@@ -98,8 +97,8 @@ and records parent/root execution lineage.
 
 MCP Endpoint and HTTP API pages use ordinary binding tables. The Endpoint Map is
 a dedicated drag-and-drop topology for assigning Function nodes to MCP Endpoint
-and HTTP API nodes. It does not compose executable steps: Function composition
-remains TypeScript and there is no workflow canvas.
+and HTTP API nodes. Function composition remains TypeScript through
+`ctx.functions.call()`.
 
 ## Data ownership
 
@@ -129,10 +128,10 @@ HTTP, queues and persisted state.
 
 ## Key invariants
 
-- Draft Function code is never served as runtime traffic.
+- Runtime traffic serves immutable active Function snapshots.
 - Deployments pin immutable direct and transitive Function versions.
-- Bindings expose Functions; they do not contain executable code.
+- Bindings expose Functions and Functions contain executable code.
 - User code executes only behind `FunctionExecutor` in the worker role.
-- Secret values are resolved at invocation time and never snapshotted.
+- Snapshots contain Secret references and values resolve at invocation time.
 - Every invocation has safe identifiers and a persisted, redacted outcome.
 - Audit records are append-only.

@@ -1,0 +1,23 @@
+[
+  { "label": "Overview", "route": "/overview", "doc": "app/global-overview.md", "screenshot": "screenshots/app/global-overview.png" },
+  { "label": "Dashboard", "route": "/", "doc": "app/dashboard.md", "screenshot": "screenshots/app/dashboard.png" },
+  { "label": "Functions", "route": "/functions", "doc": "app/functions.md", "screenshot": "screenshots/app/functions.png" },
+  { "label": "Endpoint Map", "route": "/map", "doc": "app/endpoint-map.md", "screenshot": "screenshots/app/endpoint-map.png" },
+  { "label": "Endpoints", "route": "/endpoints", "doc": "app/endpoints.md", "screenshot": "screenshots/app/endpoints.png" },
+  { "label": "MCP Endpoints", "route": "/mcp-endpoints", "doc": "app/mcp-endpoints.md", "screenshot": "screenshots/app/mcp-endpoints.png" },
+  { "label": "HTTP APIs", "route": "/http-apis", "doc": "app/http-apis.md", "screenshot": "screenshots/app/http-apis.png" },
+  { "label": "Libraries", "route": "/libraries", "doc": "app/libraries.md", "screenshot": "screenshots/app/libraries.png" },
+  { "label": "Authentication", "route": "/auth-policies", "doc": "app/authentication.md", "screenshot": "screenshots/app/authentication.png" },
+  { "label": "Secrets", "route": "/secrets", "doc": "app/secrets.md", "screenshot": "screenshots/app/secrets.png" },
+  { "label": "Executions", "route": "/executions", "doc": "app/executions.md", "screenshot": "screenshots/app/executions.png" },
+  { "label": "Logs", "route": "/logs", "doc": "app/logs.md", "screenshot": "screenshots/app/logs.png" },
+  { "label": "Deployments", "route": "/deployments", "doc": "app/deployments.md", "screenshot": "screenshots/app/deployments.png" },
+  { "label": "Project settings", "route": "/project-settings", "doc": "app/project-settings.md", "screenshot": "screenshots/app/project-settings.png" },
+  { "label": "Projects", "route": "/projects", "doc": "app/projects.md", "screenshot": "screenshots/app/projects.png" },
+  { "label": "Users", "route": "/users", "doc": "app/users.md", "screenshot": "screenshots/app/users.png" },
+  { "label": "Audit log", "route": "/audit", "doc": "app/audit-log.md", "screenshot": "screenshots/app/audit-log.png" },
+  { "label": "Source code", "route": "https://github.com/fabian-arnold/McpOpsStudio", "doc": "app/source-code.md" },
+  { "label": "Legal notices", "route": "/legal", "doc": "app/legal-notices.md", "screenshot": "screenshots/app/legal-notices.png" },
+  { "label": "Documentation", "route": "/docs", "doc": "app/documentation.md", "screenshot": "screenshots/app/documentation.png" },
+  { "label": "Platform settings", "route": "/settings", "doc": "app/platform-settings.md", "screenshot": "screenshots/app/platform-settings.png" }
+]
