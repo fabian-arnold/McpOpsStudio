@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
+  // Linting is a repository-level CI step. Keeping it out of next build avoids
+  // running a second, partial lint pass with a different working directory.
+  eslint: { ignoreDuringBuilds: true },
   // Standalone tracing creates symlinks that require elevated privileges on
   // Windows. Docker enables it explicitly for the production image.
   ...(process.env.DOCKER_BUILD === "1" ? { output: "standalone" } : {}),

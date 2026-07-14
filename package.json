@@ -11,7 +11,13 @@
     "dev": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up --build --watch",
     "dev:local": "pnpm db:generate && pnpm --filter \"./packages/*\" build && turbo dev --parallel",
     "dev:down": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml down --remove-orphans",
-    "lint": "turbo lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "analyze": "pnpm analyze:architecture && pnpm analyze:dead-code",
+    "analyze:architecture": "depcruise apps packages --config dependency-cruiser.config.cjs",
+    "analyze:dead-code": "knip --include files,dependencies,unlisted,unresolved",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "test:e2e": "node scripts/e2e.mjs",
@@ -25,10 +31,21 @@
     "docs:media": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-doc-demos.ps1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@eslint/js": "^9.39.5",
     "@prisma/client": "^6.19.3",
+    "dependency-cruiser": "^18.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "15.5.20",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-sonarjs": "^4.1.0",
+    "globals": "^17.7.0",
+    "knip": "^6.26.0",
+    "prettier": "^3.9.5",
     "prisma": "^6.19.3",
     "turbo": "^2.10.5",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.64.0",
     "vitepress": "1.6.4"
   }
 }

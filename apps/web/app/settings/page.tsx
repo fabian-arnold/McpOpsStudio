@@ -72,18 +72,14 @@ export default function SettingsPage() {
           <section className="panel p-5">
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-primary" />
-              <h2 className="text-sm font-semibold">
-                Control-plane authentication
-              </h2>
+              <h2 className="text-sm font-semibold">Control-plane authentication</h2>
             </div>
             <div className="mt-4 flex items-center justify-between rounded-lg border p-4">
               <div>
-                <p className="text-xs font-semibold">
-                  Local email and password
-                </p>
+                <p className="text-xs font-semibold">Local email and password</p>
                 <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                  Project-scoped platform login with secure sessions. No
-                  enterprise SSO provider lifecycle is configured.
+                  Project-scoped platform login with secure sessions. No enterprise SSO
+                  provider lifecycle is configured.
                 </p>
               </div>
               <Badge
@@ -98,12 +94,10 @@ export default function SettingsPage() {
             </div>
           </section>
           <section className="panel p-5">
-            <h2 className="text-sm font-semibold">
-              Runtime endpoint authentication
-            </h2>
+            <h2 className="text-sm font-semibold">Runtime endpoint authentication</h2>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              These capabilities validate callers to deployed MCP and HTTP
-              endpoints. They do not sign users into the control plane.
+              These capabilities validate callers to deployed MCP and HTTP endpoints.
+              They do not sign users into the control plane.
             </p>
             <div className="mt-4 divide-y">
               {[
@@ -114,10 +108,7 @@ export default function SettingsPage() {
                 ],
                 ["Webhook signatures", data.authProviders?.webhookSignature],
               ].map(([name, status]) => (
-                <div
-                  className="flex items-center justify-between py-3"
-                  key={name}
-                >
+                <div className="flex items-center justify-between py-3" key={name}>
                   <span className="text-xs">{name}</span>
                   <Badge tone={status === "enabled" ? "success" : "neutral"}>
                     {status ?? "Not reported"}
@@ -135,15 +126,11 @@ export default function SettingsPage() {
             </div>
             <dl className="mt-4 space-y-3 text-xs">
               <Capability label="Environment" value={data.environment} />
-              <Capability
-                label="Execution provider"
-                value={data.executor?.provider}
-              />
+              <Capability label="Execution provider" value={data.executor?.provider} />
               <Capability
                 label="Package installation"
                 value={
-                  data.runtimeCapabilities?.arbitraryPackageInstallation ===
-                  undefined
+                  data.runtimeCapabilities?.arbitraryPackageInstallation === undefined
                     ? undefined
                     : data.runtimeCapabilities.arbitraryPackageInstallation
                       ? "Enabled"
@@ -159,8 +146,8 @@ export default function SettingsPage() {
             </div>
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
               <LockKeyhole className="mr-1 inline" size={13} />
-              Runtime and platform secrets are write-only and are never rendered
-              after creation.
+              Runtime and platform secrets are write-only and are never rendered after
+              creation.
             </p>
           </section>
         </aside>
@@ -168,13 +155,7 @@ export default function SettingsPage() {
     </AppShell>
   );
 }
-function Capability({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | undefined;
-}) {
+function Capability({ label, value }: { label: string; value: string | undefined }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>

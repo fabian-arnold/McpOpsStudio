@@ -44,6 +44,15 @@ jobs:
       - name: Validate Prisma schema
         run: pnpm exec prisma validate --schema prisma/schema.prisma
 
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint source
+        run: pnpm lint
+
+      - name: Analyze dependencies and architecture
+        run: pnpm analyze
+
       - name: Run unit tests
         run: pnpm test
 

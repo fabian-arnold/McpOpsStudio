@@ -15,13 +15,23 @@ describe("safe platform capability view", () => {
       environment: "production",
       executor: { provider: "container", hostileCodeIsolation: true },
       authProviders: { jwt: "enabled", entraRuntime: "disabled" },
-      runtimeCapabilities: { arbitraryPackageInstallation: false, reviewedDatabaseQueries: false, demoMode: false },
+      runtimeCapabilities: {
+        arbitraryPackageInstallation: false,
+        reviewedDatabaseQueries: false,
+        demoMode: false,
+      },
     });
     expect(JSON.stringify(view)).not.toContain("must-not-appear");
   });
 
   it("enables reviewed queries only for the exact lowercase feature flag", () => {
-    expect(platformCapabilities({ ENABLE_REVIEWED_DB_QUERIES: "true" }).runtimeCapabilities.reviewedDatabaseQueries).toBe(true);
-    expect(platformCapabilities({ ENABLE_REVIEWED_DB_QUERIES: "TRUE" }).runtimeCapabilities.reviewedDatabaseQueries).toBe(false);
+    expect(
+      platformCapabilities({ ENABLE_REVIEWED_DB_QUERIES: "true" }).runtimeCapabilities
+        .reviewedDatabaseQueries,
+    ).toBe(true);
+    expect(
+      platformCapabilities({ ENABLE_REVIEWED_DB_QUERIES: "TRUE" }).runtimeCapabilities
+        .reviewedDatabaseQueries,
+    ).toBe(false);
   });
 });

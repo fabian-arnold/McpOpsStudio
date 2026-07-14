@@ -1,16 +1,10 @@
 import { createHash } from "node:crypto";
-import {
-  PrismaClient,
-  type Prisma,
-  RiskLevel,
-  HttpMethod,
-} from "@prisma/client";
+import { PrismaClient, type Prisma, RiskLevel, HttpMethod } from "@prisma/client";
 import { encryptSecret } from "../packages/db/src/encryption.ts";
 import { hashPassword } from "../packages/db/src/password.ts";
 
 const prisma = new PrismaClient();
-const hash = (value: string) =>
-  createHash("sha256").update(value).digest("hex");
+const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
 type DemoFunction = {
   slug: string;
@@ -101,8 +95,7 @@ const demos: DemoFunction[] = [
     compiledCode: `export default async function handler(ctx,input){ctx.logger.info("Getting customer",{customerId:input.customerId});const response=await ctx.http.request({method:"GET",url:ctx.env.CRM_API_URL+"/customers/"+encodeURIComponent(input.customerId)});return response.data;}`,
     tool: {
       name: "get_customer",
-      description:
-        "Retrieve one customer by its stable customer ID. Read-only.",
+      description: "Retrieve one customer by its stable customer ID. Read-only.",
     },
     route: {
       method: HttpMethod.GET,
@@ -187,9 +180,7 @@ async function main(): Promise<void> {
   const configuredMockCrmUrl = process.env.MOCK_CRM_URL?.trim();
   const mockCrmUrl =
     configuredMockCrmUrl ||
-    (process.env.NODE_ENV === "production"
-      ? undefined
-      : "http://mock-crm:8090");
+    (process.env.NODE_ENV === "production" ? undefined : "http://mock-crm:8090");
   if (!mockCrmUrl)
     throw new Error(
       "The development seed requires an explicit MOCK_CRM_URL outside development.",
@@ -218,8 +209,7 @@ async function main(): Promise<void> {
     where: { id: "installation" },
     create: {
       id: "installation",
-      publicUrl:
-        process.env.PUBLIC_CONTROL_PLANE_URL ?? "http://localhost:8080",
+      publicUrl: process.env.PUBLIC_CONTROL_PLANE_URL ?? "http://localhost:8080",
     },
     update: {},
   });
@@ -331,9 +321,7 @@ async function main(): Promise<void> {
       projectId: project.id,
       environmentId: environment.id,
       name: "MCP_CLIENT_API_KEY",
-      encryptedValue: encryptSecret(
-        process.env.SEED_MCP_API_KEY ?? "dev-acme-mcp-key",
-      ),
+      encryptedValue: encryptSecret(process.env.SEED_MCP_API_KEY ?? "dev-acme-mcp-key"),
     },
     update: {},
   });
@@ -694,9 +682,7 @@ async function main(): Promise<void> {
           data: {
             endpointId: configuration.endpoint.id,
             version: nextVersion,
-            status: preserveActiveDevelopmentDeployment
-              ? "rolled_back"
-              : item.status,
+            status: preserveActiveDevelopmentDeployment ? "rolled_back" : item.status,
             snapshot: snapshot as Prisma.InputJsonObject,
             runtimeConfig: {
               seedRelease: item.release,
@@ -709,9 +695,7 @@ async function main(): Promise<void> {
             },
             checksum: snapshotChecksum,
             completedAt:
-              item.release === "v1"
-                ? new Date(Date.now() - 3_600_000)
-                : new Date(),
+              item.release === "v1" ? new Date(Date.now() - 3_600_000) : new Date(),
           },
         });
         await prisma.deploymentLog.create({

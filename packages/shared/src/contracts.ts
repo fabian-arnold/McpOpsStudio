@@ -17,13 +17,7 @@ export const jsonSchemaSchema = z
     "Schema must declare type or be empty to allow any value",
   );
 export const riskLevelSchema = z.enum(["read", "write", "destructive"]);
-export const roleSchema = z.enum([
-  "owner",
-  "admin",
-  "developer",
-  "operator",
-  "viewer",
-]);
+export const roleSchema = z.enum(["owner", "admin", "developer", "operator", "viewer"]);
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -58,30 +52,33 @@ export const projectCreateSchema = z
   .strict();
 export const projectUpdateSchema = projectCreateSchema.partial().strict();
 export const runtimeLogLevelSchema = z.enum(["debug", "info", "warn", "error", "off"]);
-export const runtimeLogSettingsSchema = z.object({
-  level: runtimeLogLevelSchema,
-  retentionDays: z.number().int().min(1).max(3650),
-  retentionMaxEntries: z.number().int().min(100).max(10_000_000),
-  retentionMaxBytes: z.number().int().min(1_048_576).max(2_000_000_000),
-}).strict();
+export const runtimeLogSettingsSchema = z
+  .object({
+    level: runtimeLogLevelSchema,
+    retentionDays: z.number().int().min(1).max(3650),
+    retentionMaxEntries: z.number().int().min(100).max(10_000_000),
+    retentionMaxBytes: z.number().int().min(1_048_576).max(2_000_000_000),
+  })
+  .strict();
 export const projectSettingsUpdateSchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     slug: slugSchema.optional(),
     description: z.string().trim().max(2000).optional(),
     captureDevelopmentPayloads: z.boolean().optional(),
-    logging: z.object({
-      development: runtimeLogSettingsSchema.optional(),
-      production: runtimeLogSettingsSchema.optional(),
-    }).strict().optional(),
+    logging: z
+      .object({
+        development: runtimeLogSettingsSchema.optional(),
+        production: runtimeLogSettingsSchema.optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one Project setting is required",
   });
-export const projectDeleteSchema = z
-  .object({ confirmation: slugSchema })
-  .strict();
+export const projectDeleteSchema = z.object({ confirmation: slugSchema }).strict();
 export const userCreateSchema = z
   .object({
     email: z.string().email(),
@@ -444,9 +441,7 @@ export const networkPolicyUpdateSchema = z
         });
     }
   });
-export const cachePurgeSchema = z
-  .object({ confirmEndpointSlug: slugSchema })
-  .strict();
+export const cachePurgeSchema = z.object({ confirmEndpointSlug: slugSchema }).strict();
 export const testInvocationSchema = z.object({
   endpointId: z.string().uuid().optional(),
   input: z.unknown(),
@@ -500,9 +495,7 @@ export const deploymentRuntimeConfigSchema = z
     }),
     network: z
       .object({
-        allowPrivateHosts: z
-          .array(z.string().regex(/^[a-z0-9.-]+$/i))
-          .default([]),
+        allowPrivateHosts: z.array(z.string().regex(/^[a-z0-9.-]+$/i)).default([]),
       })
       .default({ allowPrivateHosts: [] }),
   })

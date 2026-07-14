@@ -1,5 +1,4 @@
-import Fastify from "fastify";
-import type { FastifyReply } from "fastify";
+import Fastify, { type FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -54,13 +53,7 @@ import {
   requireRole,
   type PlatformSession,
 } from "./auth.js";
-import {
-  checksum,
-  sessionContext,
-  parse,
-  requestId,
-  sendError,
-} from "./helpers.js";
+import { checksum, sessionContext, parse, requestId, sendError } from "./helpers.js";
 import {
   functionIdentifierWhere,
   projectRepository,
@@ -82,17 +75,8 @@ import {
   providerStatus,
   validateProjectLibrary,
 } from "./control-plane-validation.js";
-import {
-  auditListQuerySchema,
-  csv,
-  deploymentListQuerySchema,
-  executionListQuerySchema,
-  runtimeLogListQuerySchema,
-} from "./listing.js";
-import {
-  inferFailedFunction,
-  type FunctionSource,
-} from "./deployment-failure.js";
+import { csv, deploymentListQuerySchema } from "./listing.js";
+import { inferFailedFunction, type FunctionSource } from "./deployment-failure.js";
 import { platformCapabilities } from "./capabilities.js";
 import {
   previewTemplateInstallation,
@@ -102,16 +86,19 @@ import { buildManifestPlan } from "./manifest-plan.js";
 import { registerReviewedDatabaseRoutes } from "./reviewed-database-routes.js";
 import { normalizeFunctionBindings } from "./function-view.js";
 import { resolveDevelopmentRuntimeEnvironment } from "./deployment-runtime-config.js";
-import {
-  bindingMapLayoutSchema,
-  bindingMapNodeIds,
-} from "./binding-map-layout.js";
+import { bindingMapLayoutSchema, bindingMapNodeIds } from "./binding-map-layout.js";
 import {
   availableEndpointDocumentFormats,
   endpointDocumentFormats,
   generateEndpointDocument,
 } from "./endpoint-discovery.js";
 import { registerInstallationRoutes } from "./installation.js";
+import {
+  auditView,
+  dateWhere,
+  executionView,
+  registerObservabilityRoutes,
+} from "./observability-routes.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -133,9 +120,7 @@ const deploymentQueue = new Queue("deployments", {
   connection: {
     host: redisUrl.hostname,
     port: Number(redisUrl.port || 6379),
-    ...(redisUrl.password
-      ? { password: decodeURIComponent(redisUrl.password) }
-      : {}),
+    ...(redisUrl.password ? { password: decodeURIComponent(redisUrl.password) } : {}),
   },
 });
 const cacheInspector = new Redis(redisUrl.toString(), {
@@ -144,9 +129,7 @@ const cacheInspector = new Redis(redisUrl.toString(), {
   enableOfflineQueue: false,
 });
 
-app.setErrorHandler((error, request, reply) =>
-  sendError(reply, request, error),
-);
+app.setErrorHandler((error, request, reply) => sendError(reply, request, error));
 app.addHook("onRequest", async (request, reply) => {
   reply.header("x-request-id", requestId(request));
 });
@@ -276,10 +259,7 @@ app.post(
     const user = await prisma.user.findUnique({
       where: { email: input.email.toLowerCase() },
     });
-    if (
-      !user?.active ||
-      !(await argon2.verify(user.passwordHash, input.password))
-    )
+    if (!user?.active || !(await argon2.verify(user.passwordHash, input.password)))
       return reply.status(401).send({
         error: {
           code: "INVALID_CREDENTIALS",
@@ -364,10 +344,7 @@ app.post("/api/account/password", async (request, reply) => {
   const session = sessionContext(request);
   const input = parse(passwordChangeSchema, request.body);
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
-  if (
-    !user?.active ||
-    !(await argon2.verify(user.passwordHash, input.currentPassword))
-  )
+  if (!user?.active || !(await argon2.verify(user.passwordHash, input.currentPassword)))
     return reply.status(400).send({
       error: {
         code: "CURRENT_PASSWORD_INVALID",
@@ -436,12 +413,8 @@ app.get("/api/projects/:projectId", async (request, reply) => {
             _count: {
               ...endpoint._count,
               functions: new Set([
-                ...endpoint.mcpToolBindings.map(
-                  (binding) => binding.functionId,
-                ),
-                ...endpoint.httpRouteBindings.map(
-                  (binding) => binding.functionId,
-                ),
+                ...endpoint.mcpToolBindings.map((binding) => binding.functionId),
+                ...endpoint.httpRouteBindings.map((binding) => binding.functionId),
               ]).size,
             },
           })),
@@ -488,8 +461,7 @@ app.post("/api/projects", async (request, reply) => {
           projectId: created.id,
           name: "Production",
           slug: "production",
-          baseUrl:
-            process.env.PRODUCTION_RUNTIME_PUBLIC_URL ?? installationUrl,
+          baseUrl: process.env.PRODUCTION_RUNTIME_PUBLIC_URL ?? installationUrl,
           logLevel: "info",
           logRetentionDays: 30,
           logRetentionMaxEntries: 200000,
@@ -525,7 +497,15 @@ app.get("/api/project-settings", async (request, reply) => {
       updatedAt: true,
       environments: {
         where: { slug: { in: ["development", "production"] } },
-        select: { id: true, slug: true, capturePayloads: true, logLevel: true, logRetentionDays: true, logRetentionMaxEntries: true, logRetentionMaxBytes: true },
+        select: {
+          id: true,
+          slug: true,
+          capturePayloads: true,
+          logLevel: true,
+          logRetentionDays: true,
+          logRetentionMaxEntries: true,
+          logRetentionMaxBytes: true,
+        },
       },
     },
   });
@@ -545,7 +525,8 @@ app.get("/api/project-settings", async (request, reply) => {
     status: project.status,
     updatedAt: project.updatedAt,
     captureDevelopmentPayloads:
-      project.environments.find((environment) => environment.slug === "development")?.capturePayloads ?? false,
+      project.environments.find((environment) => environment.slug === "development")
+        ?.capturePayloads ?? false,
     logging: {
       development: environmentLogSettings(project.environments, "development", {
         level: "debug",
@@ -844,8 +825,7 @@ app.delete("/api/projects/:projectId", async (request, reply) => {
     return reply.status(409).send({
       error: {
         code: "PROJECT_NOT_EMPTY",
-        message:
-          "Archive the project or remove its runtime endpoints before deletion",
+        message: "Archive the project or remove its runtime endpoints before deletion",
         requestId: requestId(request),
       },
     });
@@ -939,8 +919,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
     });
   const removesOwner =
     target.role === "owner" &&
-    (input.active === false ||
-      (input.role !== undefined && input.role !== "owner"));
+    (input.active === false || (input.role !== undefined && input.role !== "owner"));
   if (
     removesOwner &&
     (await prisma.user.count({ where: { role: "owner", active: true } })) <= 1
@@ -1309,10 +1288,8 @@ app.get("/api/global-overview", async (request) => {
             : "healthy",
       endpoints: {
         total: project._count.endpoints,
-        mcp: project.endpoints.filter((endpoint) => endpoint.kind === "mcp")
-          .length,
-        http: project.endpoints.filter((endpoint) => endpoint.kind === "http")
-          .length,
+        mcp: project.endpoints.filter((endpoint) => endpoint.kind === "mcp").length,
+        http: project.endpoints.filter((endpoint) => endpoint.kind === "http").length,
         deployed: deployedEndpoints,
         failed: failedEndpoints,
         activeSnapshots,
@@ -1336,9 +1313,7 @@ app.get("/api/global-overview", async (request) => {
       latestDeployment: project.projectDeployments[0]
         ? {
             ...project.projectDeployments[0],
-            version: exposedProjectDeploymentVersion(
-              project.projectDeployments[0],
-            ),
+            version: exposedProjectDeploymentVersion(project.projectDeployments[0]),
             sourceProjectDeployment: undefined,
           }
         : null,
@@ -1357,25 +1332,18 @@ app.get("/api/global-overview", async (request) => {
     window: "24h",
     stats: {
       projects: projectViews.length,
-      activeProjects: projectViews.filter(
-        (project) => project.status === "active",
-      ).length,
+      activeProjects: projectViews.filter((project) => project.status === "active")
+        .length,
       endpoints: projectViews.reduce(
         (sum, project) => sum + project.endpoints.total,
         0,
       ),
-      functions: projectViews.reduce(
-        (sum, project) => sum + project.functions,
-        0,
-      ),
+      functions: projectViews.reduce((sum, project) => sum + project.functions, 0),
       calls24h: totalCalls,
       failedCalls24h: totalFailures,
-      errorRate: totalCalls
-        ? Math.round((totalFailures / totalCalls) * 1_000) / 10
-        : 0,
-      degradedProjects: projectViews.filter(
-        (project) => project.health === "degraded",
-      ).length,
+      errorRate: totalCalls ? Math.round((totalFailures / totalCalls) * 1_000) / 10 : 0,
+      degradedProjects: projectViews.filter((project) => project.health === "degraded")
+        .length,
     },
     projects: projectViews,
   };
@@ -1523,10 +1491,7 @@ app.get("/api/dashboard", async (request) => {
       redis: redisHealth,
       deployedEndpoints: endpointCount,
       endpointsWithActiveSnapshot: activeEndpointCount,
-      endpointsWithoutActiveSnapshot: Math.max(
-        0,
-        endpointCount - activeEndpointCount,
-      ),
+      endpointsWithoutActiveSnapshot: Math.max(0, endpointCount - activeEndpointCount),
       failedDeployments24h: recentFailedDeployments.length,
     },
     activeDeployments,
@@ -1710,9 +1675,7 @@ app.post("/api/runtime-endpoints", async (request, reply) => {
 app.get("/api/runtime-endpoints/:endpointId", async (request, reply) => {
   const session = sessionContext(request);
   const { endpointId } = request.params as { endpointId: string };
-  const endpoint = await projectRepository(session.projectId).endpoint(
-    endpointId,
-  );
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
   if (!endpoint)
     return reply.status(404).send({
       error: {
@@ -1779,10 +1742,7 @@ app.get("/api/runtime-endpoints/:endpointId", async (request, reply) => {
   ]);
   const telemetry = summarizeExecutions(telemetrySamples);
   const securityPosture = {
-    ...policySummary(
-      endpoint.activeDeployment?.snapshot,
-      endpoint.defaultAuthPolicy,
-    ),
+    ...policySummary(endpoint.activeDeployment?.snapshot, endpoint.defaultAuthPolicy),
     network: endpoint.networkPolicy
       ? {
           configured: true,
@@ -1821,8 +1781,7 @@ app.get("/api/runtime-endpoints/:endpointId", async (request, reply) => {
       status:
         runtimeHealth.status === "unavailable"
           ? "unavailable"
-          : runtimeHealth.status === "healthy" &&
-              cacheMetrics.status === "available"
+          : runtimeHealth.status === "healthy" && cacheMetrics.status === "available"
             ? "healthy"
             : "degraded",
       dependencies: {
@@ -1867,9 +1826,7 @@ app.patch("/api/runtime-endpoints/:endpointId", async (request, reply) => {
   const session = sessionContext(request);
   requireRole(session, ["owner", "admin", "developer"]);
   const { endpointId } = request.params as { endpointId: string };
-  const current = await projectRepository(session.projectId).endpoint(
-    endpointId,
-  );
+  const current = await projectRepository(session.projectId).endpoint(endpointId);
   if (!current)
     return reply.status(404).send({
       error: {
@@ -1896,8 +1853,7 @@ app.patch("/api/runtime-endpoints/:endpointId", async (request, reply) => {
       return reply.status(409).send({
         error: {
           code: "ENDPOINT_SLUG_CONFLICT",
-          message:
-            "An endpoint of this type already uses this slug in the project",
+          message: "An endpoint of this type already uses this slug in the project",
           requestId: requestId(request),
         },
       });
@@ -1922,9 +1878,7 @@ app.patch("/api/runtime-endpoints/:endpointId", async (request, reply) => {
 app.get("/api/runtime-endpoints/:endpointId/test-targets", async (request) => {
   const session = sessionContext(request);
   const { endpointId } = request.params as { endpointId: string };
-  const endpoint = await projectRepository(session.projectId).endpoint(
-    endpointId,
-  );
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
   if (!endpoint)
     throw Object.assign(new Error("Runtime endpoint not found"), {
       statusCode: 404,
@@ -1954,254 +1908,226 @@ app.get("/api/runtime-endpoints/:endpointId/test-targets", async (request) => {
 app.get("/api/runtime-endpoints/:endpointId/settings", async (request) => {
   const session = sessionContext(request);
   const { endpointId } = request.params as { endpointId: string };
-  const endpoint = await projectRepository(session.projectId).endpoint(
-    endpointId,
-  );
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
   if (!endpoint)
     throw Object.assign(new Error("Runtime endpoint not found"), {
       statusCode: 404,
     });
   return endpointSettingsView(endpoint);
 });
-app.patch(
-  "/api/runtime-endpoints/:endpointId/settings",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin", "developer"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
-        },
-      });
-    const input = parse(endpointSettingsUpdateSchema, request.body);
-    if (
-      await prisma.runtimeEndpoint.findFirst({
-        where: {
-          projectId: session.projectId,
-          environmentId: endpoint.environmentId,
-          slug: input.slug,
-          id: { not: endpointId },
-        },
-        select: { id: true },
-      })
-    )
-      return reply.status(409).send({
-        error: {
-          code: "SERVICE_SLUG_CONFLICT",
-          message:
-            "A endpoint with this slug already exists in the environment",
-          requestId: requestId(request),
-        },
-      });
-    const runtimeConfig = {
-      timeoutMs: input.runtime.timeoutMs,
-      maxConcurrentRequests: input.runtime.maxConcurrentRequests,
-      env: input.env,
-      endpointAccessPolicy: input.endpointAccessPolicy,
-    };
-    const updated = await prisma.$transaction(async (tx) => {
-      const row = await tx.runtimeEndpoint.update({
-        where: { id: endpointId },
-        data: {
-          name: input.name,
-          slug: input.slug,
-          description: input.description,
-          runtimeVersion: input.runtimeVersion,
-          runtimeConfig,
-        },
-      });
-      await tx.auditEvent.create({
-        data: {
-          projectId: session.projectId,
-          environmentId: endpoint.environmentId,
-          endpointId,
-          actorType: "user",
-          actorId: session.userId,
-          action: "endpoint.settings.updated",
-          targetType: "runtime_endpoint",
-          targetId: endpointId,
-          metadata: {
-            name: row.name,
-            slug: row.slug,
-            runtimeVersion: input.runtimeVersion,
-            timeoutMs: input.runtime.timeoutMs,
-            maxConcurrentRequests: input.runtime.maxConcurrentRequests,
-            environmentVariableNames: Object.keys(input.env),
-            endpointAccessMode: input.endpointAccessPolicy.mode,
-          },
-        },
-      });
-      return row;
-    });
-    return endpointSettingsView({ ...endpoint, ...updated });
-  },
-);
-app.get(
-  "/api/runtime-endpoints/:endpointId/network-policy",
-  async (request) => {
-    const session = sessionContext(request);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      throw Object.assign(new Error("Runtime endpoint not found"), {
-        statusCode: 404,
-      });
-    return networkPolicyView(endpoint.networkPolicy);
-  },
-);
-app.put(
-  "/api/runtime-endpoints/:endpointId/network-policy",
-  async (request) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      throw Object.assign(new Error("Runtime endpoint not found"), {
-        statusCode: 404,
-      });
-    const parsed = parse(networkPolicyUpdateSchema, request.body);
-    const input = {
-      ...parsed,
-      allowPrivateHosts: parsed.allowPrivateHosts ?? [],
-    };
-    const policy = await prisma.networkPolicy.upsert({
-      where: { endpointId },
-      create: { projectId: session.projectId, endpointId, ...input },
-      update: input,
-    });
-    await writeControlAudit(
-      session,
-      endpointId,
-      "network_policy.updated",
-      "network_policy",
-      policy.id,
-      {
-        allowedHosts: input.allowedHosts,
-        allowedMethods: input.allowedMethods,
-        allowedPorts: input.allowedPorts,
-        allowPrivateHosts: input.allowPrivateHosts,
-        maxResponseBytes: input.maxResponseBytes,
-        warningCodes: networkPolicyWarnings(
-          input.allowedHosts,
-          input.allowPrivateHosts,
-        ).map((warning) => warning.code),
+app.patch("/api/runtime-endpoints/:endpointId/settings", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "developer"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
       },
-    );
-    return networkPolicyView(policy);
-  },
-);
-app.get(
-  "/api/runtime-endpoints/:endpointId/storage/namespaces",
-  async (request) => {
-    const session = sessionContext(request);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      throw Object.assign(new Error("Runtime endpoint not found"), {
-        statusCode: 404,
-      });
-    const now = new Date();
-    const namespaces = await prisma.storageNamespace.findMany({
+    });
+  const input = parse(endpointSettingsUpdateSchema, request.body);
+  if (
+    await prisma.runtimeEndpoint.findFirst({
       where: {
         projectId: session.projectId,
         environmentId: endpoint.environmentId,
+        slug: input.slug,
+        id: { not: endpointId },
       },
-      select: {
-        id: true,
-        name: true,
-        environmentId: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: { select: { entries: true } },
+      select: { id: true },
+    })
+  )
+    return reply.status(409).send({
+      error: {
+        code: "SERVICE_SLUG_CONFLICT",
+        message: "A endpoint with this slug already exists in the environment",
+        requestId: requestId(request),
       },
-      orderBy: { name: "asc" },
     });
-    return {
-      valuesExposed: false,
-      keyMaterialExposed: false,
-      namespaces: await Promise.all(
-        namespaces.map(async (namespace) => ({
-          id: namespace.id,
-          name: namespace.name,
-          environmentId: namespace.environmentId,
-          createdAt: namespace.createdAt,
-          updatedAt: namespace.updatedAt,
-          storedKeys: namespace._count.entries,
-          activeKeys: await prisma.storageEntry.count({
-            where: {
-              namespaceId: namespace.id,
-              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-            },
-          }),
-          expiredKeys: await prisma.storageEntry.count({
-            where: { namespaceId: namespace.id, expiresAt: { lte: now } },
-          }),
-        })),
-      ),
-    };
-  },
-);
-app.post(
-  "/api/runtime-endpoints/:endpointId/cache/purge",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
+  const runtimeConfig = {
+    timeoutMs: input.runtime.timeoutMs,
+    maxConcurrentRequests: input.runtime.maxConcurrentRequests,
+    env: input.env,
+    endpointAccessPolicy: input.endpointAccessPolicy,
+  };
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.runtimeEndpoint.update({
+      where: { id: endpointId },
+      data: {
+        name: input.name,
+        slug: input.slug,
+        description: input.description,
+        runtimeVersion: input.runtimeVersion,
+        runtimeConfig,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: endpoint.environmentId,
+        endpointId,
+        actorType: "user",
+        actorId: session.userId,
+        action: "endpoint.settings.updated",
+        targetType: "runtime_endpoint",
+        targetId: endpointId,
+        metadata: {
+          name: row.name,
+          slug: row.slug,
+          runtimeVersion: input.runtimeVersion,
+          timeoutMs: input.runtime.timeoutMs,
+          maxConcurrentRequests: input.runtime.maxConcurrentRequests,
+          environmentVariableNames: Object.keys(input.env),
+          endpointAccessMode: input.endpointAccessPolicy.mode,
         },
-      });
-    const input = parse(cachePurgeSchema, request.body);
-    if (input.confirmEndpointSlug !== endpoint.slug)
-      return reply.status(400).send({
-        error: {
-          code: "CONFIRMATION_MISMATCH",
-          message: "Type the exact endpoint slug to confirm cache purge",
-          requestId: requestId(request),
-        },
-      });
-    const purgedKeys = await purgeFunctionCache(
-      session.projectId,
-      endpoint.environmentId,
-    );
-    await writeControlAudit(
-      session,
-      endpointId,
-      "function_cache.purged",
-      "runtime_endpoint",
-      endpointId,
-      { purgedKeys },
-    );
-    return {
-      ok: true,
-      purgedKeys,
-      valuesExposed: false,
-      keyMaterialExposed: false,
-      purgedAt: new Date(),
-    };
-  },
-);
+      },
+    });
+    return row;
+  });
+  return endpointSettingsView({ ...endpoint, ...updated });
+});
+app.get("/api/runtime-endpoints/:endpointId/network-policy", async (request) => {
+  const session = sessionContext(request);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    throw Object.assign(new Error("Runtime endpoint not found"), {
+      statusCode: 404,
+    });
+  return networkPolicyView(endpoint.networkPolicy);
+});
+app.put("/api/runtime-endpoints/:endpointId/network-policy", async (request) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    throw Object.assign(new Error("Runtime endpoint not found"), {
+      statusCode: 404,
+    });
+  const parsed = parse(networkPolicyUpdateSchema, request.body);
+  const input = {
+    ...parsed,
+    allowPrivateHosts: parsed.allowPrivateHosts ?? [],
+  };
+  const policy = await prisma.networkPolicy.upsert({
+    where: { endpointId },
+    create: { projectId: session.projectId, endpointId, ...input },
+    update: input,
+  });
+  await writeControlAudit(
+    session,
+    endpointId,
+    "network_policy.updated",
+    "network_policy",
+    policy.id,
+    {
+      allowedHosts: input.allowedHosts,
+      allowedMethods: input.allowedMethods,
+      allowedPorts: input.allowedPorts,
+      allowPrivateHosts: input.allowPrivateHosts,
+      maxResponseBytes: input.maxResponseBytes,
+      warningCodes: networkPolicyWarnings(
+        input.allowedHosts,
+        input.allowPrivateHosts,
+      ).map((warning) => warning.code),
+    },
+  );
+  return networkPolicyView(policy);
+});
+app.get("/api/runtime-endpoints/:endpointId/storage/namespaces", async (request) => {
+  const session = sessionContext(request);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    throw Object.assign(new Error("Runtime endpoint not found"), {
+      statusCode: 404,
+    });
+  const now = new Date();
+  const namespaces = await prisma.storageNamespace.findMany({
+    where: {
+      projectId: session.projectId,
+      environmentId: endpoint.environmentId,
+    },
+    select: {
+      id: true,
+      name: true,
+      environmentId: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { entries: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+  return {
+    valuesExposed: false,
+    keyMaterialExposed: false,
+    namespaces: await Promise.all(
+      namespaces.map(async (namespace) => ({
+        id: namespace.id,
+        name: namespace.name,
+        environmentId: namespace.environmentId,
+        createdAt: namespace.createdAt,
+        updatedAt: namespace.updatedAt,
+        storedKeys: namespace._count.entries,
+        activeKeys: await prisma.storageEntry.count({
+          where: {
+            namespaceId: namespace.id,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+        }),
+        expiredKeys: await prisma.storageEntry.count({
+          where: { namespaceId: namespace.id, expiresAt: { lte: now } },
+        }),
+      })),
+    ),
+  };
+});
+app.post("/api/runtime-endpoints/:endpointId/cache/purge", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
+      },
+    });
+  const input = parse(cachePurgeSchema, request.body);
+  if (input.confirmEndpointSlug !== endpoint.slug)
+    return reply.status(400).send({
+      error: {
+        code: "CONFIRMATION_MISMATCH",
+        message: "Type the exact endpoint slug to confirm cache purge",
+        requestId: requestId(request),
+      },
+    });
+  const purgedKeys = await purgeFunctionCache(
+    session.projectId,
+    endpoint.environmentId,
+  );
+  await writeControlAudit(
+    session,
+    endpointId,
+    "function_cache.purged",
+    "runtime_endpoint",
+    endpointId,
+    { purgedKeys },
+  );
+  return {
+    ok: true,
+    purgedKeys,
+    valuesExposed: false,
+    keyMaterialExposed: false,
+    purgedAt: new Date(),
+  };
+});
 
 app.get("/api/functions", async (request) => {
   const session = sessionContext(request);
@@ -2229,9 +2155,7 @@ app.get("/api/functions", async (request) => {
       if (existing) return existing;
       const snapshot = record(endpoint.activeDeployment?.snapshot);
       const deployed = Array.isArray(snapshot.functions)
-        ? snapshot.functions
-            .map(record)
-            .find((item) => item.functionId === fn.id)
+        ? snapshot.functions.map(record).find((item) => item.functionId === fn.id)
         : undefined;
       const deployedVersion =
         typeof deployed?.version === "number" ? deployed.version : undefined;
@@ -2259,9 +2183,7 @@ app.get("/api/functions", async (request) => {
       usageFor(binding.endpoint).mcpTools.push(binding.toolName);
     }
     for (const binding of fn.httpRouteBindings) {
-      usageFor(binding.endpoint).httpRoutes.push(
-        `${binding.method} ${binding.path}`,
-      );
+      usageFor(binding.endpoint).httpRoutes.push(`${binding.method} ${binding.path}`);
     }
     return { ...functionView(fn), usages: [...endpoints.values()] };
   });
@@ -2310,13 +2232,10 @@ app.post("/api/functions", async (request, reply) => {
         select: { id: true, name: true },
       });
       if (owned.length !== secretGrantIds.length)
-        throw Object.assign(
-          new Error("One or more secret grant IDs are invalid"),
-          {
-            statusCode: 400,
-            code: "INVALID_SECRET_GRANT",
-          },
-        );
+        throw Object.assign(new Error("One or more secret grant IDs are invalid"), {
+          statusCode: 400,
+          code: "INVALID_SECRET_GRANT",
+        });
       const uniqueSecrets = [
         ...new Map(owned.map((secret) => [secret.name, secret])).values(),
       ];
@@ -2348,9 +2267,7 @@ app.post("/api/functions", async (request, reply) => {
     });
     return created;
   });
-  const result = await projectRepository(session.projectId).projectFunction(
-    fn.id,
-  );
+  const result = await projectRepository(session.projectId).projectFunction(fn.id);
   return reply.status(201).send(result ? functionView(result, true) : fn);
 });
 app.route({
@@ -2411,13 +2328,10 @@ app.route({
           select: { id: true, name: true },
         });
         if (owned.length !== input.secretGrantIds.length)
-          throw Object.assign(
-            new Error("One or more secret grant IDs are invalid"),
-            {
-              statusCode: 400,
-              code: "INVALID_SECRET_GRANT",
-            },
-          );
+          throw Object.assign(new Error("One or more secret grant IDs are invalid"), {
+            statusCode: 400,
+            code: "INVALID_SECRET_GRANT",
+          });
         await tx.secretGrant.deleteMany({ where: { functionId } });
         if (owned.length) {
           const uniqueSecrets = [
@@ -2471,9 +2385,7 @@ app.route({
 app.get("/api/functions/:functionId", async (request, reply) => {
   const session = sessionContext(request);
   const { functionId } = request.params as { functionId: string };
-  const fn = await projectRepository(session.projectId).projectFunction(
-    functionId,
-  );
+  const fn = await projectRepository(session.projectId).projectFunction(functionId);
   return fn
     ? functionView(fn, true)
     : reply.status(404).send({
@@ -2487,9 +2399,7 @@ app.get("/api/functions/:functionId", async (request, reply) => {
 app.get("/api/functions/:functionId/fixtures", async (request, reply) => {
   const session = sessionContext(request);
   const { functionId } = request.params as { functionId: string };
-  const fn = await projectRepository(session.projectId).projectFunction(
-    functionId,
-  );
+  const fn = await projectRepository(session.projectId).projectFunction(functionId);
   if (!fn)
     return reply.status(404).send({
       error: {
@@ -2568,9 +2478,7 @@ app.post("/api/functions/:functionId/test", async (request, reply) => {
         requestId: requestId(request),
       },
     });
-  const fn = await projectRepository(session.projectId).projectFunction(
-    functionId,
-  );
+  const fn = await projectRepository(session.projectId).projectFunction(functionId);
   if (!fn)
     return reply.status(404).send({
       error: {
@@ -2676,94 +2584,87 @@ app.post("/api/functions/:functionId/test", async (request, reply) => {
   return reply.status(response.status).send(result);
 });
 
-app.post(
-  "/api/runtime-endpoints/:endpointId/mcp-bindings",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin", "developer"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const input = parse(mcpBindingSchema, request.body);
-    await validateBindingReferences(
-      session.projectId,
-      endpointId,
-      input.functionId,
-      "mcp",
-    );
-    if (
-      await prisma.mcpToolBinding.findFirst({
-        where: { endpointId, toolName: input.toolName },
-        select: { id: true },
-      })
-    )
-      return reply.status(409).send({
-        error: {
-          code: "MCP_TOOL_NAME_CONFLICT",
-          message: "This MCP tool name is already bound in the endpoint",
-          requestId: requestId(request),
-        },
-      });
-    const created = await prisma.mcpToolBinding.create({
-      data: { endpointId, ...input },
-    });
-    await writeControlAudit(
-      session,
-      endpointId,
-      "mcp_binding.created",
-      "mcp_tool_binding",
-      created.id,
-      {
-        toolName: created.toolName,
-        functionId: created.functionId,
+app.post("/api/runtime-endpoints/:endpointId/mcp-bindings", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "developer"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const input = parse(mcpBindingSchema, request.body);
+  await validateBindingReferences(
+    session.projectId,
+    endpointId,
+    input.functionId,
+    "mcp",
+  );
+  if (
+    await prisma.mcpToolBinding.findFirst({
+      where: { endpointId, toolName: input.toolName },
+      select: { id: true },
+    })
+  )
+    return reply.status(409).send({
+      error: {
+        code: "MCP_TOOL_NAME_CONFLICT",
+        message: "This MCP tool name is already bound in the endpoint",
+        requestId: requestId(request),
       },
-    );
-    return reply.status(201).send(created);
-  },
-);
-app.post(
-  "/api/runtime-endpoints/:endpointId/http-bindings",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin", "developer"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const input = parse(httpBindingSchema, request.body);
-    await validateBindingReferences(
-      session.projectId,
-      endpointId,
-      input.functionId,
-      "http",
-    );
-    if (
-      await prisma.httpRouteBinding.findFirst({
-        where: { endpointId, method: input.method, path: input.path },
-        select: { id: true },
-      })
-    )
-      return reply.status(409).send({
-        error: {
-          code: "HTTP_ROUTE_CONFLICT",
-          message:
-            "This HTTP method and path are already bound in the endpoint",
-          requestId: requestId(request),
-        },
-      });
-    const created = await prisma.httpRouteBinding.create({
-      data: { endpointId, ...input } as never,
     });
-    await writeControlAudit(
-      session,
-      endpointId,
-      "http_binding.created",
-      "http_route_binding",
-      created.id,
-      {
-        method: created.method,
-        path: created.path,
-        functionId: created.functionId,
+  const created = await prisma.mcpToolBinding.create({
+    data: { endpointId, ...input },
+  });
+  await writeControlAudit(
+    session,
+    endpointId,
+    "mcp_binding.created",
+    "mcp_tool_binding",
+    created.id,
+    {
+      toolName: created.toolName,
+      functionId: created.functionId,
+    },
+  );
+  return reply.status(201).send(created);
+});
+app.post("/api/runtime-endpoints/:endpointId/http-bindings", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "developer"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const input = parse(httpBindingSchema, request.body);
+  await validateBindingReferences(
+    session.projectId,
+    endpointId,
+    input.functionId,
+    "http",
+  );
+  if (
+    await prisma.httpRouteBinding.findFirst({
+      where: { endpointId, method: input.method, path: input.path },
+      select: { id: true },
+    })
+  )
+    return reply.status(409).send({
+      error: {
+        code: "HTTP_ROUTE_CONFLICT",
+        message: "This HTTP method and path are already bound in the endpoint",
+        requestId: requestId(request),
       },
-    );
-    return reply.status(201).send(created);
-  },
-);
+    });
+  const created = await prisma.httpRouteBinding.create({
+    data: { endpointId, ...input } as never,
+  });
+  await writeControlAudit(
+    session,
+    endpointId,
+    "http_binding.created",
+    "http_route_binding",
+    created.id,
+    {
+      method: created.method,
+      path: created.path,
+      functionId: created.functionId,
+    },
+  );
+  return reply.status(201).send(created);
+});
 app.patch(
   "/api/runtime-endpoints/:endpointId/mcp-bindings/:bindingId",
   async (request, reply) => {
@@ -2867,8 +2768,7 @@ app.patch(
       return reply.status(409).send({
         error: {
           code: "HTTP_ROUTE_CONFLICT",
-          message:
-            "This HTTP method and path are already bound in the endpoint",
+          message: "This HTTP method and path are already bound in the endpoint",
           requestId: requestId(request),
         },
       });
@@ -3176,10 +3076,7 @@ app.delete("/api/secrets/sync/:name", async (request, reply) => {
   const grantCount = await prisma.secretGrant.count({
     where: { secretName: name, function: { projectId: session.projectId } },
   });
-  if (
-    grantCount ||
-    secrets.some((secret) => secret._count.databaseConnections > 0)
-  )
+  if (grantCount || secrets.some((secret) => secret._count.databaseConnections > 0))
     return reply.status(409).send({
       error: {
         code: "SECRET_IN_USE",
@@ -3296,79 +3193,74 @@ const authPolicyOrderSchema = z
   .object({ policyIds: z.array(z.string().uuid()).min(1) })
   .strict();
 
-app.post(
-  "/api/runtime-endpoints/:endpointId/auth-policies",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
-        },
-      });
-    const input = parse(authPolicyMutationSchema, request.body);
-    await validatePolicySecretIfRequired(
-      session.projectId,
-      endpoint.environmentId,
-      input.config,
-    );
-    if (
-      await prisma.authPolicy.findFirst({
-        where: { projectId: session.projectId, name: input.name },
-        select: { id: true },
-      })
-    )
-      return reply.status(409).send({
-        error: {
-          code: "AUTH_POLICY_NAME_CONFLICT",
-          message: "An authentication policy with this name already exists",
-          requestId: requestId(request),
-        },
-      });
-    const result = await prisma.$transaction(async (tx) => {
-      const created = await tx.authPolicy.create({
-        data: { projectId: session.projectId, ...input } as never,
-      });
-      const latest = await tx.endpointAuthPolicy.aggregate({
-        where: { endpointId },
-        _max: { position: true },
-      });
-      await tx.endpointAuthPolicy.create({
-        data: {
-          endpointId,
-          authPolicyId: created.id,
-          position: (latest._max.position ?? -1) + 1,
-        },
-      });
-      if (!endpoint.defaultAuthPolicyId)
-        await tx.runtimeEndpoint.update({
-          where: { id: endpointId },
-          data: { defaultAuthPolicyId: created.id },
-        });
-      await tx.auditEvent.create({
-        data: {
-          projectId: session.projectId,
-          endpointId,
-          actorType: "user",
-          actorId: session.userId,
-          action: "auth_policy.created",
-          targetType: "auth_policy",
-          targetId: created.id,
-          metadata: { name: created.name, type: created.type },
-        },
-      });
-      return created;
+app.post("/api/runtime-endpoints/:endpointId/auth-policies", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
+      },
     });
-    return reply.status(201).send(policyView(result));
-  },
-);
+  const input = parse(authPolicyMutationSchema, request.body);
+  await validatePolicySecretIfRequired(
+    session.projectId,
+    endpoint.environmentId,
+    input.config,
+  );
+  if (
+    await prisma.authPolicy.findFirst({
+      where: { projectId: session.projectId, name: input.name },
+      select: { id: true },
+    })
+  )
+    return reply.status(409).send({
+      error: {
+        code: "AUTH_POLICY_NAME_CONFLICT",
+        message: "An authentication policy with this name already exists",
+        requestId: requestId(request),
+      },
+    });
+  const result = await prisma.$transaction(async (tx) => {
+    const created = await tx.authPolicy.create({
+      data: { projectId: session.projectId, ...input } as never,
+    });
+    const latest = await tx.endpointAuthPolicy.aggregate({
+      where: { endpointId },
+      _max: { position: true },
+    });
+    await tx.endpointAuthPolicy.create({
+      data: {
+        endpointId,
+        authPolicyId: created.id,
+        position: (latest._max.position ?? -1) + 1,
+      },
+    });
+    if (!endpoint.defaultAuthPolicyId)
+      await tx.runtimeEndpoint.update({
+        where: { id: endpointId },
+        data: { defaultAuthPolicyId: created.id },
+      });
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        endpointId,
+        actorType: "user",
+        actorId: session.userId,
+        action: "auth_policy.created",
+        targetType: "auth_policy",
+        targetId: created.id,
+        metadata: { name: created.name, type: created.type },
+      },
+    });
+    return created;
+  });
+  return reply.status(201).send(policyView(result));
+});
 app.patch(
   "/api/runtime-endpoints/:endpointId/auth-policies/:policyId",
   async (request, reply) => {
@@ -3378,9 +3270,7 @@ app.patch(
       endpointId: string;
       policyId: string;
     };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
+    const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
     if (!endpoint)
       return reply.status(404).send({
         error: {
@@ -3537,8 +3427,7 @@ app.put(
       return reply.status(409).send({
         error: {
           code: "AUTH_POLICY_ORDER_MISMATCH",
-          message:
-            "Order every authentication policy assigned to this endpoint",
+          message: "Order every authentication policy assigned to this endpoint",
           requestId: requestId(request),
         },
       });
@@ -3767,9 +3656,7 @@ app.patch("/api/auth-policies/:policyId", async (request, reply) => {
       },
     });
   const environmentIds = new Set(
-    policy.endpointAssignments.map(
-      (assignment) => assignment.endpoint.environmentId,
-    ),
+    policy.endpointAssignments.map((assignment) => assignment.endpoint.environmentId),
   );
   for (const environmentId of environmentIds)
     await validatePolicySecretIfRequired(
@@ -3864,9 +3751,8 @@ app.get("/api/libraries", async (request) => {
   return [...latest.values()].map((row) => ({
     ...row,
     importExample: `import { ${Array.isArray(row.exportedFunctions) && typeof row.exportedFunctions[0] === "string" ? row.exportedFunctions[0] : "utility"} } from ${JSON.stringify(row.importPath)};`,
-    versionCount: rows.filter(
-      (candidate) => candidate.importPath === row.importPath,
-    ).length,
+    versionCount: rows.filter((candidate) => candidate.importPath === row.importPath)
+      .length,
   }));
 });
 app.get("/api/libraries/:libraryId/versions", async (request, reply) => {
@@ -3934,8 +3820,7 @@ app.post("/api/templates/install", async (request, reply) => {
   return reply.status(410).send({
     error: {
       code: "ENDPOINT_RETIRED",
-      message:
-        "Use the endpoint-scoped template preview and install endpoints.",
+      message: "Use the endpoint-scoped template preview and install endpoints.",
       requestId: requestId(request),
     },
   });
@@ -3963,11 +3848,7 @@ app.post(
           requestId: requestId(request),
         },
       });
-    return previewTemplateInstallation(
-      loaded.template,
-      selection,
-      loaded.context,
-    );
+    return previewTemplateInstallation(loaded.template, selection, loaded.context);
   },
 );
 
@@ -4201,31 +4082,30 @@ app.get("/api/deployments/status", async (request) => {
       inProgressDeployment: null,
       latestDraftChange: null,
     };
-  const [activeDeployment, inProgressDeployment, endpointCount] =
-    await Promise.all([
-      development.activeProjectDeploymentId
-        ? prisma.projectDeployment.findUnique({
-            where: { id: development.activeProjectDeploymentId },
-            select: { id: true, version: true, completedAt: true },
-          })
-        : null,
-      prisma.projectDeployment.findFirst({
-        where: {
-          projectId: session.projectId,
-          environmentId: development.id,
-          status: { in: ["queued", "building", "deploying"] },
-        },
-        select: { id: true, version: true, status: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.runtimeEndpoint.count({
-        where: {
-          projectId: session.projectId,
-          environmentId: development.id,
-          status: { not: "disabled" },
-        },
-      }),
-    ]);
+  const [activeDeployment, inProgressDeployment, endpointCount] = await Promise.all([
+    development.activeProjectDeploymentId
+      ? prisma.projectDeployment.findUnique({
+          where: { id: development.activeProjectDeploymentId },
+          select: { id: true, version: true, completedAt: true },
+        })
+      : null,
+    prisma.projectDeployment.findFirst({
+      where: {
+        projectId: session.projectId,
+        environmentId: development.id,
+        status: { in: ["queued", "building", "deploying"] },
+      },
+      select: { id: true, version: true, status: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.runtimeEndpoint.count({
+      where: {
+        projectId: session.projectId,
+        environmentId: development.id,
+        status: { not: "disabled" },
+      },
+    }),
+  ]);
   const latestDraftChange = await prisma.auditEvent.findFirst({
     where: {
       projectId: session.projectId,
@@ -4250,8 +4130,7 @@ app.get("/api/deployments/status", async (request) => {
       ? {
           id: production.activeProjectDeployment.id,
           version:
-            production.activeProjectDeployment.sourceProjectDeployment
-              ?.version ?? null,
+            production.activeProjectDeployment.sourceProjectDeployment?.version ?? null,
           completedAt: production.activeProjectDeployment.completedAt,
         }
       : null,
@@ -4331,9 +4210,7 @@ app.post("/api/deployments", async (request, reply) => {
         ),
         network: endpoint.networkPolicy
           ? {
-              allowPrivateHosts: stringList(
-                endpoint.networkPolicy.allowPrivateHosts,
-              ),
+              allowPrivateHosts: stringList(endpoint.networkPolicy.allowPrivateHosts),
             }
           : {
               allowPrivateHosts: stringList(
@@ -4409,10 +4286,7 @@ app.post("/api/deployments", async (request, reply) => {
 app.post("/api/deployments/release", async (request, reply) => {
   const session = sessionContext(request);
   requireRole(session, ["owner", "admin", "operator"]);
-  const { sourceProjectDeploymentId } = parse(
-    projectReleaseSchema,
-    request.body,
-  );
+  const { sourceProjectDeploymentId } = parse(projectReleaseSchema, request.body);
   const source = await prisma.projectDeployment.findFirst({
     where: {
       id: sourceProjectDeploymentId,
@@ -4498,9 +4372,7 @@ app.post("/api/deployments/release", async (request, reply) => {
         });
     }
   }
-  const missingSecrets = [...requiredSecrets].filter(
-    (name) => !secretNames.has(name),
-  );
+  const missingSecrets = [...requiredSecrets].filter((name) => !secretNames.has(name));
   if (missingSecrets.length)
     return reply.status(409).send({
       error: {
@@ -4622,87 +4494,83 @@ app.post("/api/deployments/release", async (request, reply) => {
   return reply.status(201).send(result);
 });
 
-app.post(
-  "/api/deployments/:projectDeploymentId/rollback",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin", "operator"]);
-    const { projectDeploymentId } = request.params as {
-      projectDeploymentId: string;
-    };
-    const target = await prisma.projectDeployment.findFirst({
-      where: {
-        id: projectDeploymentId,
-        projectId: session.projectId,
-        status: "rolled_back",
-      },
-      include: {
-        environment: true,
-        endpointDeployments: true,
-        sourceProjectDeployment: { select: { version: true } },
+app.post("/api/deployments/:projectDeploymentId/rollback", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "operator"]);
+  const { projectDeploymentId } = request.params as {
+    projectDeploymentId: string;
+  };
+  const target = await prisma.projectDeployment.findFirst({
+    where: {
+      id: projectDeploymentId,
+      projectId: session.projectId,
+      status: "rolled_back",
+    },
+    include: {
+      environment: true,
+      endpointDeployments: true,
+      sourceProjectDeployment: { select: { version: true } },
+    },
+  });
+  if (!target)
+    return reply.status(409).send({
+      error: {
+        code: "INVALID_ROLLBACK_TARGET",
+        message: "Select a completed previous project deployment.",
+        requestId: requestId(request),
       },
     });
-    if (!target)
-      return reply.status(409).send({
-        error: {
-          code: "INVALID_ROLLBACK_TARGET",
-          message: "Select a completed previous project deployment.",
-          requestId: requestId(request),
-        },
-      });
-    const targetVersion =
-      target.sourceProjectDeployment?.version ?? target.version;
-    await prisma.$transaction(async (tx) => {
-      if (target.environment.activeProjectDeploymentId) {
-        await tx.projectDeployment.update({
-          where: { id: target.environment.activeProjectDeploymentId },
-          data: { status: "rolled_back" },
-        });
-        await tx.deployment.updateMany({
-          where: {
-            projectDeploymentId: target.environment.activeProjectDeploymentId,
-          },
-          data: { status: "rolled_back" },
-        });
-      }
+  const targetVersion = target.sourceProjectDeployment?.version ?? target.version;
+  await prisma.$transaction(async (tx) => {
+    if (target.environment.activeProjectDeploymentId) {
       await tx.projectDeployment.update({
-        where: { id: target.id },
-        data: { status: "active" },
+        where: { id: target.environment.activeProjectDeploymentId },
+        data: { status: "rolled_back" },
       });
       await tx.deployment.updateMany({
-        where: { projectDeploymentId: target.id },
-        data: { status: "active" },
-      });
-      await tx.environment.update({
-        where: { id: target.environmentId },
-        data: { activeProjectDeploymentId: target.id },
-      });
-      if (target.environment.slug === "development")
-        for (const deployment of target.endpointDeployments)
-          await tx.runtimeEndpoint.update({
-            where: { id: deployment.endpointId },
-            data: { activeDeploymentId: deployment.id, status: "deployed" },
-          });
-      await tx.auditEvent.create({
-        data: {
-          projectId: session.projectId,
-          environmentId: target.environmentId,
-          actorType: "user",
-          actorId: session.userId,
-          action: "project_deployment.rolled_back",
-          targetType: "project_deployment",
-          targetId: target.id,
-          metadata: { version: targetVersion },
+        where: {
+          projectDeploymentId: target.environment.activeProjectDeploymentId,
         },
+        data: { status: "rolled_back" },
       });
+    }
+    await tx.projectDeployment.update({
+      where: { id: target.id },
+      data: { status: "active" },
     });
-    return {
-      ok: true,
-      activeProjectDeploymentId: target.id,
-      version: targetVersion,
-    };
-  },
-);
+    await tx.deployment.updateMany({
+      where: { projectDeploymentId: target.id },
+      data: { status: "active" },
+    });
+    await tx.environment.update({
+      where: { id: target.environmentId },
+      data: { activeProjectDeploymentId: target.id },
+    });
+    if (target.environment.slug === "development")
+      for (const deployment of target.endpointDeployments)
+        await tx.runtimeEndpoint.update({
+          where: { id: deployment.endpointId },
+          data: { activeDeploymentId: deployment.id, status: "deployed" },
+        });
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: target.environmentId,
+        actorType: "user",
+        actorId: session.userId,
+        action: "project_deployment.rolled_back",
+        targetType: "project_deployment",
+        targetId: target.id,
+        metadata: { version: targetVersion },
+      },
+    });
+  });
+  return {
+    ok: true,
+    activeProjectDeploymentId: target.id,
+    version: targetVersion,
+  };
+});
 
 app.get("/api/deployments", async (request, reply) => {
   const session = sessionContext(request);
@@ -4710,68 +4578,65 @@ app.get("/api/deployments", async (request, reply) => {
   if (query.cursor)
     await assertScopedCursor("deployment", session.projectId, query.cursor);
   const summarySince = new Date(Date.now() - 7 * DAY_MS);
-  const [rows, summaryRows, activeSnapshots, projectFunctions] =
-    await Promise.all([
-      prisma.projectDeployment.findMany({
-        where: {
-          projectId: session.projectId,
-          ...(query.environmentId
-            ? { environmentId: query.environmentId }
-            : {}),
-          ...(query.status ? { status: query.status } : {}),
-          ...dateWhere(query.from, query.to),
-        },
-        include: {
-          environment: true,
-          sourceProjectDeployment: { select: { id: true, version: true } },
-          endpointDeployments: {
-            where: { status: "failed" },
-            select: {
-              endpoint: { select: { name: true } },
-              logs: {
-                where: { level: "error" },
-                select: { message: true, metadata: true },
-                orderBy: { createdAt: "desc" },
-                take: 1,
-              },
+  const [rows, summaryRows, activeSnapshots, projectFunctions] = await Promise.all([
+    prisma.projectDeployment.findMany({
+      where: {
+        projectId: session.projectId,
+        ...(query.environmentId ? { environmentId: query.environmentId } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        ...dateWhere(query.from, query.to),
+      },
+      include: {
+        environment: true,
+        sourceProjectDeployment: { select: { id: true, version: true } },
+        endpointDeployments: {
+          where: { status: "failed" },
+          select: {
+            endpoint: { select: { name: true } },
+            logs: {
+              where: { level: "error" },
+              select: { message: true, metadata: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
             },
           },
-          _count: { select: { endpointDeployments: true } },
         },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: query.limit + 1,
-        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      }),
-      prisma.projectDeployment.findMany({
-        where: {
-          projectId: session.projectId,
-          OR: [
-            { createdAt: { gte: summarySince } },
-            { status: { in: ["queued", "building", "deploying"] } },
-          ],
+        _count: { select: { endpointDeployments: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: query.limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    }),
+    prisma.projectDeployment.findMany({
+      where: {
+        projectId: session.projectId,
+        OR: [
+          { createdAt: { gte: summarySince } },
+          { status: { in: ["queued", "building", "deploying"] } },
+        ],
+      },
+      select: { status: true, createdAt: true, completedAt: true },
+    }),
+    prisma.environment.count({
+      where: {
+        projectId: session.projectId,
+        activeProjectDeploymentId: { not: null },
+      },
+    }),
+    prisma.function.findMany({
+      where: { projectId: session.projectId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        versions: {
+          select: { version: true, code: true },
+          orderBy: { version: "desc" },
+          take: 1,
         },
-        select: { status: true, createdAt: true, completedAt: true },
-      }),
-      prisma.environment.count({
-        where: {
-          projectId: session.projectId,
-          activeProjectDeploymentId: { not: null },
-        },
-      }),
-      prisma.function.findMany({
-        where: { projectId: session.projectId },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          versions: {
-            select: { version: true, code: true },
-            orderBy: { version: "desc" },
-            take: 1,
-          },
-        },
-      }),
-    ]);
+      },
+    }),
+  ]);
   const functionSources: FunctionSource[] = projectFunctions.flatMap((fn) =>
     fn.versions[0]
       ? [
@@ -4791,10 +4656,7 @@ app.get("/api/deployments", async (request, reply) => {
     const failedLog = deployment.endpointDeployments[0]?.logs[0];
     const failureMetadata = record(failedLog?.metadata);
     const loggedFunctions = deploymentFailureFunctions(failureMetadata);
-    const inferredFunction = inferFailedFunction(
-      failedLog?.message,
-      functionSources,
-    );
+    const inferredFunction = inferFailedFunction(failedLog?.message, functionSources);
     const failedFunctions = loggedFunctions.length
       ? loggedFunctions
       : inferredFunction
@@ -4816,8 +4678,7 @@ app.get("/api/deployments", async (request, reply) => {
       createdAt: deployment.createdAt,
       completedAt: deployment.completedAt ?? undefined,
       failureCause: failedLog?.message.slice(0, 8_000) ?? undefined,
-      failedEndpointName:
-        deployment.endpointDeployments[0]?.endpoint.name ?? undefined,
+      failedEndpointName: deployment.endpointDeployments[0]?.endpoint.name ?? undefined,
       failedFunctions,
     };
   });
@@ -4842,324 +4703,106 @@ app.get("/api/deployments", async (request, reply) => {
     summary: summarizeDeployments(summaryRows, activeSnapshots),
   };
 });
-app.get("/api/logs", async (request, reply) => {
+registerObservabilityRoutes(app);
+
+app.get("/api/runtime-endpoints/:endpointId/manifest", async (request, reply) => {
   const session = sessionContext(request);
-  const query = parse(runtimeLogListQuerySchema, request.query);
-  const where = {
-    projectId: session.projectId,
-    ...(query.environmentId ? { environmentId: query.environmentId } : {}),
-    ...(query.endpointId ? { endpointId: query.endpointId } : {}),
-    ...(query.functionId ? { functionId: query.functionId } : {}),
-    ...(query.level ? { level: query.level } : {}),
-    ...(query.requestId ? { requestId: query.requestId } : {}),
-    ...(query.correlationId ? { correlationId: query.correlationId } : {}),
-    ...(query.q
-      ? {
-          OR: [
-            { message: { contains: query.q, mode: "insensitive" as const } },
-            { requestId: { contains: query.q, mode: "insensitive" as const } },
-            { correlationId: { contains: query.q, mode: "insensitive" as const } },
-            { function: { name: { contains: query.q, mode: "insensitive" as const } } },
-            { function: { slug: { contains: query.q, mode: "insensitive" as const } } },
-            { endpoint: { name: { contains: query.q, mode: "insensitive" as const } } },
-          ],
-        }
-      : {}),
-    ...dateWhere(query.from, query.to),
-  };
-  const [rows, grouped] = await Promise.all([
-    prisma.runtimeLog.findMany({
-      where,
-      include: {
-        environment: { select: { id: true, name: true, slug: true } },
-        endpoint: { select: { id: true, name: true, slug: true, kind: true } },
-        function: { select: { id: true, name: true, slug: true } },
+  const { endpointId } = request.params as { endpointId: string };
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    }),
-    prisma.runtimeLog.groupBy({
-      by: ["level"],
-      where,
-      _count: { _all: true },
-      _sum: { sizeBytes: true },
-    }),
-  ]);
-  const hasMore = rows.length > query.limit;
-  const page = rows.slice(0, query.limit);
-  const items = redactSensitive(page.map((row) => ({
-    id: row.id,
-    timestamp: row.createdAt,
-    level: row.level,
-    message: row.message,
-    metadata: row.metadata,
-    sizeBytes: row.sizeBytes,
-    requestId: row.requestId,
-    correlationId: row.correlationId,
-    executionId: row.executionId,
-    deploymentId: row.deploymentId,
-    environment: row.environment,
-    endpoint: row.endpoint,
-    function: row.function,
-  })));
-  if (query.format === "csv")
-    return replyCsv(
-      reply,
-      csv(items as Array<Record<string, unknown>>, [
-        "timestamp", "level", "message", "metadata", "requestId",
-        "correlationId", "executionId", "environment", "endpoint", "function",
-      ]),
-      `logs-${new Date().toISOString().slice(0, 10)}.csv`,
-    );
+    });
+  const manifest = currentEndpointManifest(endpoint);
+  const format = (
+    (request.query as { format?: string }).format === "json" ? "json" : "yaml"
+  ) as "yaml" | "json";
   return {
-    items,
-    nextCursor: hasMore ? page.at(-1)?.id : undefined,
-    summary: {
-      count: grouped.reduce((total, row) => total + row._count._all, 0),
-      sizeBytes: grouped.reduce((total, row) => total + (row._sum.sizeBytes ?? 0), 0),
-      levels: Object.fromEntries(grouped.map((row) => [row.level, row._count._all])),
-    },
+    format,
+    content: serializeManifest(manifest, format),
+    manifest,
+    containsSecretValues: false,
   };
 });
-
-app.get("/api/executions", async (request, reply) => {
+app.get("/api/runtime-endpoints/:endpointId/discovery", async (request, reply) => {
   const session = sessionContext(request);
-  const query = parse(executionListQuerySchema, request.query);
-  const rows = await prisma.functionExecution.findMany({
-    where: {
-      projectId: session.projectId,
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.endpointId ? { endpointId: query.endpointId } : {}),
-      ...(query.functionId ? { functionId: query.functionId } : {}),
-      ...(query.toolBindingId ? { mcpToolBindingId: query.toolBindingId } : {}),
-      ...(query.httpRouteBindingId
-        ? { httpRouteBindingId: query.httpRouteBindingId }
-        : {}),
-      ...(query.requestId ? { requestId: query.requestId } : {}),
-      ...(query.source ? { invocationSource: query.source } : {}),
-      ...(query.callerSubject
-        ? { callerIdentity: { path: ["subject"], equals: query.callerSubject } }
-        : {}),
-      ...dateWhere(query.from, query.to),
-    } as never,
-    include: {
-      function: { select: { name: true } },
-      endpoint: { select: { name: true } },
-      deployment: { select: { version: true } },
-      functionVersion: { select: { version: true } },
-      mcpToolBinding: true,
-      httpRouteBinding: true,
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: query.limit + 1,
-    ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-  });
-  const hasMore = rows.length > query.limit;
-  const page = rows.slice(0, query.limit);
-  const items = redactSensitive(page.map(executionView));
-  if (query.format === "csv")
-    return replyCsv(
-      reply,
-      csv(items as Array<Record<string, unknown>>, [
-        "id",
-        "createdAt",
-        "requestId",
-        "correlationId",
-        "invocationSource",
-        "endpointId",
-        "functionName",
-        "binding",
-        "caller",
-        "status",
-        "durationMs",
-        "functionVersion",
-        "deploymentVersion",
-        "input",
-        "output",
-        "error",
-      ]),
-      `executions-${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-  return { items, nextCursor: hasMore ? page.at(-1)?.id : undefined };
-});
-app.get("/api/executions/:id", async (request, reply) => {
-  const session = sessionContext(request);
-  const { id } = request.params as { id: string };
-  const row = await prisma.functionExecution.findFirst({
-    where: { id, projectId: session.projectId },
-    include: {
-      function: { select: { name: true } },
-      deployment: { select: { version: true } },
-      functionVersion: { select: { version: true } },
-      mcpToolBinding: { select: { toolName: true } },
-      httpRouteBinding: { select: { method: true, path: true } },
-    },
-  });
-  return row
-    ? redactSensitive(executionView(row))
-    : reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Execution not found",
-          requestId: requestId(request),
-        },
-      });
-});
-app.get("/api/audit-events", async (request, reply) => {
-  const session = sessionContext(request);
-  const query = parse(auditListQuerySchema, request.query);
-  const rows = await prisma.auditEvent.findMany({
-    where: {
-      projectId: session.projectId,
-      ...(query.endpointId ? { endpointId: query.endpointId } : {}),
-      ...(query.functionId ? { functionId: query.functionId } : {}),
-      ...(query.action
-        ? { action: { contains: query.action, mode: "insensitive" } }
-        : {}),
-      ...(query.actorType ? { actorType: query.actorType } : {}),
-      ...(query.actorId ? { actorId: query.actorId } : {}),
-      ...(query.targetType ? { targetType: query.targetType } : {}),
-      ...dateWhere(query.from, query.to),
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: query.limit + 1,
-    ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-  });
-  const hasMore = rows.length > query.limit;
-  const page = rows.slice(0, query.limit);
-  const items = redactSensitive(page.map(auditView));
-  if (query.format === "csv")
-    return replyCsv(
-      reply,
-      csv(items as Array<Record<string, unknown>>, [
-        "id",
-        "createdAt",
-        "action",
-        "actorType",
-        "actorId",
-        "targetType",
-        "targetId",
-        "endpointId",
-        "functionId",
-        "metadata",
-      ]),
-      `audit-${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-  return { items, nextCursor: hasMore ? page.at(-1)?.id : undefined };
-});
-
-app.get(
-  "/api/runtime-endpoints/:endpointId/manifest",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    const { endpointId } = request.params as { endpointId: string };
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
-        },
-      });
-    const manifest = currentEndpointManifest(endpoint);
-    const format = (
-      (request.query as { format?: string }).format === "json" ? "json" : "yaml"
-    ) as "yaml" | "json";
-    return {
-      format,
-      content: serializeManifest(manifest, format),
-      manifest,
-      containsSecretValues: false,
-    };
-  },
-);
-app.get(
-  "/api/runtime-endpoints/:endpointId/discovery",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    const { endpointId } = request.params as { endpointId: string };
-    const { format } = parse(
-      z.object({ format: z.enum(endpointDocumentFormats) }).strict(),
-      request.query,
-    );
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
-        },
-      });
-    const formats = availableEndpointDocumentFormats(endpoint.kind);
-    if (!formats.includes(format))
-      return reply.status(400).send({
-        error: {
-          code: "UNSUPPORTED_FORMAT",
-          message: `${format} is not available for ${endpoint.kind.toUpperCase()} endpoints`,
-          requestId: requestId(request),
-        },
-      });
-    const environmentUrls = canonicalEnvironmentEndpointUrls(
-      endpoint.project.environments,
-      endpoint.project.slug,
-      endpoint.slug,
-    );
-    const document = generateEndpointDocument(format, {
-      manifest: currentEndpointManifest(endpoint),
-      environments: endpoint.project.environments.flatMap((environment) => {
-        const urls = environmentUrls[environment.slug];
-        return urls
-          ? [
-              {
-                name: environment.slug.replace(/(^|-)([a-z])/g, (_match, lead, letter) =>
-                  `${lead ? " " : ""}${String(letter).toUpperCase()}`,
-                ),
-                slug: environment.slug,
-                mcpUrl: urls.mcpUrl,
-                httpBaseUrl: urls.httpBaseUrl,
-              },
-            ]
-          : [];
-      }),
-      functions: endpoint.functions.map((fn) => ({
-        name: fn.name,
-        inputSchema: fn.inputSchema,
-        outputSchema: fn.outputSchema ?? undefined,
-      })),
-      auth: endpoint.defaultAuthPolicy
-        ? {
-            type: endpoint.defaultAuthPolicy.type,
-            config: endpoint.defaultAuthPolicy.config,
-          }
-        : null,
+  const { endpointId } = request.params as { endpointId: string };
+  const { format } = parse(
+    z.object({ format: z.enum(endpointDocumentFormats) }).strict(),
+    request.query,
+  );
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
+      },
     });
-    return {
-      ...document,
-      formats,
-      containsSecretValues: false,
-    };
-  },
-);
+  const formats = availableEndpointDocumentFormats(endpoint.kind);
+  if (!formats.includes(format))
+    return reply.status(400).send({
+      error: {
+        code: "UNSUPPORTED_FORMAT",
+        message: `${format} is not available for ${endpoint.kind.toUpperCase()} endpoints`,
+        requestId: requestId(request),
+      },
+    });
+  const environmentUrls = canonicalEnvironmentEndpointUrls(
+    endpoint.project.environments,
+    endpoint.project.slug,
+    endpoint.slug,
+  );
+  const document = generateEndpointDocument(format, {
+    manifest: currentEndpointManifest(endpoint),
+    environments: endpoint.project.environments.flatMap((environment) => {
+      const urls = environmentUrls[environment.slug];
+      return urls
+        ? [
+            {
+              name: environment.slug.replace(
+                /(^|-)([a-z])/g,
+                (_match, lead, letter) =>
+                  `${lead ? " " : ""}${String(letter).toUpperCase()}`,
+              ),
+              slug: environment.slug,
+              mcpUrl: urls.mcpUrl,
+              httpBaseUrl: urls.httpBaseUrl,
+            },
+          ]
+        : [];
+    }),
+    functions: endpoint.functions.map((fn) => ({
+      name: fn.name,
+      inputSchema: fn.inputSchema,
+      outputSchema: fn.outputSchema ?? undefined,
+    })),
+    auth: endpoint.defaultAuthPolicy
+      ? {
+          type: endpoint.defaultAuthPolicy.type,
+          config: endpoint.defaultAuthPolicy.config,
+        }
+      : null,
+  });
+  return {
+    ...document,
+    formats,
+    containsSecretValues: false,
+  };
+});
 app.post(
   "/api/runtime-endpoints/:endpointId/manifest/preview",
   async (request, reply) => {
     const session = sessionContext(request);
     requireRole(session, ["owner", "admin", "developer"]);
     const { endpointId } = request.params as { endpointId: string };
-    const body = parse(
-      manifestImportSchema.omit({ apply: true }),
-      request.body,
-    );
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
+    const body = parse(manifestImportSchema.omit({ apply: true }), request.body);
+    const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
     if (!endpoint)
       return reply.status(404).send({
         error: {
@@ -5169,206 +4812,181 @@ app.post(
         },
       });
     const manifest = parseManifest(body.content, body.format);
-    const plan = await createManifestPlan(
-      session.projectId,
-      endpoint,
-      manifest,
-    );
+    const plan = await createManifestPlan(session.projectId, endpoint, manifest);
     return { ...plan, manifest, atomic: true, containsSecretValues: false };
   },
 );
-app.post(
-  "/api/runtime-endpoints/:endpointId/manifest",
-  async (request, reply) => {
-    const session = sessionContext(request);
-    requireRole(session, ["owner", "admin", "developer"]);
-    const { endpointId } = request.params as { endpointId: string };
-    const body = parse(manifestImportSchema, request.body);
-    const endpoint = await projectRepository(session.projectId).endpoint(
-      endpointId,
-    );
-    if (!endpoint)
-      return reply.status(404).send({
-        error: {
-          code: "NOT_FOUND",
-          message: "Runtime endpoint not found",
-          requestId: requestId(request),
-        },
-      });
-    const manifest = parseManifest(body.content, body.format);
-    const plan = await createManifestPlan(
-      session.projectId,
-      endpoint,
-      manifest,
-    );
-    if (!body.apply)
-      return {
-        ...plan,
-        manifest,
-        applied: false,
-        atomic: true,
-        containsSecretValues: false,
-      };
-    if (!plan.valid)
-      return reply.status(422).send({
-        error: {
-          code: "MANIFEST_PLAN_INVALID",
-          message:
-            "Manifest cannot be applied until all plan errors are resolved",
-          requestId: requestId(request),
-          details: plan.errors,
-        },
-        plan,
-        applied: false,
-      });
-    const functionsByName = new Map(
-      endpoint.functions.map((fn) => [fn.name, fn]),
-    );
-    const policies = await prisma.authPolicy.findMany({
-      where: { projectId: session.projectId },
+app.post("/api/runtime-endpoints/:endpointId/manifest", async (request, reply) => {
+  const session = sessionContext(request);
+  requireRole(session, ["owner", "admin", "developer"]);
+  const { endpointId } = request.params as { endpointId: string };
+  const body = parse(manifestImportSchema, request.body);
+  const endpoint = await projectRepository(session.projectId).endpoint(endpointId);
+  if (!endpoint)
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "Runtime endpoint not found",
+        requestId: requestId(request),
+      },
     });
-    const policiesByName = new Map(
-      policies.map((policy) => [policy.name, policy]),
-    );
-    const defaultPolicyId = manifest.auth
-      ? (policiesByName.get(manifest.auth.policy)?.id ?? null)
-      : null;
-    const endpointRuntimeConfig = {
-      timeoutMs: manifest.endpoint.runtime.timeoutMs,
-      maxConcurrentRequests: manifest.endpoint.runtime.maxConcurrentRequests,
-      env: manifest.endpoint.runtime.env,
-      endpointAccessPolicy: manifest.endpoint.runtime.endpointAccessPolicy,
-    };
-    await prisma.$transaction(async (tx) => {
-      await tx.runtimeEndpoint.update({
-        where: { id: endpointId },
-        data: {
-          name: manifest.endpoint.name,
-          slug: manifest.endpoint.slug,
-          description: manifest.endpoint.description,
-          runtimeVersion: manifest.endpoint.runtimeVersion,
-          runtimeConfig: endpointRuntimeConfig,
-          defaultAuthPolicyId: defaultPolicyId,
-        },
-      });
-      await tx.networkPolicy.upsert({
-        where: { endpointId },
-        create: {
-          projectId: session.projectId,
-          endpointId,
-          ...manifest.endpoint.network,
-        },
-        update: manifest.endpoint.network,
-      });
-      for (const fn of manifest.functions)
-        await tx.function.update({
-          where: { id: functionsByName.get(fn.name)!.id },
-          data: {
-            enabled: fn.enabled,
-            riskLevel: fn.riskLevel,
-            requiredPermissions: fn.requiredPermissions,
-          },
-        });
-      const desiredToolNames = (manifest.mcp?.tools ?? []).map(
-        (tool) => tool.toolName,
-      );
-      if (desiredToolNames.length)
-        await tx.mcpToolBinding.deleteMany({
-          where: { endpointId, toolName: { notIn: desiredToolNames } },
-        });
-      else await tx.mcpToolBinding.deleteMany({ where: { endpointId } });
-      for (const tool of manifest.mcp?.tools ?? []) {
-        const fn = functionsByName.get(tool.function)!;
-        await tx.mcpToolBinding.upsert({
-          where: {
-            endpointId_toolName: { endpointId, toolName: tool.toolName },
-          },
-          create: {
-            endpointId,
-            functionId: fn.id,
-            toolName: tool.toolName,
-            title: tool.title ?? tool.toolName,
-            description: tool.description,
-            enabled: tool.enabled,
-          },
-          update: {
-            functionId: fn.id,
-            title: tool.title ?? tool.toolName,
-            description: tool.description,
-            enabled: tool.enabled,
-          },
-        });
-      }
-      const desiredRouteKeys = new Set(
-        (manifest.http?.routes ?? []).map(
-          (route) => `${route.method} ${route.path}`,
-        ),
-      );
-      const deletedRouteIds = endpoint.httpRouteBindings
-        .filter(
-          (binding) =>
-            !desiredRouteKeys.has(`${binding.method} ${binding.path}`),
-        )
-        .map((binding) => binding.id);
-      if (deletedRouteIds.length)
-        await tx.httpRouteBinding.deleteMany({
-          where: { id: { in: deletedRouteIds }, endpointId },
-        });
-      for (const route of manifest.http?.routes ?? []) {
-        const fn = functionsByName.get(route.function)!;
-        await tx.httpRouteBinding.upsert({
-          where: {
-            endpointId_method_path: {
-              endpointId,
-              method: route.method,
-              path: route.path,
-            },
-          },
-          create: {
-            endpointId,
-            functionId: fn.id,
-            method: route.method,
-            path: route.path,
-            inputMapping: route.inputMapping,
-            responseMapping: route.responseMapping,
-            enabled: route.enabled,
-          } as never,
-          update: {
-            functionId: fn.id,
-            inputMapping: route.inputMapping,
-            responseMapping: route.responseMapping,
-            enabled: route.enabled,
-          } as never,
-        });
-      }
-      await tx.auditEvent.create({
-        data: {
-          projectId: session.projectId,
-          environmentId: endpoint.environmentId,
-          endpointId,
-          actorType: "user",
-          actorId: session.userId,
-          action: "manifest.applied",
-          targetType: "runtime_endpoint",
-          targetId: endpointId,
-          metadata: {
-            summary: plan.summary,
-            format: body.format,
-            containsSecretValues: false,
-          },
-        },
-      });
-    });
+  const manifest = parseManifest(body.content, body.format);
+  const plan = await createManifestPlan(session.projectId, endpoint, manifest);
+  if (!body.apply)
     return {
-      valid: true,
-      applied: true,
-      atomic: true,
+      ...plan,
       manifest,
-      plan,
+      applied: false,
+      atomic: true,
       containsSecretValues: false,
     };
-  },
-);
+  if (!plan.valid)
+    return reply.status(422).send({
+      error: {
+        code: "MANIFEST_PLAN_INVALID",
+        message: "Manifest cannot be applied until all plan errors are resolved",
+        requestId: requestId(request),
+        details: plan.errors,
+      },
+      plan,
+      applied: false,
+    });
+  const functionsByName = new Map(endpoint.functions.map((fn) => [fn.name, fn]));
+  const policies = await prisma.authPolicy.findMany({
+    where: { projectId: session.projectId },
+  });
+  const policiesByName = new Map(policies.map((policy) => [policy.name, policy]));
+  const defaultPolicyId = manifest.auth
+    ? (policiesByName.get(manifest.auth.policy)?.id ?? null)
+    : null;
+  const endpointRuntimeConfig = {
+    timeoutMs: manifest.endpoint.runtime.timeoutMs,
+    maxConcurrentRequests: manifest.endpoint.runtime.maxConcurrentRequests,
+    env: manifest.endpoint.runtime.env,
+    endpointAccessPolicy: manifest.endpoint.runtime.endpointAccessPolicy,
+  };
+  await prisma.$transaction(async (tx) => {
+    await tx.runtimeEndpoint.update({
+      where: { id: endpointId },
+      data: {
+        name: manifest.endpoint.name,
+        slug: manifest.endpoint.slug,
+        description: manifest.endpoint.description,
+        runtimeVersion: manifest.endpoint.runtimeVersion,
+        runtimeConfig: endpointRuntimeConfig,
+        defaultAuthPolicyId: defaultPolicyId,
+      },
+    });
+    await tx.networkPolicy.upsert({
+      where: { endpointId },
+      create: {
+        projectId: session.projectId,
+        endpointId,
+        ...manifest.endpoint.network,
+      },
+      update: manifest.endpoint.network,
+    });
+    for (const fn of manifest.functions)
+      await tx.function.update({
+        where: { id: functionsByName.get(fn.name)!.id },
+        data: {
+          enabled: fn.enabled,
+          riskLevel: fn.riskLevel,
+          requiredPermissions: fn.requiredPermissions,
+        },
+      });
+    const desiredToolNames = (manifest.mcp?.tools ?? []).map((tool) => tool.toolName);
+    if (desiredToolNames.length)
+      await tx.mcpToolBinding.deleteMany({
+        where: { endpointId, toolName: { notIn: desiredToolNames } },
+      });
+    else await tx.mcpToolBinding.deleteMany({ where: { endpointId } });
+    for (const tool of manifest.mcp?.tools ?? []) {
+      const fn = functionsByName.get(tool.function)!;
+      await tx.mcpToolBinding.upsert({
+        where: {
+          endpointId_toolName: { endpointId, toolName: tool.toolName },
+        },
+        create: {
+          endpointId,
+          functionId: fn.id,
+          toolName: tool.toolName,
+          title: tool.title ?? tool.toolName,
+          description: tool.description,
+          enabled: tool.enabled,
+        },
+        update: {
+          functionId: fn.id,
+          title: tool.title ?? tool.toolName,
+          description: tool.description,
+          enabled: tool.enabled,
+        },
+      });
+    }
+    const desiredRouteKeys = new Set(
+      (manifest.http?.routes ?? []).map((route) => `${route.method} ${route.path}`),
+    );
+    const deletedRouteIds = endpoint.httpRouteBindings
+      .filter((binding) => !desiredRouteKeys.has(`${binding.method} ${binding.path}`))
+      .map((binding) => binding.id);
+    if (deletedRouteIds.length)
+      await tx.httpRouteBinding.deleteMany({
+        where: { id: { in: deletedRouteIds }, endpointId },
+      });
+    for (const route of manifest.http?.routes ?? []) {
+      const fn = functionsByName.get(route.function)!;
+      await tx.httpRouteBinding.upsert({
+        where: {
+          endpointId_method_path: {
+            endpointId,
+            method: route.method,
+            path: route.path,
+          },
+        },
+        create: {
+          endpointId,
+          functionId: fn.id,
+          method: route.method,
+          path: route.path,
+          inputMapping: route.inputMapping,
+          responseMapping: route.responseMapping,
+          enabled: route.enabled,
+        } as never,
+        update: {
+          functionId: fn.id,
+          inputMapping: route.inputMapping,
+          responseMapping: route.responseMapping,
+          enabled: route.enabled,
+        } as never,
+      });
+    }
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: endpoint.environmentId,
+        endpointId,
+        actorType: "user",
+        actorId: session.userId,
+        action: "manifest.applied",
+        targetType: "runtime_endpoint",
+        targetId: endpointId,
+        metadata: {
+          summary: plan.summary,
+          format: body.format,
+          containsSecretValues: false,
+        },
+      },
+    });
+  });
+  return {
+    valid: true,
+    applied: true,
+    atomic: true,
+    manifest,
+    plan,
+    containsSecretValues: false,
+  };
+});
 
 const port = Number(process.env.PORT ?? 3001);
 await app.listen({ port, host: "0.0.0.0" });
@@ -5393,12 +5011,9 @@ function deploymentFailureFunctions(metadata: Record<string, unknown>) {
           {
             id: fn.functionId,
             name: fn.functionName,
-            slug:
-              typeof fn.functionSlug === "string" ? fn.functionSlug : undefined,
+            slug: typeof fn.functionSlug === "string" ? fn.functionSlug : undefined,
             version:
-              typeof fn.functionVersion === "number"
-                ? fn.functionVersion
-                : undefined,
+              typeof fn.functionVersion === "number" ? fn.functionVersion : undefined,
           },
         ]
       : [],
@@ -5412,33 +5027,28 @@ function promoteEndpointSnapshot(
   environment: { id: string; slug: string; name: string; variables: unknown },
   connections: ReadonlyMap<string, { id: string; secretId: string }>,
 ): Record<string, unknown> {
-  const snapshot = JSON.parse(JSON.stringify(record(value))) as Record<
-    string,
-    unknown
-  >;
+  const snapshot = JSON.parse(JSON.stringify(record(value))) as Record<string, unknown>;
   snapshot.environment = {
     id: environment.id,
     slug: environment.slug,
     name: environment.name,
   };
   snapshot.env = record(environment.variables);
-  snapshot.reviewedQueries = arrayRecords(snapshot.reviewedQueries).map(
-    (query) => {
-      const connection = record(query.connection);
-      const name = typeof connection.name === "string" ? connection.name : "";
-      const productionConnection = connections.get(name);
-      return productionConnection
-        ? {
-            ...query,
-            connection: {
-              ...connection,
-              id: productionConnection.id,
-              secretId: productionConnection.secretId,
-            },
-          }
-        : query;
-    },
-  );
+  snapshot.reviewedQueries = arrayRecords(snapshot.reviewedQueries).map((query) => {
+    const connection = record(query.connection);
+    const name = typeof connection.name === "string" ? connection.name : "";
+    const productionConnection = connections.get(name);
+    return productionConnection
+      ? {
+          ...query,
+          connection: {
+            ...connection,
+            id: productionConnection.id,
+            secretId: productionConnection.secretId,
+          },
+        }
+      : query;
+  });
   return snapshot;
 }
 
@@ -5453,9 +5063,7 @@ async function loadTemplateInstallContext(
   endpointId: string,
   templateId: string,
 ) {
-  const template = functionTemplates.find(
-    (candidate) => candidate.id === templateId,
-  );
+  const template = functionTemplates.find((candidate) => candidate.id === templateId);
   if (!template) return null;
   const endpoint = await prisma.runtimeEndpoint.findFirst({
     where: { id: endpointId, projectId },
@@ -5538,94 +5146,16 @@ function endpointView<T extends EndpointViewRow>(endpoint: T) {
     activeDeployment: endpoint.activeDeployment ?? undefined,
     functionCount: new Set([
       ...(endpoint.mcpToolBindings ?? []).map((binding) => binding.functionId),
-      ...(endpoint.httpRouteBindings ?? []).map(
-        (binding) => binding.functionId,
-      ),
+      ...(endpoint.httpRouteBindings ?? []).map((binding) => binding.functionId),
     ]).size,
     mcpToolCount: endpoint._count.mcpToolBindings,
     httpRouteCount: endpoint._count.httpRouteBindings,
     authMode:
-      endpoint.authPolicyAssignments
-        ?.map((item) => item.authPolicy.type)
-        .join(" → ") ||
+      endpoint.authPolicyAssignments?.map((item) => item.authPolicy.type).join(" → ") ||
       endpoint.defaultAuthPolicy?.type ||
       "none",
   };
 }
-type ExecutionViewRow = {
-  id: string;
-  endpointId: string;
-  functionId: string;
-  createdAt: Date;
-  requestId: string;
-  correlationId: string | null;
-  parentExecutionId: string | null;
-  rootExecutionId: string | null;
-  invocationSource: string;
-  status: string;
-  durationMs: number;
-  callerIdentity: unknown;
-  input: unknown;
-  output: unknown;
-  error: unknown;
-  function?: { name: string };
-  deployment?: { version: number };
-  functionVersion?: { version: number };
-  mcpToolBinding?: { toolName: string } | null;
-  httpRouteBinding?: { method: string; path: string } | null;
-};
-function executionView(row: ExecutionViewRow) {
-  const callerIdentity =
-    row.callerIdentity && typeof row.callerIdentity === "object"
-      ? (row.callerIdentity as Record<string, unknown>)
-      : {};
-  return {
-    id: row.id,
-    endpointId: row.endpointId,
-    functionId: row.functionId,
-    createdAt: row.createdAt,
-    requestId: row.requestId,
-    correlationId: row.correlationId ?? undefined,
-    parentExecutionId: row.parentExecutionId ?? undefined,
-    rootExecutionId: row.rootExecutionId ?? row.id,
-    invocationSource: row.invocationSource,
-    functionName: row.function?.name ?? "Unknown function",
-    binding:
-      row.mcpToolBinding?.toolName ??
-      (row.httpRouteBinding
-        ? `${row.httpRouteBinding.method} ${row.httpRouteBinding.path}`
-        : undefined),
-    caller:
-      typeof callerIdentity.subject === "string"
-        ? callerIdentity.subject
-        : undefined,
-    callerIdentity,
-    status: row.status,
-    durationMs: row.durationMs,
-    functionVersion: row.functionVersion?.version ?? 0,
-    deploymentVersion: row.deployment?.version ?? 0,
-    input: row.input,
-    output: row.output ?? undefined,
-    error: row.error ?? undefined,
-  };
-}
-type AuditViewRow = {
-  id: string;
-  createdAt: Date;
-  action: string;
-  actorType: string;
-  actorId: string | null;
-  targetType: string;
-  targetId: string | null;
-};
-function auditView(row: AuditViewRow) {
-  return {
-    ...row,
-    actor: row.actorId ? `${row.actorType}:${row.actorId}` : row.actorType,
-    targetId: row.targetId ?? undefined,
-  };
-}
-
 type LoadedControlEndpoint = NonNullable<
   Awaited<ReturnType<ReturnType<typeof projectRepository>["endpoint"]>>
 >;
@@ -5667,21 +5197,15 @@ function endpointSettingsView(endpoint: {
         record(config.endpointAccessPolicy).mode === "restricted"
           ? "restricted"
           : "authenticated",
-      allowedSubjects: stringList(
-        record(config.endpointAccessPolicy).allowedSubjects,
-      ),
+      allowedSubjects: stringList(record(config.endpointAccessPolicy).allowedSubjects),
     },
   };
 }
 
-function currentEndpointManifest(
-  endpoint: LoadedControlEndpoint,
-): EndpointManifest {
+function currentEndpointManifest(endpoint: LoadedControlEndpoint): EndpointManifest {
   const settings = endpointSettingsView(endpoint);
   const network = networkPolicyView(endpoint.networkPolicy);
-  const functionName = new Map(
-    endpoint.functions.map((fn) => [fn.id, fn.name]),
-  );
+  const functionName = new Map(endpoint.functions.map((fn) => [fn.id, fn.name]));
   return parseManifest(
     JSON.stringify({
       endpoint: {
@@ -5711,8 +5235,7 @@ function currentEndpointManifest(
             mcp: {
               tools: endpoint.mcpToolBindings.map((binding) => ({
                 toolName: binding.toolName,
-                function:
-                  functionName.get(binding.functionId) ?? binding.functionId,
+                function: functionName.get(binding.functionId) ?? binding.functionId,
                 title: binding.title,
                 description: binding.description,
                 enabled: binding.enabled,
@@ -5726,8 +5249,7 @@ function currentEndpointManifest(
               routes: endpoint.httpRouteBindings.map((binding) => ({
                 method: binding.method,
                 path: binding.path,
-                function:
-                  functionName.get(binding.functionId) ?? binding.functionId,
+                function: functionName.get(binding.functionId) ?? binding.functionId,
                 inputMapping: binding.inputMapping,
                 responseMapping: binding.responseMapping,
                 enabled: binding.enabled,
@@ -5771,9 +5293,7 @@ async function createManifestPlan(
     plan.errors.push({
       code: "INVALID_NETWORK_POLICY",
       target: "endpoint.network",
-      message: networkValidation.error.issues
-        .map((issue) => issue.message)
-        .join("; "),
+      message: networkValidation.error.issues.map((issue) => issue.message).join("; "),
     });
   const slugCollision = await prisma.runtimeEndpoint.findFirst({
     where: {
@@ -5792,7 +5312,6 @@ async function createManifestPlan(
     });
   const referencedPolicyNames = new Set([
     ...(manifest.auth ? [manifest.auth.policy] : []),
-    ...(manifest.http?.routes ?? []).flatMap((route) => []),
   ]);
   const environmentSecrets = new Set(
     (
@@ -5827,68 +5346,10 @@ async function createManifestPlan(
   return plan;
 }
 
-function dateWhere(from?: Date, to?: Date) {
-  return from || to
-    ? {
-        createdAt: {
-          ...(from ? { gte: from } : {}),
-          ...(to ? { lte: to } : {}),
-        },
-      }
-    : {};
-}
-
-function deploymentView(row: {
-  id: string;
-  endpointId: string;
-  version: number;
-  status: string;
-  checksum: string;
-  createdAt: Date;
-  completedAt: Date | null;
-  snapshot: unknown;
-  endpoint: { name: string; environment: { name: string } };
-  logs: unknown[];
-}) {
-  const snapshot = record(row.snapshot);
-  return {
-    id: row.id,
-    endpointId: row.endpointId,
-    endpointName: row.endpoint.name,
-    environment: row.endpoint.environment.name,
-    version: row.version,
-    status: row.status,
-    checksum: row.checksum,
-    createdAt: row.createdAt,
-    completedAt: row.completedAt,
-    functionVersions: Array.isArray(snapshot.functions)
-      ? snapshot.functions.length
-      : 0,
-    snapshotMetadata: {
-      schemaVersion: snapshot.schemaVersion ?? null,
-      seedRelease:
-        typeof snapshot.seedRelease === "string" ? snapshot.seedRelease : null,
-      functionCount: Array.isArray(snapshot.functions)
-        ? snapshot.functions.length
-        : 0,
-      mcpBindingCount: Array.isArray(snapshot.mcpBindings)
-        ? snapshot.mcpBindings.length
-        : 0,
-      httpBindingCount: Array.isArray(snapshot.httpBindings)
-        ? snapshot.httpBindings.length
-        : 0,
-    },
-    logs: row.logs,
-  };
-}
-
 function replyCsv(reply: FastifyReply, content: string, filename: string) {
   return reply
     .header("content-type", "text/csv; charset=utf-8")
-    .header(
-      "content-disposition",
-      `attachment; filename=${JSON.stringify(filename)}`,
-    )
+    .header("content-disposition", `attachment; filename=${JSON.stringify(filename)}`)
     .send(content);
 }
 
@@ -5904,27 +5365,24 @@ async function assertScopedCursor(
           select: { id: true },
         })
       : kind === "execution"
-      ? await prisma.functionExecution.findFirst({
-          where: { id, projectId },
-          select: { id: true },
-        })
-      : kind === "deployment"
-        ? await prisma.projectDeployment.findFirst({
+        ? await prisma.functionExecution.findFirst({
             where: { id, projectId },
             select: { id: true },
           })
-        : await prisma.auditEvent.findFirst({
-            where: { id, projectId },
-            select: { id: true },
-          });
+        : kind === "deployment"
+          ? await prisma.projectDeployment.findFirst({
+              where: { id, projectId },
+              select: { id: true },
+            })
+          : await prisma.auditEvent.findFirst({
+              where: { id, projectId },
+              select: { id: true },
+            });
   if (!found)
-    throw Object.assign(
-      new Error("Pagination cursor is invalid for this project"),
-      {
-        statusCode: 400,
-        code: "INVALID_CURSOR",
-      },
-    );
+    throw Object.assign(new Error("Pagination cursor is invalid for this project"), {
+      statusCode: 400,
+      code: "INVALID_CURSOR",
+    });
 }
 
 function functionView<
@@ -5954,12 +5412,7 @@ function functionView<
     }>;
   },
 >(fn: T, includeBindings = false) {
-  const {
-    grants,
-    mcpToolBindings = [],
-    httpRouteBindings = [],
-    ...functionData
-  } = fn;
+  const { grants, mcpToolBindings = [], httpRouteBindings = [], ...functionData } = fn;
   return {
     ...functionData,
     secretGrants: grants.map((grant) => ({
@@ -5994,9 +5447,7 @@ function networkPolicyView(
   const allowedHosts = stringList(policy?.allowedHosts);
   const allowedMethods = stringList(policy?.allowedMethods);
   const allowedPorts = Array.isArray(policy?.allowedPorts)
-    ? policy.allowedPorts.filter(
-        (port): port is number => typeof port === "number",
-      )
+    ? policy.allowedPorts.filter((port): port is number => typeof port === "number")
     : [];
   const allowPrivateHosts = stringList(policy?.allowPrivateHosts);
   const exactPolicy = {
@@ -6166,16 +5617,11 @@ async function purgeFunctionCache(
   } while (cursor !== "0");
   let purged = 0;
   for (let index = 0; index < matchedKeys.length; index += 500)
-    purged += await cacheInspector.unlink(
-      ...matchedKeys.slice(index, index + 500),
-    );
+    purged += await cacheInspector.unlink(...matchedKeys.slice(index, index + 500));
   return purged;
 }
 
-async function inspectStorageMetadata(
-  projectId: string,
-  environmentId: string,
-) {
+async function inspectStorageMetadata(projectId: string, environmentId: string) {
   const now = new Date();
   const scope = { namespace: { projectId, environmentId } };
   const [namespaces, storedKeys, activeKeys, expiredKeys] = await Promise.all([
@@ -6257,9 +5703,10 @@ async function probeRedisDependency(): Promise<"healthy" | "unavailable"> {
 
 async function probeRuntimeEndpoint(endpointId: string) {
   const checkedAt = new Date();
-  const base = (
-    process.env.RUNTIME_INTERNAL_URL ?? "http://localhost:8080"
-  ).replace(/\/+$/, "");
+  const base = (process.env.RUNTIME_INTERNAL_URL ?? "http://localhost:8080").replace(
+    /\/+$/,
+    "",
+  );
   try {
     const response = await fetch(
       `${base}/internal/runtime-endpoints/${encodeURIComponent(endpointId)}/manifest`,

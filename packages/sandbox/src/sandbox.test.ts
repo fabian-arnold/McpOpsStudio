@@ -9,11 +9,7 @@ import {
   LocalChildProcessExecutor,
   privateResolutionAllowed,
 } from "./index.js";
-import type {
-  RuntimeContext,
-  ScopedCache,
-  ScopedStorage,
-} from "@mcpops/runtime-sdk";
+import type { RuntimeContext, ScopedCache, ScopedStorage } from "@mcpops/runtime-sdk";
 
 describe("secret encryption", () => {
   it("authenticates AES-256-GCM ciphertext", () => {
@@ -48,12 +44,8 @@ describe("network policy", () => {
     expect(isPrivateAddress("8.8.8.8")).toBe(false);
   });
   it("matches exact and subdomain-only wildcard allowlists", () => {
-    expect(hostMatchesAllowlist("api.example.com", ["api.example.com"])).toBe(
-      true,
-    );
-    expect(hostMatchesAllowlist("eu.example.com", ["*.example.com"])).toBe(
-      true,
-    );
+    expect(hostMatchesAllowlist("api.example.com", ["api.example.com"])).toBe(true);
+    expect(hostMatchesAllowlist("eu.example.com", ["*.example.com"])).toBe(true);
     expect(hostMatchesAllowlist("example.com", ["*.example.com"])).toBe(false);
   });
   it("permits private resolution only for an explicit exact development host", () => {
@@ -63,9 +55,7 @@ describe("network policy", () => {
       allowedPorts: [8090],
       maxResponseBytes: 1024,
     };
-    expect(privateResolutionAllowed("mock-crm", ["172.20.0.4"], base)).toBe(
-      false,
-    );
+    expect(privateResolutionAllowed("mock-crm", ["172.20.0.4"], base)).toBe(false);
     expect(
       privateResolutionAllowed("mock-crm", ["172.20.0.4"], {
         ...base,

@@ -18,7 +18,12 @@ export default {
       },
       boxShadow: { panel: "0 1px 2px rgb(0 0 0 / .08), 0 16px 36px rgb(0 0 0 / .06)" },
       animation: { "fade-in": "fade-in .18s ease-out" },
-      keyframes: { "fade-in": { from: { opacity: "0", transform: "translateY(2px)" }, to: { opacity: "1", transform: "translateY(0)" } } },
+      keyframes: {
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(2px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
     },
   },
   plugins: [],

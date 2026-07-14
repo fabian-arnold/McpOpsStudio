@@ -72,9 +72,8 @@ export default function DeploymentsPage() {
     () => items?.filter((item) => item.environment.slug === "production") ?? [],
     [items],
   );
-  const activeProductionSourceId = production.find(
-    (item) => item.status === "active",
-  )?.sourceProjectDeployment?.id;
+  const activeProductionSourceId = production.find((item) => item.status === "active")
+    ?.sourceProjectDeployment?.id;
   const releasedDevelopmentIds = new Set(
     production.flatMap((item) =>
       item.sourceProjectDeployment ? [item.sourceProjectDeployment.id] : [],
@@ -90,12 +89,17 @@ export default function DeploymentsPage() {
       });
       toast({
         title: `Development v${deployment.version} queued`,
-        description: "All project endpoints are being built from current development drafts.",
+        description:
+          "All project endpoints are being built from current development drafts.",
         tone: "success",
       });
       await load();
     } catch (error) {
-      toast({ title: "Deployment failed", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Deployment failed",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setBusy(undefined);
     }
@@ -115,7 +119,11 @@ export default function DeploymentsPage() {
       });
       await load();
     } catch (error) {
-      toast({ title: "Release failed", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Release failed",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setBusy(undefined);
     }
@@ -128,10 +136,18 @@ export default function DeploymentsPage() {
         method: "POST",
         body: "{}",
       });
-      toast({ title: "Deployment restored", description: "The selected immutable project version is active again.", tone: "success" });
+      toast({
+        title: "Deployment restored",
+        description: "The selected immutable project version is active again.",
+        tone: "success",
+      });
       await load();
     } catch (error) {
-      toast({ title: "Rollback failed", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Rollback failed",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setBusy(undefined);
     }
@@ -140,8 +156,16 @@ export default function DeploymentsPage() {
   if (loadError)
     return (
       <AppShell>
-        <PageHeader eyebrow="Delivery" title="Project deployments" description="Deploy development drafts together, then release an immutable version to production." />
-        <LoadError title="Unable to load deployments" message={loadError} onRetry={() => void load()} />
+        <PageHeader
+          eyebrow="Delivery"
+          title="Project deployments"
+          description="Deploy development drafts together, then release an immutable version to production."
+        />
+        <LoadError
+          title="Unable to load deployments"
+          message={loadError}
+          onRetry={() => void load()}
+        />
       </AppShell>
     );
   return (
@@ -166,19 +190,29 @@ export default function DeploymentsPage() {
             items={development}
             action={(item) => (
               <div className="flex gap-2">
-                {item.status === "active" &&
-                activeProductionSourceId === item.id ? (
+                {item.status === "active" && activeProductionSourceId === item.id ? (
                   <Badge tone="success">In sync</Badge>
-                ) : item.status === "active" &&
-                  releasedDevelopmentIds.has(item.id) ? (
+                ) : item.status === "active" && releasedDevelopmentIds.has(item.id) ? (
                   <Badge>Released</Badge>
                 ) : item.status === "active" ? (
-                  <Button size="sm" variant="secondary" loading={busy === "release"} onClick={() => void release(item.id)}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={busy === "release"}
+                    onClick={() => void release(item.id)}
+                  >
                     <Send size={13} /> Release
                   </Button>
                 ) : null}
                 {item.status === "rolled_back" && (
-                  <Button size="sm" variant="secondary" loading={busy === "rollback"} onClick={() => void rollback(item.id)}>Rollback</Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={busy === "rollback"}
+                    onClick={() => void rollback(item.id)}
+                  >
+                    Rollback
+                  </Button>
                 )}
               </div>
             )}
@@ -187,9 +221,18 @@ export default function DeploymentsPage() {
             title="Production"
             description="Production versions are promoted from completed development snapshots without rebuilding drafts."
             items={production}
-            action={(item) => item.status === "rolled_back" ? (
-              <Button size="sm" variant="secondary" loading={busy === "rollback"} onClick={() => void rollback(item.id)}>Rollback</Button>
-            ) : null}
+            action={(item) =>
+              item.status === "rolled_back" ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={busy === "rollback"}
+                  onClick={() => void rollback(item.id)}
+                >
+                  Rollback
+                </Button>
+              ) : null
+            }
           />
         </div>
       )}
@@ -215,24 +258,46 @@ function DeploymentLane({
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       </div>
       {!items.length ? (
-        <EmptyState icon={<Boxes />} title={`No ${title.toLowerCase()} deployments`} description="Project deployment history will appear here." />
+        <EmptyState
+          icon={<Boxes />}
+          title={`No ${title.toLowerCase()} deployments`}
+          description="Project deployment history will appear here."
+        />
       ) : (
         <div className="divide-y">
           {items.map((item) => (
             <article className="flex flex-wrap items-center gap-4 p-4" key={item.id}>
-              <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"><Boxes size={16} /></span>
+              <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Boxes size={16} />
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium">Version {item.version}</p>
-                  <Badge tone={item.status === "active" ? "success" : item.status === "failed" ? "danger" : "neutral"}>
-                    <StatusDot status={item.status} /> {item.status.replaceAll("_", " ")}
+                  <Badge
+                    tone={
+                      item.status === "active"
+                        ? "success"
+                        : item.status === "failed"
+                          ? "danger"
+                          : "neutral"
+                    }
+                  >
+                    <StatusDot status={item.status} />{" "}
+                    {item.status.replaceAll("_", " ")}
                   </Badge>
                 </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  {item.endpointCount} endpoints · {new Date(item.createdAt).toLocaleString()}
-                  {item.sourceProjectDeployment ? ` · from development v${item.sourceProjectDeployment.version}` : ""}
+                  {item.endpointCount} endpoints ·{" "}
+                  {new Date(item.createdAt).toLocaleString()}
+                  {item.sourceProjectDeployment
+                    ? ` · from development v${item.sourceProjectDeployment.version}`
+                    : ""}
                 </p>
-                {item.checksum && <code className="mt-1 block truncate text-[9px] text-muted-foreground">sha256:{item.checksum}</code>}
+                {item.checksum && (
+                  <code className="mt-1 block truncate text-[9px] text-muted-foreground">
+                    sha256:{item.checksum}
+                  </code>
+                )}
                 {item.status === "failed" && item.failureCause && (
                   <div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
                     <p className="text-[10px] font-semibold text-red-700 dark:text-red-300">

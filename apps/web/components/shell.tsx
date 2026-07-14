@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Code2,
   Command,
-  FileClock,
   FileJson2,
   LayoutDashboard,
   PanelsTopLeft,
@@ -42,11 +41,7 @@ import { api, ApiError, errorMessage } from "@/lib/api";
 import { useToast } from "@/components/providers";
 import { NotificationCenter } from "@/components/notification-center";
 import { roleAllows } from "@/lib/session";
-import type {
-  EnvironmentSummary,
-  ProjectSummary,
-  SessionIdentity,
-} from "@/lib/types";
+import type { EnvironmentSummary, ProjectSummary, SessionIdentity } from "@/lib/types";
 
 type NavItem = {
   href: string;
@@ -117,9 +112,7 @@ function Brand() {
       <span className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/15">
         <Command size={17} strokeWidth={2.3} />
       </span>
-      <span className="text-[15px] font-semibold tracking-tight">
-        MCP Ops Studio
-      </span>
+      <span className="text-[15px] font-semibold tracking-tight">MCP Ops Studio</span>
     </Link>
   );
 }
@@ -141,9 +134,7 @@ function NavList({
         .filter((item) => !item.roles || (role && item.roles.includes(role)))
         .map((item) => {
           const active =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
             <Link
@@ -185,8 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [environments, setEnvironments] = useState<EnvironmentSummary[]>();
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [environmentsUnavailable, setEnvironmentsUnavailable] = useState(false);
-  const [developmentStatus, setDevelopmentStatus] =
-    useState<DevelopmentStatus>();
+  const [developmentStatus, setDevelopmentStatus] = useState<DevelopmentStatus>();
   const [deploymentBusy, setDeploymentBusy] = useState(false);
   const toast = useToast();
   const refreshProjects = useCallback(async () => {
@@ -201,23 +191,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
   const refreshDevelopmentStatus = useCallback(async () => {
     try {
-      setDevelopmentStatus(
-        await api<DevelopmentStatus>("/api/deployments/status"),
-      );
+      setDevelopmentStatus(await api<DevelopmentStatus>("/api/deployments/status"));
     } catch {
       setDevelopmentStatus(undefined);
     }
   }, []);
-  useEffect(
-    () => setDark(document.documentElement.classList.contains("dark")),
-    [],
-  );
+  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
   useEffect(() => {
     void refreshDevelopmentStatus();
-    const timer = window.setInterval(
-      () => void refreshDevelopmentStatus(),
-      3_000,
-    );
+    const timer = window.setInterval(() => void refreshDevelopmentStatus(), 3_000);
     return () => window.clearInterval(timer);
   }, [refreshDevelopmentStatus]);
   useEffect(() => {
@@ -271,8 +253,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
   async function selectProject(projectId: string) {
-    if (!projectId || projectId === identity?.project.id || projectSwitching)
-      return;
+    if (!projectId || projectId === identity?.project.id || projectSwitching) return;
     setProjectSwitchError(undefined);
     setProjectSwitching(true);
     try {
@@ -363,9 +344,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {projectSwitching
                   ? "Switching project…"
                   : (identity?.project.name ??
-                    (sessionUnavailable
-                      ? "Project unavailable"
-                      : "Loading project…"))}
+                    (sessionUnavailable ? "Project unavailable" : "Loading project…"))}
               </span>
               <span className="block truncate text-[10px] text-muted-foreground">
                 {projectsUnavailable
@@ -395,9 +374,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onSelect={() => void selectProject(project.id)}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">
-                        {project.name}
-                      </span>
+                      <span className="block truncate font-medium">{project.name}</span>
                       <span className="block truncate text-[10px] text-muted-foreground">
                         {project.slug}
                       </span>
@@ -415,10 +392,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
         {projectSwitchError && (
-          <p
-            className="mt-1.5 px-2 text-[10px] leading-4 text-red-500"
-            role="alert"
-          >
+          <p className="mt-1.5 px-2 text-[10px] leading-4 text-red-500" role="alert">
             {projectSwitchError}
           </p>
         )}
@@ -532,9 +506,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   environments?.length ? "bg-emerald-500" : "bg-slate-400",
                 )}
               />
-              <span className="flex-1 text-left font-medium">
-                {environmentLabel}
-              </span>
+              <span className="flex-1 text-left font-medium">{environmentLabel}</span>
               <ShieldCheck size={13} className="text-muted-foreground" />
             </button>
           </div>

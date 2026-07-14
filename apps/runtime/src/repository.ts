@@ -82,9 +82,7 @@ export async function loadEndpointById(
 }
 function normalizeEndpoint(row: EndpointRow | null): LoadedEndpoint | null {
   if (!row?.activeDeployment) return null;
-  const parsed = deploymentSnapshotSchema.safeParse(
-    row.activeDeployment.snapshot,
-  );
+  const parsed = deploymentSnapshotSchema.safeParse(row.activeDeployment.snapshot);
   if (!parsed.success)
     throw new Error(
       `Active deployment snapshot is invalid: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
@@ -129,23 +127,20 @@ async function environmentForHost(
   requestHost?: string,
   environmentSlug?: string,
 ): Promise<ReleasedEnvironmentRow | null> {
-  if ((!requestHost && !environmentSlug) || !client.environment.findMany)
-    return null;
+  if ((!requestHost && !environmentSlug) || !client.environment.findMany) return null;
   const environments = (await client.environment.findMany({
     where: { projectId },
     include: { activeProjectDeployment: true },
   })) as ReleasedEnvironmentRow[];
   if (environmentSlug)
     return (
-      environments.find((environment) => environment.slug === environmentSlug) ??
-      null
+      environments.find((environment) => environment.slug === environmentSlug) ?? null
     );
   return (
     environments.find((environment) => {
       try {
         return (
-          new URL(environment.baseUrl).host.toLowerCase() ===
-          requestHost?.toLowerCase()
+          new URL(environment.baseUrl).host.toLowerCase() === requestHost?.toLowerCase()
         );
       } catch {
         return false;
@@ -184,8 +179,7 @@ function normalizeReleasedEndpoint(
       name: environment.name,
       slug: environment.slug,
       capturePayloads:
-        environment.slug === "development" &&
-        environment.capturePayloads === true,
+        environment.slug === "development" && environment.capturePayloads === true,
       ...logSettings(environment),
     },
     deployment: {
@@ -245,13 +239,9 @@ export async function countAndValidateActiveDeployments(): Promise<number> {
     select: { activeDeployment: { select: { snapshot: true } } },
   })) as Array<{ activeDeployment: { snapshot: unknown } | null }>;
   for (const row of rows) {
-    if (!row.activeDeployment)
-      throw new Error("An active endpoint has no deployment");
-    const parsed = deploymentSnapshotSchema.safeParse(
-      row.activeDeployment.snapshot,
-    );
-    if (!parsed.success)
-      throw new Error("An active deployment snapshot is invalid");
+    if (!row.activeDeployment) throw new Error("An active endpoint has no deployment");
+    const parsed = deploymentSnapshotSchema.safeParse(row.activeDeployment.snapshot);
+    if (!parsed.success) throw new Error("An active deployment snapshot is invalid");
   }
   return rows.length;
 }
@@ -277,9 +267,7 @@ export type ExecutionRecord = {
   parentExecutionId?: string;
   rootExecutionId?: string;
 };
-export async function saveExecution(
-  record: ExecutionRecord,
-): Promise<{ id: string }> {
+export async function saveExecution(record: ExecutionRecord): Promise<{ id: string }> {
   return client.functionExecution.create({ data: compact(record) }) as Promise<{
     id: string;
   }>;
@@ -325,7 +313,10 @@ export async function saveRuntimeLogs(
 
 async function pruneRuntimeLogs(
   environmentId: string,
-  settings: Pick<LoadedEndpoint["environment"], "logRetentionDays" | "logRetentionMaxEntries" | "logRetentionMaxBytes">,
+  settings: Pick<
+    LoadedEndpoint["environment"],
+    "logRetentionDays" | "logRetentionMaxEntries" | "logRetentionMaxBytes"
+  >,
 ): Promise<void> {
   await prisma.runtimeLog.deleteMany({
     where: {
@@ -341,9 +332,17 @@ async function pruneRuntimeLogs(
       take: count - settings.logRetentionMaxEntries,
       select: { id: true },
     });
-    await prisma.runtimeLog.deleteMany({ where: { id: { in: overflow.map((item) => item.id) } } });
+    await prisma.runtimeLog.deleteMany({
+      where: { id: { in: overflow.map((item) => item.id) } },
+    });
   }
-  let total = (await prisma.runtimeLog.aggregate({ where: { environmentId }, _sum: { sizeBytes: true } }))._sum.sizeBytes ?? 0;
+  let total =
+    (
+      await prisma.runtimeLog.aggregate({
+        where: { environmentId },
+        _sum: { sizeBytes: true },
+      })
+    )._sum.sizeBytes ?? 0;
   while (total > settings.logRetentionMaxBytes) {
     const oldest = await prisma.runtimeLog.findMany({
       where: { environmentId },
@@ -377,7 +376,7 @@ function logSettings(value: {
   logRetentionMaxBytes?: number;
 }) {
   const level = ["debug", "info", "warn", "error", "off"].includes(value.logLevel ?? "")
-    ? value.logLevel as LoadedEndpoint["environment"]["logLevel"]
+    ? (value.logLevel as LoadedEndpoint["environment"]["logLevel"])
     : "info";
   return {
     logLevel: level,
@@ -427,8 +426,7 @@ export async function storageList(
   limit: number,
 ): Promise<Array<{ key: string; value: unknown }>> {
   const namespace = await ensureStorageNamespace(endpoint);
-  if (!client.storageEntry.findMany)
-    throw new Error("Storage adapter is unavailable");
+  if (!client.storageEntry.findMany) throw new Error("Storage adapter is unavailable");
   return (await client.storageEntry.findMany({
     where: {
       namespaceId: namespace.id,
@@ -451,8 +449,7 @@ export async function storageSet(
   ttlSeconds?: number,
 ): Promise<void> {
   const namespace = await ensureStorageNamespace(endpoint);
-  if (!client.storageEntry.upsert)
-    throw new Error("Storage adapter is unavailable");
+  if (!client.storageEntry.upsert) throw new Error("Storage adapter is unavailable");
   await client.storageEntry.upsert({
     where: {
       namespaceId_functionId_tenantScope_key: {

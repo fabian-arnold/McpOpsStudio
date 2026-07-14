@@ -43,7 +43,10 @@ for (const entry of manifest) {
   if (!shell.includes(`label: "${entry.label}"`) && !shell.includes(entry.label)) {
     errors.push(`${entry.label}: menu label is not present in AppShell`);
   }
-  if (!shell.includes(`href: "${entry.route}"`) && !shell.includes(`href="${entry.route}"`)) {
+  if (
+    !shell.includes(`href: "${entry.route}"`) &&
+    !shell.includes(`href="${entry.route}"`)
+  ) {
     errors.push(`${entry.label}: route ${entry.route} is not present in AppShell`);
   }
 }
@@ -73,10 +76,14 @@ for (const file of markdown) {
     const candidates = path.extname(resolved)
       ? [resolved]
       : [resolved, `${resolved}.md`, path.join(resolved, "index.md")];
-    if (!(await Promise.any(candidates.map(async (candidate) => {
-      if (await exists(candidate)) return true;
-      throw new Error();
-    })).catch(() => false))) {
+    if (
+      !(await Promise.any(
+        candidates.map(async (candidate) => {
+          if (await exists(candidate)) return true;
+          throw new Error();
+        }),
+      ).catch(() => false))
+    ) {
       errors.push(`${relative}: broken link ${target}`);
     }
   }
@@ -96,5 +103,7 @@ if (errors.length) {
   for (const error of errors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log(`Documentation check passed: ${manifest.length} menu pages and ${markdown.length} Markdown files.`);
+  console.log(
+    `Documentation check passed: ${manifest.length} menu pages and ${markdown.length} Markdown files.`,
+  );
 }

@@ -73,6 +73,8 @@ Follow these core rules:
 ## Code style
 
 - Use strict TypeScript and meaningful domain names.
+- Run Prettier instead of maintaining hand-formatted exceptions.
+- Keep deployable apps independent and reusable packages free of app imports; the dependency-cruiser rules enforce these boundaries and reject cycles.
 - Prefer Zod at public application boundaries and AJV for function JSON Schema validation.
 - Avoid `any`; use `unknown` and narrow at runtime boundaries.
 - Keep security-critical helpers small, isolated and tested.
@@ -98,6 +100,10 @@ Keep the Acme seed idempotent. If a change affects the demo vertical slice, upda
 Run focused tests while developing, then the complete verification set before opening a pull request:
 
 ```bash
+pnpm format:check
+pnpm lint
+pnpm analyze
+pnpm typecheck
 pnpm test
 pnpm build
 docker compose -f infra/docker-compose.yml config --quiet

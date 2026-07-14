@@ -1,6 +1,9 @@
 const developmentValues = new Map([
   ["DATABASE_URL", ["mcpops_dev_password"]],
-  ["MCP_OPS_MASTER_KEY", ["0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]],
+  [
+    "MCP_OPS_MASTER_KEY",
+    ["0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+  ],
   ["SESSION_SECRET", ["replace-with-at-least-32-random-characters"]],
   ["CSRF_SECRET", ["replace-with-at-least-32-random-characters"]],
   ["INTERNAL_API_TOKEN", ["dev-internal-token-change-me"]],
@@ -34,7 +37,9 @@ export function productionConfigurationErrors(environment = process.env) {
   const errors = [];
   const encodedMasterKey = environment.MCP_OPS_MASTER_KEY;
   if (!encodedMasterKey || !validMasterKey(encodedMasterKey)) {
-    errors.push("MCP_OPS_MASTER_KEY must explicitly encode exactly 32 bytes as 64 hexadecimal characters or base64");
+    errors.push(
+      "MCP_OPS_MASTER_KEY must explicitly encode exactly 32 bytes as 64 hexadecimal characters or base64",
+    );
   }
   if (environment.NODE_ENV !== "production") return errors;
 
@@ -42,12 +47,16 @@ export function productionConfigurationErrors(environment = process.env) {
     for (const name of generatedInstallRequired) {
       const value = environment[name];
       if (!value || value.length < 16)
-        errors.push(`${name} must be supplied by the generated installation configuration`);
+        errors.push(
+          `${name} must be supplied by the generated installation configuration`,
+        );
     }
     if (environment.MCP_OPS_DEMO_MODE === "true")
       errors.push("MCP_OPS_DEMO_MODE must be disabled in production");
     if (environment.MOCK_CRM_URL)
-      errors.push("MOCK_CRM_URL is development-only and must not be configured in production");
+      errors.push(
+        "MOCK_CRM_URL is development-only and must not be configured in production",
+      );
     return errors;
   }
 
@@ -73,7 +82,9 @@ export function productionConfigurationErrors(environment = process.env) {
     errors.push("MCP_OPS_DEMO_MODE must be disabled in production");
   }
   if (environment.MOCK_CRM_URL) {
-    errors.push("MOCK_CRM_URL is development-only and must not be configured in production");
+    errors.push(
+      "MOCK_CRM_URL is development-only and must not be configured in production",
+    );
   }
 
   return errors;
@@ -88,11 +99,13 @@ function validMasterKey(value) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const errors = productionConfigurationErrors();
   if (errors.length > 0) {
-    console.error(JSON.stringify({
-      level: "fatal",
-      message: "refusing to start with unsafe production configuration",
-      errors,
-    }));
+    console.error(
+      JSON.stringify({
+        level: "fatal",
+        message: "refusing to start with unsafe production configuration",
+        errors,
+      }),
+    );
     process.exitCode = 1;
   }
 }

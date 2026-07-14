@@ -1,0 +1,10 @@
+node_modules
+.next
+.turbo
+coverage
+dist
+docs/.vitepress
+pnpm-lock.yaml
+*.md
+*.svg
+*.css

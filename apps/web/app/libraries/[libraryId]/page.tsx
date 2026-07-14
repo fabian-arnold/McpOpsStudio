@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  Circle,
-  FileCode2,
-  Library,
-  Plus,
-  Save,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Circle, FileCode2, Library, Plus, Save, X } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { EditorSwitcher } from "@/components/editor-switcher";
 import { TypeScriptEditor } from "@/components/typescript-editor";
@@ -70,8 +62,7 @@ export default function LibraryEditorPage() {
         return;
       }
       const current = all.find((item) => item.id === libraryId);
-      if (!current)
-        throw new Error("Library not found in the selected project");
+      if (!current) throw new Error("Library not found in the selected project");
       const history = await api<ProjectLibrary[]>(
         `/api/libraries/${current.id}/versions`,
       );
@@ -139,9 +130,7 @@ export default function LibraryEditorPage() {
 
   function removeExport(name: string) {
     update({
-      exportedFunctions: exportedFunctions
-        .filter((item) => item !== name)
-        .join(", "),
+      exportedFunctions: exportedFunctions.filter((item) => item !== name).join(", "),
     });
   }
 
@@ -157,8 +146,7 @@ export default function LibraryEditorPage() {
       setDirty(false);
       toast({
         title: `Library version ${created.version} created`,
-        description:
-          "The immutable version is available to future deployment builds.",
+        description: "The immutable version is available to future deployment builds.",
         tone: "success",
       });
       router.replace(`/libraries/${created.id}`);
@@ -221,17 +209,15 @@ export default function LibraryEditorPage() {
             size="sm"
             onClick={save}
             loading={saving}
-            disabled={
-              !canManage || !draft.name || !draft.importPath || !draft.code
-            }
+            disabled={!canManage || !draft.name || !draft.importPath || !draft.code}
           >
             <Save size={13} /> Validate and save version
           </Button>
         </header>
         <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/8 px-4 py-2 text-[10px] text-amber-800 dark:text-amber-200">
           <Library size={12} />
-          <strong>Restricted pure code:</strong> no runtime context, secrets,
-          network, process, filesystem, dynamic imports, or packages.
+          <strong>Restricted pure code:</strong> no runtime context, secrets, network,
+          process, filesystem, dynamic imports, or packages.
         </div>
         <div className="grid min-h-[calc(100vh-174px)] grid-cols-1 xl:grid-cols-[260px_minmax(520px,1fr)_260px]">
           <aside className="border-r bg-card p-4">
@@ -257,9 +243,7 @@ export default function LibraryEditorPage() {
               <textarea
                 className="field min-h-24"
                 value={draft.description}
-                onChange={(event) =>
-                  update({ description: event.target.value })
-                }
+                onChange={(event) => update({ description: event.target.value })}
                 disabled={!canManage}
               />
             </Field>
@@ -348,8 +332,7 @@ export default function LibraryEditorPage() {
                       )}
                     </div>
                     <code className="mt-2 block truncate text-[10px] text-muted-foreground">
-                      {version.exportedFunctions?.join(", ") ||
-                        "No declared exports"}
+                      {version.exportedFunctions?.join(", ") || "No declared exports"}
                     </code>
                   </div>
                 ))
@@ -361,9 +344,8 @@ export default function LibraryEditorPage() {
             </div>
             <div className="mt-5 rounded-lg bg-muted/50 p-3 text-[10px] leading-5 text-muted-foreground">
               Functions can import declared exports from{" "}
-              <code className="text-foreground">{draft.importPath}</code>.
-              Deploy a endpoint to pin the library version into its immutable
-              snapshot.
+              <code className="text-foreground">{draft.importPath}</code>. Deploy a
+              endpoint to pin the library version into its immutable snapshot.
             </div>
           </aside>
         </div>
@@ -386,9 +368,7 @@ function Field({
       <span className="label">{label}</span>
       {children}
       {hint && (
-        <span className="mt-1 block text-[10px] text-muted-foreground">
-          {hint}
-        </span>
+        <span className="mt-1 block text-[10px] text-muted-foreground">{hint}</span>
       )}
     </label>
   );

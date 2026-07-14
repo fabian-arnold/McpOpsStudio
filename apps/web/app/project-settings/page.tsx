@@ -127,9 +127,7 @@ export default function ProjectSettingsPage() {
                 className="field"
                 value={draft.name}
                 disabled={!canManage}
-                onChange={(event) =>
-                  setDraft({ ...draft, name: event.target.value })
-                }
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 required
               />
             </label>
@@ -140,9 +138,7 @@ export default function ProjectSettingsPage() {
                 value={draft.slug}
                 disabled={!canManage}
                 pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                onChange={(event) =>
-                  setDraft({ ...draft, slug: event.target.value })
-                }
+                onChange={(event) => setDraft({ ...draft, slug: event.target.value })}
                 required
               />
               <span className="mt-1 block text-[10px] text-muted-foreground">
@@ -165,17 +161,43 @@ export default function ProjectSettingsPage() {
 
         <section className="panel p-5">
           <div className="flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><ScrollText size={16} /></span>
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <ScrollText size={16} />
+            </span>
             <div>
               <h2 className="text-sm font-semibold">Runtime logging</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Set the project-wide minimum level and Graylog-style retention limits independently for each environment.</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Set the project-wide minimum level and Graylog-style retention limits
+                independently for each environment.
+              </p>
             </div>
           </div>
           <div className="mt-5 grid gap-4 xl:grid-cols-2">
-            <LoggingEnvironmentSettings label="Development" value={draft.logging.development} disabled={!canManage} onChange={(value) => setDraft({ ...draft, logging: { ...draft.logging, development: value } })} />
-            <LoggingEnvironmentSettings label="Production" value={draft.logging.production} disabled={!canManage} onChange={(value) => setDraft({ ...draft, logging: { ...draft.logging, production: value } })} />
+            <LoggingEnvironmentSettings
+              label="Development"
+              value={draft.logging.development}
+              disabled={!canManage}
+              onChange={(value) =>
+                setDraft({
+                  ...draft,
+                  logging: { ...draft.logging, development: value },
+                })
+              }
+            />
+            <LoggingEnvironmentSettings
+              label="Production"
+              value={draft.logging.production}
+              disabled={!canManage}
+              onChange={(value) =>
+                setDraft({ ...draft, logging: { ...draft.logging, production: value } })
+              }
+            />
           </div>
-          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] leading-5 text-muted-foreground">The oldest entries are removed when any limit is exceeded. Log metadata is redacted and bounded before storage; changing these settings never weakens Secret redaction.</p>
+          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] leading-5 text-muted-foreground">
+            The oldest entries are removed when any limit is exceeded. Log metadata is
+            redacted and bounded before storage; changing these settings never weakens
+            Secret redaction.
+          </p>
         </section>
 
         <section className="panel p-5">
@@ -186,13 +208,10 @@ export default function ProjectSettingsPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold">
-                    Development payload capture
-                  </h2>
+                  <h2 className="text-sm font-semibold">Development payload capture</h2>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Retain redacted Function input and output for future
-                    Development executions so they can be inspected on the
-                    Executions page.
+                    Retain redacted Function input and output for future Development
+                    executions so they can be inspected on the Executions page.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-3 text-xs font-medium">
@@ -205,8 +224,7 @@ export default function ProjectSettingsPage() {
                     onClick={() =>
                       setDraft({
                         ...draft,
-                        captureDevelopmentPayloads:
-                          !draft.captureDevelopmentPayloads,
+                        captureDevelopmentPayloads: !draft.captureDevelopmentPayloads,
                       })
                     }
                     className={`relative h-7 w-12 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -230,9 +248,9 @@ export default function ProjectSettingsPage() {
                 </div>
               </div>
               <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-5 text-muted-foreground">
-                Development only. Production payloads are never captured.
-                Sensitive keys and known Secret values remain redacted, and
-                oversized payloads are truncated to a bounded preview.
+                Development only. Production payloads are never captured. Sensitive keys
+                and known Secret values remain redacted, and oversized payloads are
+                truncated to a bounded preview.
               </div>
             </div>
           </div>
@@ -252,15 +270,100 @@ export default function ProjectSettingsPage() {
   );
 }
 
-function LoggingEnvironmentSettings({ label, value, disabled, onChange }: { label: string; value: LogSettings; disabled: boolean; onChange: (value: LogSettings) => void }) {
+function LoggingEnvironmentSettings({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: LogSettings;
+  disabled: boolean;
+  onChange: (value: LogSettings) => void;
+}) {
   return (
     <div className="rounded-xl border p-4">
-      <div className="mb-4 flex items-center justify-between"><h3 className="text-xs font-semibold">{label}</h3><Badge tone={value.level === "off" ? "neutral" : value.level === "debug" ? "warning" : "primary"}>{value.level}</Badge></div>
-      <label><span className="label">Minimum level</span><select className="field" value={value.level} disabled={disabled} onChange={(event) => onChange({ ...value, level: event.target.value as LogSettings["level"] })}>{["debug", "info", "warn", "error", "off"].map((level) => <option key={level} value={level}>{level === "off" ? "Off — store no Function logs" : `${level} and above`}</option>)}</select></label>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-xs font-semibold">{label}</h3>
+        <Badge
+          tone={
+            value.level === "off"
+              ? "neutral"
+              : value.level === "debug"
+                ? "warning"
+                : "primary"
+          }
+        >
+          {value.level}
+        </Badge>
+      </div>
+      <label>
+        <span className="label">Minimum level</span>
+        <select
+          className="field"
+          value={value.level}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange({ ...value, level: event.target.value as LogSettings["level"] })
+          }
+        >
+          {["debug", "info", "warn", "error", "off"].map((level) => (
+            <option key={level} value={level}>
+              {level === "off" ? "Off — store no Function logs" : `${level} and above`}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <label><span className="label">Max age</span><input className="field" type="number" min={1} max={3650} value={value.retentionDays} disabled={disabled} onChange={(event) => onChange({ ...value, retentionDays: Number(event.target.value) })} /><span className="mt-1 block text-[9px] text-muted-foreground">days</span></label>
-        <label><span className="label">Max count</span><input className="field" type="number" min={100} max={10000000} step={100} value={value.retentionMaxEntries} disabled={disabled} onChange={(event) => onChange({ ...value, retentionMaxEntries: Number(event.target.value) })} /><span className="mt-1 block text-[9px] text-muted-foreground">entries</span></label>
-        <label><span className="label">Max size</span><input className="field" type="number" min={1} max={1907} value={Math.round(value.retentionMaxBytes / 1048576)} disabled={disabled} onChange={(event) => onChange({ ...value, retentionMaxBytes: Number(event.target.value) * 1048576 })} /><span className="mt-1 block text-[9px] text-muted-foreground">MiB</span></label>
+        <label>
+          <span className="label">Max age</span>
+          <input
+            className="field"
+            type="number"
+            min={1}
+            max={3650}
+            value={value.retentionDays}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ ...value, retentionDays: Number(event.target.value) })
+            }
+          />
+          <span className="mt-1 block text-[9px] text-muted-foreground">days</span>
+        </label>
+        <label>
+          <span className="label">Max count</span>
+          <input
+            className="field"
+            type="number"
+            min={100}
+            max={10000000}
+            step={100}
+            value={value.retentionMaxEntries}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ ...value, retentionMaxEntries: Number(event.target.value) })
+            }
+          />
+          <span className="mt-1 block text-[9px] text-muted-foreground">entries</span>
+        </label>
+        <label>
+          <span className="label">Max size</span>
+          <input
+            className="field"
+            type="number"
+            min={1}
+            max={1907}
+            value={Math.round(value.retentionMaxBytes / 1048576)}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                retentionMaxBytes: Number(event.target.value) * 1048576,
+              })
+            }
+          />
+          <span className="mt-1 block text-[9px] text-muted-foreground">MiB</span>
+        </label>
       </div>
     </div>
   );
@@ -295,8 +398,8 @@ function DeleteProject({ project }: { project: ProjectSettings }) {
         Delete Project
       </h2>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        Permanently deletes endpoints, Functions, Secrets, deployments, and
-        execution history. Another active Project must exist.
+        Permanently deletes endpoints, Functions, Secrets, deployments, and execution
+        history. Another active Project must exist.
       </p>
       <Dialog
         trigger={

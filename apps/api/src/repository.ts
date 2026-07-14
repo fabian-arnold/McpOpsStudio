@@ -6,9 +6,7 @@ const uuidPattern =
 export function endpointIdentifierWhere(
   identifier: string,
 ): { id: string } | { slug: string } {
-  return uuidPattern.test(identifier)
-    ? { id: identifier }
-    : { slug: identifier };
+  return uuidPattern.test(identifier) ? { id: identifier } : { slug: identifier };
 }
 
 export function functionIdentifierWhere(

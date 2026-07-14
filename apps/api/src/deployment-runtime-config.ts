@@ -13,9 +13,7 @@ export function resolveDevelopmentRuntimeEnvironment(
   const endpoint = record(endpointConfig);
   const active = record(activeConfig);
   const snapshot = record(activeSnapshot);
-  const endpointEnvironment = record(
-    endpoint.env ?? active.env ?? snapshot.env,
-  );
+  const endpointEnvironment = record(endpoint.env ?? active.env ?? snapshot.env);
   return {
     ...record(environmentVariables),
     ...endpointEnvironment,

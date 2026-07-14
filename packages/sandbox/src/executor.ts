@@ -1,4 +1,4 @@
-import { fork, type ChildProcess } from "node:child_process";
+import { fork } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,9 +53,7 @@ export class LocalChildProcessExecutor implements FunctionExecutor {
     provider: "local",
     isolation: "trusted-developer",
   };
-  async execute(
-    request: FunctionExecutionRequest,
-  ): Promise<FunctionExecutionResult> {
+  async execute(request: FunctionExecutionRequest): Promise<FunctionExecutionResult> {
     const startedAt = performance.now();
     const directory = await mkdtemp(join(tmpdir(), "mcpops-execution-"));
     const modulePath = join(directory, "function.mjs");
@@ -63,9 +61,7 @@ export class LocalChildProcessExecutor implements FunctionExecutor {
       encoding: "utf8",
       mode: 0o600,
     });
-    const adjacentRunner = fileURLToPath(
-      new URL("./runner.js", import.meta.url),
-    );
+    const adjacentRunner = fileURLToPath(new URL("./runner.js", import.meta.url));
     const runnerPath = existsSync(adjacentRunner)
       ? adjacentRunner
       : fileURLToPath(new URL("../dist/runner.js", import.meta.url));
@@ -136,14 +132,9 @@ export class LocalChildProcessExecutor implements FunctionExecutor {
               reason: "Function execution cancelled",
             });
         } else if (raw.type === "rpc") {
-          void dispatchCapability(
-            request.context,
-            raw.operation,
-            raw.args,
-          ).then(
+          void dispatchCapability(request.context, raw.operation, raw.args).then(
             (value) =>
-              child.connected &&
-              child.send({ type: "rpc-result", id: raw.id, value }),
+              child.connected && child.send({ type: "rpc-result", id: raw.id, value }),
             (error: unknown) =>
               child.connected &&
               child.send({
@@ -263,9 +254,7 @@ export async function dispatchCapability(
         args[0] as Parameters<RuntimeContext["audit"]["write"]>[0],
       );
     case "db.query":
-      return context.db.query(
-        args[0] as Parameters<RuntimeContext["db"]["query"]>[0],
-      );
+      return context.db.query(args[0] as Parameters<RuntimeContext["db"]["query"]>[0]);
     case "functions.call":
       return context.functions.call(String(args[0]), args[1]);
     default:
@@ -273,9 +262,7 @@ export async function dispatchCapability(
   }
 }
 
-export function serializeContext(
-  context: RuntimeContext,
-): Record<string, unknown> {
+export function serializeContext(context: RuntimeContext): Record<string, unknown> {
   const secretNames = Object.keys(context.env).filter(() => false); // secret accessor intentionally has no enumeration API
   const grantedSecrets: Record<string, string> = {};
   // The runtime attaches the explicit grant list as a non-enumerable implementation detail.
@@ -305,9 +292,7 @@ function storageFor(context: RuntimeContext, tenant: unknown) {
     : context.storage;
 }
 function cacheFor(context: RuntimeContext, tenant: unknown) {
-  return typeof tenant === "string"
-    ? context.cache.forTenant(tenant)
-    : context.cache;
+  return typeof tenant === "string" ? context.cache.forTenant(tenant) : context.cache;
 }
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)

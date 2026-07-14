@@ -27,12 +27,12 @@ import {
 } from "@mcpops/runtime-sdk";
 import { verifyApiKey } from "@mcpops/shared";
 import { authenticateWithPolicies, authorizeEndpointAccess } from "./auth.js";
-import type {
-  HttpBinding,
-  LoadedEndpoint,
-  SnapshotFunction,
+import {
+  deploymentSnapshotSchema,
+  type HttpBinding,
+  type LoadedEndpoint,
+  type SnapshotFunction,
 } from "./domain.js";
-import { deploymentSnapshotSchema } from "./domain.js";
 import { RuntimeInvoker } from "./invoke.js";
 import { RuntimeMetrics } from "./metrics.js";
 import {
@@ -63,9 +63,7 @@ export async function buildRuntimeApp(
   options: RuntimeOptions,
 ): Promise<FastifyInstance> {
   if (!options.executor && process.env.NODE_ENV === "production")
-    throw new Error(
-      "A FunctionExecutor must be explicitly selected in production",
-    );
+    throw new Error("A FunctionExecutor must be explicitly selected in production");
   const app = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
@@ -76,8 +74,7 @@ export async function buildRuntimeApp(
         "req.headers.x-internal-token",
       ],
     },
-    genReqId: (request) =>
-      String(request.headers["x-request-id"] ?? randomUUID()),
+    genReqId: (request) => String(request.headers["x-request-id"] ?? randomUUID()),
     bodyLimit: 1_048_576,
   });
   const rawBodies = new WeakMap<object, Buffer>();
@@ -159,8 +156,7 @@ export async function buildRuntimeApp(
   app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-request-id", request.id);
     const incomingCorrelation = stringHeader(request, "x-correlation-id");
-    if (incomingCorrelation)
-      reply.header("x-correlation-id", incomingCorrelation);
+    if (incomingCorrelation) reply.header("x-correlation-id", incomingCorrelation);
     return payload;
   });
   app.addHook("onClose", async () => invoker.close());
@@ -196,19 +192,17 @@ export async function buildRuntimeApp(
   });
   app.get("/ready", async (_request, reply) => {
     const result = await readiness();
-    return reply
-      .code(result.ready ? 200 : 503)
-      .send({
-        status: result.ready ? "ready" : "not_ready",
-        checks: Object.fromEntries(
-          Object.entries(result.checks).map(([name, ready]) => [
-            name,
-            ready ? "ok" : "unavailable",
-          ]),
-        ),
-        activeDeployments: result.activeDeploymentCount,
-        timestamp: new Date().toISOString(),
-      });
+    return reply.code(result.ready ? 200 : 503).send({
+      status: result.ready ? "ready" : "not_ready",
+      checks: Object.fromEntries(
+        Object.entries(result.checks).map(([name, ready]) => [
+          name,
+          ready ? "ok" : "unavailable",
+        ]),
+      ),
+      activeDeployments: result.activeDeploymentCount,
+      timestamp: new Date().toISOString(),
+    });
   });
   app.get("/metrics", async (_request, reply) => {
     await readiness();
@@ -228,15 +222,13 @@ export async function buildRuntimeApp(
         });
       const endpoint = await loadEndpointById(request.params.endpointId);
       if (!endpoint)
-        return reply
-          .code(404)
-          .send({
-            error: {
-              code: "CONFIGURATION_ERROR",
-              message: "Active endpoint not found.",
-              requestId: request.id,
-            },
-          });
+        return reply.code(404).send({
+          error: {
+            code: "CONFIGURATION_ERROR",
+            message: "Active endpoint not found.",
+            requestId: request.id,
+          },
+        });
       return {
         endpoint: {
           id: endpoint.id,
@@ -272,19 +264,15 @@ export async function buildRuntimeApp(
         });
       const endpoint = await loadEndpointById(request.params.endpointId);
       if (!endpoint)
-        return reply
-          .code(404)
-          .send({
-            error: {
-              code: "CONFIGURATION_ERROR",
-              message: "Active endpoint not found.",
-              requestId: request.id,
-            },
-          });
+        return reply.code(404).send({
+          error: {
+            code: "CONFIGURATION_ERROR",
+            message: "Active endpoint not found.",
+            requestId: request.id,
+          },
+        });
       const body = object(request.body);
-      const savedDevelopmentSnapshot = object(
-        body.savedDevelopmentSnapshot,
-      );
+      const savedDevelopmentSnapshot = object(body.savedDevelopmentSnapshot);
       const parsedSnapshot = deploymentSnapshotSchema.safeParse({
         ...endpoint.snapshot,
         functions: savedDevelopmentSnapshot.functions,
@@ -304,23 +292,19 @@ export async function buildRuntimeApp(
       };
       const fn = findFunction(testEndpoint, request.params.functionId);
       if (!fn?.enabled)
-        return reply
-          .code(404)
-          .send({
-            error: {
-              code: "CONFIGURATION_ERROR",
-              message: "Function has no saved development version.",
-              requestId: request.id,
-            },
-          });
+        return reply.code(404).send({
+          error: {
+            code: "CONFIGURATION_ERROR",
+            message: "Function has no saved development version.",
+            requestId: request.id,
+          },
+        });
       const rawCaller = object(body.caller);
       const caller: CallerIdentity = {
         ...(typeof rawCaller.subject === "string"
           ? { subject: rawCaller.subject }
           : {}),
-        ...(typeof rawCaller.email === "string"
-          ? { email: rawCaller.email }
-          : {}),
+        ...(typeof rawCaller.email === "string" ? { email: rawCaller.email } : {}),
         permissions: stringArray(rawCaller.permissions),
         claims: object(rawCaller.claims ?? rawCaller),
       };
@@ -382,8 +366,8 @@ export async function buildRuntimeApp(
 
   const handleMcp = async (
     request: FastifyRequest<{
-    Params: { projectSlug: string; endpointSlug: string };
-    Body: unknown;
+      Params: { projectSlug: string; endpointSlug: string };
+      Body: unknown;
     }>,
     reply: FastifyReply,
     environmentSlug: "development" | "production",
@@ -438,12 +422,7 @@ export async function buildRuntimeApp(
       return reply
         .code(400)
         .send(
-          jsonRpcError(
-            rpc.id ?? null,
-            -32602,
-            "Invalid method parameters",
-            request.id,
-          ),
+          jsonRpcError(rpc.id ?? null, -32602, "Invalid method parameters", request.id),
         );
     if (rpc.method === "initialize") {
       const requestedVersion = object(rpc.params).protocolVersion;
@@ -461,8 +440,7 @@ export async function buildRuntimeApp(
         },
       });
     }
-    if (rpc.method === "notifications/initialized")
-      return reply.code(202).send();
+    if (rpc.method === "notifications/initialized") return reply.code(202).send();
     if (rpc.method === "tools/list") {
       const tools = endpoint.snapshot.mcpBindings
         .filter((binding) => binding.enabled)
@@ -489,12 +467,7 @@ export async function buildRuntimeApp(
       const fn = binding && findFunction(endpoint, binding.functionId);
       if (!binding || !fn?.enabled)
         return reply.send(
-          jsonRpcError(
-            rpc.id ?? null,
-            -32602,
-            "Unknown or disabled tool",
-            request.id,
-          ),
+          jsonRpcError(rpc.id ?? null, -32602, "Unknown or disabled tool", request.id),
         );
       const correlationId = correlation(request);
       const tenantId = caller.tenantId ?? stringHeader(request, "x-tenant-id");
@@ -537,8 +510,8 @@ export async function buildRuntimeApp(
 
   const handleHttp = async (
     request: FastifyRequest<{
-    Params: { projectSlug: string; endpointSlug: string; "*": string };
-    Body: unknown;
+      Params: { projectSlug: string; endpointSlug: string; "*": string };
+      Body: unknown;
     }>,
     reply: FastifyReply,
     environmentSlug: "development" | "production",
@@ -556,15 +529,13 @@ export async function buildRuntimeApp(
     const routePath = `/${request.params["*"]}`;
     const matched = matchHttpBinding(endpoint, request.method, routePath);
     if (!matched)
-      return reply
-        .code(404)
-        .send({
-          error: {
-            code: "CONFIGURATION_ERROR",
-            message: "No active route matches this request.",
-            requestId: request.id,
-          },
-        });
+      return reply.code(404).send({
+        error: {
+          code: "CONFIGURATION_ERROR",
+          message: "No active route matches this request.",
+          requestId: request.id,
+        },
+      });
     let caller: CallerIdentity;
     try {
       caller = await authenticateWithPolicies(
@@ -608,11 +579,7 @@ export async function buildRuntimeApp(
       requestId: request.id,
       abortSignal: requestAbortSignal(request),
       outputTransformer: (output) =>
-        applyHttpResponseMapping(
-          output,
-          matched.binding.responseMapping,
-          request.id,
-        ),
+        applyHttpResponseMapping(output, matched.binding.responseMapping, request.id),
       ...(correlationId ? { correlationId } : {}),
       ...(tenantId ? { tenantId } : {}),
       httpBinding: matched.binding,
@@ -625,18 +592,21 @@ export async function buildRuntimeApp(
       reply.header(name, value);
     return reply.code(mapped.statusCode).send(mapped.body);
   };
-  app.all<{ Params: { projectSlug: string; endpointSlug: string; "*": string }; Body: unknown }>(
-    "/http/:projectSlug/:endpointSlug/*",
-    (request, reply) => handleHttp(request, reply, "production"),
+  app.all<{
+    Params: { projectSlug: string; endpointSlug: string; "*": string };
+    Body: unknown;
+  }>("/http/:projectSlug/:endpointSlug/*", (request, reply) =>
+    handleHttp(request, reply, "production"),
   );
-  app.all<{ Params: { projectSlug: string; endpointSlug: string; "*": string }; Body: unknown }>(
-    "/http-dev/:projectSlug/:endpointSlug/*",
-    (request, reply) => handleHttp(request, reply, "development"),
+  app.all<{
+    Params: { projectSlug: string; endpointSlug: string; "*": string };
+    Body: unknown;
+  }>("/http-dev/:projectSlug/:endpointSlug/*", (request, reply) =>
+    handleHttp(request, reply, "development"),
   );
 
   app.setErrorHandler((error, request, reply) => {
-    const caught =
-      error instanceof Error ? error : new Error("Unknown runtime error");
+    const caught = error instanceof Error ? error : new Error("Unknown runtime error");
     request.log.error(
       { err: { message: caught.message, name: caught.name } },
       "Runtime request failed",
@@ -675,23 +645,15 @@ async function resolveEndpoint(
   requestId: string,
   reply: FastifyReply,
 ): Promise<LoadedEndpoint | null> {
-  const endpoint = await loadEndpoint(
-    org,
-    slug,
-    kind,
-    requestHost,
-    environmentSlug,
-  );
+  const endpoint = await loadEndpoint(org, slug, kind, requestHost, environmentSlug);
   if (!endpoint) {
-    await reply
-      .code(404)
-      .send({
-        error: {
-          code: "CONFIGURATION_ERROR",
-          message: "No active deployment was found.",
-          requestId,
-        },
-      });
+    await reply.code(404).send({
+      error: {
+        code: "CONFIGURATION_ERROR",
+        message: "No active deployment was found.",
+        requestId,
+      },
+    });
     return null;
   }
   return endpoint;
@@ -706,9 +668,7 @@ function findFunction(
   endpoint: LoadedEndpoint,
   id: string,
 ): SnapshotFunction | undefined {
-  return endpoint.snapshot.functions.find(
-    (fn) => fn.functionId === id || fn.id === id,
-  );
+  return endpoint.snapshot.functions.find((fn) => fn.functionId === id || fn.id === id);
 }
 function parseRpc(value: unknown): JsonRpcRequest | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -744,10 +704,7 @@ function requestValue(value: unknown): unknown {
 function correlation(request: FastifyRequest): string | undefined {
   return stringHeader(request, "x-correlation-id");
 }
-function stringHeader(
-  request: FastifyRequest,
-  header: string,
-): string | undefined {
+function stringHeader(request: FastifyRequest, header: string): string | undefined {
   const value = request.headers[header];
   return typeof value === "string" && value.length <= 256 ? value : undefined;
 }
@@ -795,9 +752,7 @@ export function mapHttpInput(
   const query = object(request.query);
   const body = object(request.body);
   const headers = Object.fromEntries(
-    Object.entries(request.headers).filter(
-      ([, value]) => typeof value === "string",
-    ),
+    Object.entries(request.headers).filter(([, value]) => typeof value === "string"),
   );
   if (!binding.inputMapping || !Object.keys(binding.inputMapping).length)
     return { ...query, ...params, ...body };
@@ -912,8 +867,7 @@ export function applyHttpResponseMapping(
       : typeof bodySpec === "string"
         ? resolveOutputPath(output, bodySpec, requestId)
         : mapResponseObject(output, bodySpec, requestId);
-  const statusCode =
-    mapping.statusCode === undefined ? 200 : mapping.statusCode;
+  const statusCode = mapping.statusCode === undefined ? 200 : mapping.statusCode;
   if (
     !Number.isInteger(statusCode) ||
     Number(statusCode) < 100 ||
@@ -935,14 +889,8 @@ export function applyHttpResponseMapping(
         requestId,
       );
     for (const [name, expression] of Object.entries(mapping.headers)) {
-      if (
-        !/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name) ||
-        typeof expression !== "string"
-      )
-        throw configurationError(
-          "HTTP response header mapping is invalid.",
-          requestId,
-        );
+      if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name) || typeof expression !== "string")
+        throw configurationError("HTTP response header mapping is invalid.", requestId);
       const value = String(resolveOutputPath(output, expression, requestId));
       if (/[\r\n]/.test(value))
         throw configurationError(
@@ -1014,9 +962,7 @@ function requestAbortSignal(request: FastifyRequest): AbortSignal {
   else request.raw.once("aborted", () => controller.abort());
   return controller.signal;
 }
-export function normalizeTestSource(
-  value: unknown,
-): "mcp" | "http" | undefined {
+export function normalizeTestSource(value: unknown): "mcp" | "http" | undefined {
   return value === "mcp" || value === "http" ? value : undefined;
 }
 

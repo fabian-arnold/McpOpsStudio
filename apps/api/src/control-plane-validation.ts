@@ -34,9 +34,7 @@ export async function validateProjectLibrary(
     });
   } catch (error) {
     throw Object.assign(
-      new Error(
-        error instanceof Error ? error.message : "Library validation failed",
-      ),
+      new Error(error instanceof Error ? error.message : "Library validation failed"),
       { statusCode: 400, code: "INVALID_LIBRARY" },
     );
   }

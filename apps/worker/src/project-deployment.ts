@@ -71,9 +71,7 @@ export async function finalizeProjectDeployment(
       snapshot: item.snapshot,
     })),
   };
-  const checksum = createHash("sha256")
-    .update(canonicalJson(snapshot))
-    .digest("hex");
+  const checksum = createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
   await prisma.$transaction(async (tx) => {
     await tx.projectDeployment.updateMany({
       where: {

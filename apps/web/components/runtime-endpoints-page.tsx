@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Power,
-  Search,
-  ServerCog,
-} from "lucide-react";
+import { ArrowRight, Power, Search, ServerCog } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {
   Badge,

@@ -15,10 +15,18 @@ describe("operational function templates", () => {
   });
 
   it("does not advertise unavailable providers as runnable", () => {
-    const postgres = functionTemplates.find((template) => template.id === "postgres-read-query");
+    const postgres = functionTemplates.find(
+      (template) => template.id === "postgres-read-query",
+    );
     const webhook = functionTemplates.find((template) => template.id === "webhook");
-    expect(postgres?.availability).toMatchObject({ status: "requires_configuration", enabledByDefault: false });
-    expect(webhook?.availability).toMatchObject({ status: "requires_configuration", enabledByDefault: false });
+    expect(postgres?.availability).toMatchObject({
+      status: "requires_configuration",
+      enabledByDefault: false,
+    });
+    expect(webhook?.availability).toMatchObject({
+      status: "requires_configuration",
+      enabledByDefault: false,
+    });
   });
 
   it("labels synthetic search output as a local example", () => {

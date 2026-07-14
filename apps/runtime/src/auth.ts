@@ -14,11 +14,7 @@ import {
   webhookSignaturePolicyConfigSchema,
 } from "@mcpops/shared";
 import { SafeRuntimeError, type CallerIdentity } from "@mcpops/runtime-sdk";
-import type {
-  AuthPolicy,
-  LoadedEndpoint,
-  EndpointAccessPolicy,
-} from "./domain.js";
+import type { AuthPolicy, LoadedEndpoint, EndpointAccessPolicy } from "./domain.js";
 import { getEncryptedSecret } from "./repository.js";
 
 const remoteJwks = new Map<string, JWTVerifyGetKey>();
@@ -74,15 +70,10 @@ export async function authenticate(
     return identityFromPolicy(policy);
   }
   if (policy.type === "bearer_token") {
-    const header = String(
-      policy.config.header ?? "authorization",
-    ).toLowerCase();
+    const header = String(policy.config.header ?? "authorization").toLowerCase();
     const supplied = request.headers[header];
     const scheme = String(policy.config.scheme ?? "Bearer");
-    if (
-      typeof supplied !== "string" ||
-      !supplied.startsWith(`${scheme} `)
-    )
+    if (typeof supplied !== "string" || !supplied.startsWith(`${scheme} `))
       deny(requestId);
     const expected = await policySecret(
       endpoint,
@@ -90,23 +81,14 @@ export async function authenticate(
       masterKey,
       requestId,
     );
-    if (
-      !verifyStaticCredential(supplied, `${scheme} ${expected}`)
-    )
-      deny(requestId);
+    if (!verifyStaticCredential(supplied, `${scheme} ${expected}`)) deny(requestId);
     return identityFromPolicy(policy);
   }
   if (policy.type === "basic_auth") {
-    const header = String(
-      policy.config.header ?? "authorization",
-    ).toLowerCase();
+    const header = String(policy.config.header ?? "authorization").toLowerCase();
     const supplied = request.headers[header];
     const username = String(policy.config.username ?? "");
-    if (
-      typeof supplied !== "string" ||
-      !supplied.startsWith("Basic ") ||
-      !username
-    )
+    if (typeof supplied !== "string" || !supplied.startsWith("Basic ") || !username)
       deny(requestId);
     const expectedPassword = await policySecret(
       endpoint,
@@ -114,9 +96,7 @@ export async function authenticate(
       masterKey,
       requestId,
     );
-    if (
-      !verifyBasicAuthorization(supplied, username, expectedPassword)
-    )
+    if (!verifyBasicAuthorization(supplied, username, expectedPassword))
       deny(requestId);
     return identityFromPolicy(policy, `basic:${username}`);
   }
@@ -138,10 +118,7 @@ export async function authenticate(
     assertFeatureEnabled("ENABLE_ENTRA_AUTH", "Microsoft Entra", requestId);
     const parsed = entraPolicyConfigSchema.safeParse(policy.config);
     if (!parsed.success)
-      configuration(
-        "The Microsoft Entra authentication policy is invalid.",
-        requestId,
-      );
+      configuration("The Microsoft Entra authentication policy is invalid.", requestId);
     const token = bearerToken(
       request,
       parsed.data.header,
@@ -220,9 +197,7 @@ export function identityFromPolicy(
   subject = `policy:${policy.id}`,
 ): CallerIdentity {
   const permissions = Array.isArray(policy.config.permissions)
-    ? policy.config.permissions.filter(
-        (v): v is string => typeof v === "string",
-      )
+    ? policy.config.permissions.filter((v): v is string => typeof v === "string")
     : [];
   return {
     subject,
@@ -276,9 +251,7 @@ export function verifyBasicAuthorization(
 
 type JwtConfig = ReturnType<typeof jwtPolicyConfigSchema.parse>;
 type EntraConfig = ReturnType<typeof entraPolicyConfigSchema.parse>;
-type WebhookConfig = ReturnType<
-  typeof webhookSignaturePolicyConfigSchema.parse
->;
+type WebhookConfig = ReturnType<typeof webhookSignaturePolicyConfigSchema.parse>;
 export async function verifyJwtAccessToken(
   token: string,
   config: JwtConfig,
@@ -337,9 +310,7 @@ export async function verifyEntraAccessToken(
         unauthenticated(requestId);
       if (
         config.allowedTenantIds.length &&
-        !config.allowedTenantIds
-          .map((id) => id.toLowerCase())
-          .includes(tenantId)
+        !config.allowedTenantIds.map((id) => id.toLowerCase()).includes(tenantId)
       )
         unauthenticated(requestId);
     }
@@ -359,10 +330,7 @@ export async function verifyWebhookRequest(input: {
   requestId: string;
   now: Date;
 }): Promise<CallerIdentity> {
-  const timestampValue = singleHeader(
-    input.headers,
-    input.config.timestampHeader,
-  );
+  const timestampValue = singleHeader(input.headers, input.config.timestampHeader);
   const signatureValue = singleHeader(input.headers, input.config.header);
   if (!timestampValue || !signatureValue || !/^\d{10}$/.test(timestampValue))
     unauthenticated(input.requestId);
@@ -380,14 +348,9 @@ export async function verifyWebhookRequest(input: {
     Buffer.from(timestampValue + ".", "utf8"),
     input.rawBody,
   ]);
-  const expected = createHmac("sha256", input.secret)
-    .update(canonical)
-    .digest();
+  const expected = createHmac("sha256", input.secret).update(canonical).digest();
   const provided = Buffer.from(providedHex, "hex");
-  if (
-    provided.length !== expected.length ||
-    !timingSafeEqual(provided, expected)
-  )
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected))
     unauthenticated(input.requestId);
   const replayKey = `mcpops:webhook-replay:${createHash("sha256").update(`${input.policyId}:${timestampValue}:${providedHex.toLowerCase()}`).digest("hex")}`;
   // Two tolerance windows cover tokens timestamped at the maximum accepted future skew.
@@ -521,9 +484,7 @@ function tokenError(error: unknown, requestId: string): SafeRuntimeError {
 }
 function claimMatches(actual: unknown, allowed: readonly unknown[]): boolean {
   const actualValues = Array.isArray(actual) ? actual : [actual];
-  return actualValues.some((value) =>
-    allowed.some((candidate) => candidate === value),
-  );
+  return actualValues.some((value) => allowed.some((candidate) => candidate === value));
 }
 function claimStrings(value: unknown): string[] {
   return Array.isArray(value)
@@ -547,9 +508,7 @@ function callerFromPayload(payload: JWTPayload): CallerIdentity {
     ...(typeof payload.sub === "string" ? { subject: payload.sub } : {}),
     ...(typeof payload.email === "string" ? { email: payload.email } : {}),
     ...(typeof payload.name === "string" ? { name: payload.name } : {}),
-    ...(typeof payload.tid === "string"
-      ? { tenantId: payload.tid.toLowerCase() }
-      : {}),
+    ...(typeof payload.tid === "string" ? { tenantId: payload.tid.toLowerCase() } : {}),
     permissions: tokenScopes(payload),
     claims: { ...payload },
   };

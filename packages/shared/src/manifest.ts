@@ -12,15 +12,8 @@ const manifestNetworkSchema = z
     allowedMethods: z
       .array(z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]))
       .default(["GET"]),
-    allowedPorts: z
-      .array(z.number().int().min(1).max(65_535))
-      .default([443]),
-    maxResponseBytes: z
-      .number()
-      .int()
-      .min(1_024)
-      .max(10_485_760)
-      .default(1_048_576),
+    allowedPorts: z.array(z.number().int().min(1).max(65_535)).default([443]),
+    maxResponseBytes: z.number().int().min(1_024).max(10_485_760).default(1_048_576),
     allowPrivateHosts: z.array(z.string()).default([]),
   })
   .strict()
@@ -178,8 +171,7 @@ export function parseManifest(
   content: string,
   format: "yaml" | "json",
 ): EndpointManifest {
-  const parsed: unknown =
-    format === "json" ? JSON.parse(content) : YAML.parse(content);
+  const parsed: unknown = format === "json" ? JSON.parse(content) : YAML.parse(content);
   return manifestSchema.parse(parsed);
 }
 export function serializeManifest(

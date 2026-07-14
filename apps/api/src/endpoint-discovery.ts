@@ -193,7 +193,11 @@ function openApiOperation(
   }
 
   for (const pathName of pathNames)
-    if (!parameters.some((parameter) => parameter.in === "path" && parameter.name === pathName))
+    if (
+      !parameters.some(
+        (parameter) => parameter.in === "path" && parameter.name === pathName,
+      )
+    )
       parameters.push({
         name: pathName,
         in: "path",
@@ -271,8 +275,7 @@ function postmanCollection(source: EndpointDiscoverySource) {
     info: {
       name: source.manifest.endpoint.name,
       description: source.manifest.endpoint.description,
-      schema:
-        "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     },
     variable: [{ key: "baseUrl", value: baseUrl }],
     item: (source.manifest.http?.routes ?? [])

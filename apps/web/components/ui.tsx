@@ -98,13 +98,9 @@ export function EmptyState({
 }) {
   return (
     <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center">
-      <div className="mb-4 rounded-xl bg-muted p-3 text-muted-foreground">
-        {icon}
-      </div>
+      <div className="mb-4 rounded-xl bg-muted p-3 text-muted-foreground">{icon}</div>
       <h3 className="text-sm font-semibold">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        {description}
-      </p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -181,9 +177,7 @@ export function PageHeader({
           </p>
         )}
       </div>
-      {actions && (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
-      )}
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
   );
 }
@@ -206,9 +200,7 @@ export function LoadError({
         <AlertTriangle size={20} />
       </span>
       <h2 className="mt-4 text-sm font-semibold">{title}</h2>
-      <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">
-        {message}
-      </p>
+      <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">{message}</p>
       <Button className="mt-5" variant="secondary" onClick={onRetry}>
         <RefreshCw size={13} />
         Retry
@@ -217,11 +209,7 @@ export function LoadError({
   );
 }
 
-export function UnavailableValue({
-  label = "Not reported",
-}: {
-  label?: string;
-}) {
+export function UnavailableValue({ label = "Not reported" }: { label?: string }) {
   return (
     <span
       className="text-muted-foreground"

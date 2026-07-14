@@ -1,9 +1,20 @@
 export const safeErrorCodes = [
-  "UNAUTHENTICATED", "FORBIDDEN", "VALIDATION_ERROR", "RATE_LIMITED", "TIMEOUT",
-  "UPSTREAM_ERROR", "CONFIGURATION_ERROR", "INTERNAL_ERROR"
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "VALIDATION_ERROR",
+  "RATE_LIMITED",
+  "TIMEOUT",
+  "UPSTREAM_ERROR",
+  "CONFIGURATION_ERROR",
+  "INTERNAL_ERROR",
 ] as const;
 export type SafeRuntimeErrorCode = (typeof safeErrorCodes)[number];
-export type SafeRuntimeErrorShape = { code: SafeRuntimeErrorCode; message: string; requestId: string; retryable?: boolean };
+export type SafeRuntimeErrorShape = {
+  code: SafeRuntimeErrorCode;
+  message: string;
+  requestId: string;
+  retryable?: boolean;
+};
 
 export class SafeRuntimeError extends Error {
   readonly code: SafeRuntimeErrorCode;
@@ -17,11 +28,26 @@ export class SafeRuntimeError extends Error {
     if (shape.retryable !== undefined) this.retryable = shape.retryable;
   }
   toJSON(): SafeRuntimeErrorShape {
-    return { code: this.code, message: this.message, requestId: this.requestId, ...(this.retryable === undefined ? {} : { retryable: this.retryable }) };
+    return {
+      code: this.code,
+      message: this.message,
+      requestId: this.requestId,
+      ...(this.retryable === undefined ? {} : { retryable: this.retryable }),
+    };
   }
 }
 
-export function asSafeRuntimeError(error: unknown, requestId: string): SafeRuntimeError {
+export function asSafeRuntimeError(
+  error: unknown,
+  requestId: string,
+): SafeRuntimeError {
   if (error instanceof SafeRuntimeError) return error;
-  return new SafeRuntimeError({ code: "INTERNAL_ERROR", message: "The function could not be completed.", requestId }, { cause: error });
+  return new SafeRuntimeError(
+    {
+      code: "INTERNAL_ERROR",
+      message: "The function could not be completed.",
+      requestId,
+    },
+    { cause: error },
+  );
 }

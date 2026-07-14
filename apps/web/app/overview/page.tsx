@@ -126,9 +126,7 @@ export default function GlobalOverviewPage() {
             <strong className="mt-4 block text-2xl font-semibold tracking-tight">
               {stat.value}
             </strong>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {stat.note}
-            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{stat.note}</p>
           </div>
         ))}
       </div>
@@ -198,12 +196,9 @@ export default function GlobalOverviewPage() {
                       )}
                     </td>
                     <td className="px-3 py-4 text-xs">
-                      <p className="font-medium">
-                        {project.endpoints.total} total
-                      </p>
+                      <p className="font-medium">{project.endpoints.total} total</p>
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        {project.endpoints.mcp} MCP · {project.endpoints.http}{" "}
-                        HTTP
+                        {project.endpoints.mcp} MCP · {project.endpoints.http} HTTP
                       </p>
                       <p className="mt-1 text-[10px] text-muted-foreground">
                         {project.endpoints.activeSnapshots} active snapshots

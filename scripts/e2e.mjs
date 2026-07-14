@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 const control = process.env.E2E_CONTROL_URL ?? "http://localhost:8080/api";
 const runtime = process.env.E2E_RUNTIME_URL ?? "http://localhost:8080";
 const apiKey = process.env.SEED_MCP_API_KEY ?? "dev-acme-mcp-key";
-const productionRuntime =
-  process.env.E2E_PRODUCTION_RUNTIME_URL ?? runtime;
-const productionApiKey =
-  process.env.SEED_PRODUCTION_MCP_API_KEY ?? "prod-acme-mcp-key";
+const productionRuntime = process.env.E2E_PRODUCTION_RUNTIME_URL ?? runtime;
+const productionApiKey = process.env.SEED_PRODUCTION_MCP_API_KEY ?? "prod-acme-mcp-key";
 
 async function json(url, options = {}) {
   const response = await fetch(url, options);
@@ -21,9 +19,7 @@ async function waitForDeployment(deploymentId, cookie) {
     const deployments = await json(`${control}/deployments`, {
       headers: { cookie },
     });
-    const current = deployments.body.items.find(
-      (entry) => entry.id === deploymentId,
-    );
+    const current = deployments.body.items.find((entry) => entry.id === deploymentId);
     if (current?.status === "active") return current;
     if (current?.status === "failed")
       throw new Error(`Deployment failed: ${JSON.stringify(current.logs)}`);
@@ -62,9 +58,7 @@ const availablePolicies = await json(`${control}/auth-policies`, {
 });
 const seededDefaultPolicy = availablePolicies.body[0];
 assert.ok(seededDefaultPolicy, "seeded authentication policy exists");
-for (const endpoint of endpoints.body.filter(
-  (entry) => !entry.defaultAuthPolicyId,
-))
+for (const endpoint of endpoints.body.filter((entry) => !entry.defaultAuthPolicyId))
   await json(
     `${control}/runtime-endpoints/${endpoint.id}/auth-policies/${seededDefaultPolicy.id}/default`,
     {
@@ -86,8 +80,7 @@ for (const environment of environments.body)
   if (
     !currentSecrets.body.some(
       (secret) =>
-        secret.environmentId === environment.id &&
-        secret.name === "E2E_BASIC_PASSWORD",
+        secret.environmentId === environment.id && secret.name === "E2E_BASIC_PASSWORD",
     )
   )
     await json(`${control}/secrets`, {
@@ -124,7 +117,11 @@ if (!basicPolicy)
       }),
     })
   ).body;
-assert.equal(basicPolicy.type, "basic_auth", "endpoint authentication policies can be created");
+assert.equal(
+  basicPolicy.type,
+  "basic_auth",
+  "endpoint authentication policies can be created",
+);
 let publicPolicy = availablePolicies.body.find(
   (policy) => policy.name === "E2E Public HTTP access",
 );
@@ -149,7 +146,11 @@ else
       body: "{}",
     },
   );
-assert.equal(publicPolicy.type, "public", "multiple endpoint authentication policies can be assigned");
+assert.equal(
+  publicPolicy.type,
+  "public",
+  "multiple endpoint authentication policies can be assigned",
+);
 
 const removablePolicy = (
   await json(`${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies`, {
@@ -173,14 +174,11 @@ const reorderedPolicyIds = [
     .map((policy) => policy.id)
     .filter((policyId) => policyId !== removablePolicy.id),
 ];
-await json(
-  `${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies/order`,
-  {
-    method: "PUT",
-    headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
-    body: JSON.stringify({ policyIds: reorderedPolicyIds }),
-  },
-);
+await json(`${control}/runtime-endpoints/${httpEndpoint.id}/auth-policies/order`, {
+  method: "PUT",
+  headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+  body: JSON.stringify({ policyIds: reorderedPolicyIds }),
+});
 authenticationDetail = (
   await json(`${control}/runtime-endpoints/${httpEndpoint.id}`, {
     headers: { cookie },
@@ -272,7 +270,7 @@ const savedOnlyFunction = await ensureFunction({
   name: "e2e_saved_only",
   slug: "e2e_saved_only",
   description: "Tests an immutable saved development version before deployment",
-  code: 'export default async function handler(_ctx, input) { return { savedDevelopment: true, value: input.value }; }',
+  code: "export default async function handler(_ctx, input) { return { savedDevelopment: true, value: input.value }; }",
   inputSchema: {
     type: "object",
     properties: { value: { type: "string" } },
@@ -295,23 +293,20 @@ const savedOnlyFunction = await ensureFunction({
   secretGrantIds: [],
   cachePolicy: null,
 });
-const savedOnlyTest = await json(
-  `${control}/functions/${savedOnlyFunction.id}/test`,
-  {
-    method: "POST",
-    headers: {
-      cookie,
-      "x-csrf-token": csrf,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      endpointId: mcpEndpoint.id,
-      input: { value: "before-deploy" },
-      source: "test",
-      caller: { subject: "e2e-editor", permissions: [], claims: {} },
-    }),
+const savedOnlyTest = await json(`${control}/functions/${savedOnlyFunction.id}/test`, {
+  method: "POST",
+  headers: {
+    cookie,
+    "x-csrf-token": csrf,
+    "content-type": "application/json",
   },
-);
+  body: JSON.stringify({
+    endpointId: mcpEndpoint.id,
+    input: { value: "before-deploy" },
+    source: "test",
+    caller: { subject: "e2e-editor", permissions: [], claims: {} },
+  }),
+});
 assert.equal(
   savedOnlyTest.body.output.savedDevelopment,
   true,
@@ -395,28 +390,23 @@ const productionTools = await json(
   },
 );
 assert.ok(
-  productionTools.body.result.tools.some(
-    (tool) => tool.name === "search_customers",
-  ),
+  productionTools.body.result.tools.some((tool) => tool.name === "search_customers"),
   "production serves the promoted immutable project release",
 );
-const productionCall = await json(
-  `${productionRuntime}/mcp/acme/customer-operations`,
-  {
-    method: "POST",
-    headers: {
-      ...mcpHeaders,
-      "x-mcpops-environment": "production",
-      "x-api-key": productionApiKey,
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 102,
-      method: "tools/call",
-      params: { name: "search_customers", arguments: { query: "ada" } },
-    }),
+const productionCall = await json(`${productionRuntime}/mcp/acme/customer-operations`, {
+  method: "POST",
+  headers: {
+    ...mcpHeaders,
+    "x-mcpops-environment": "production",
+    "x-api-key": productionApiKey,
   },
-);
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 102,
+    method: "tools/call",
+    params: { name: "search_customers", arguments: { query: "ada" } },
+  }),
+});
 assert.equal(
   productionCall.body.result.isError,
   false,
@@ -455,11 +445,7 @@ assert.ok(
   Array.isArray(route.body.customers),
   "public HTTP route returns structured customer data without credentials",
 );
-assert.equal(
-  route.body.release,
-  "v2",
-  "HTTP and MCP use the same active snapshot",
-);
+assert.equal(route.body.release, "v2", "HTTP and MCP use the same active snapshot");
 
 const customerId = `e2e-${Date.now()}`;
 const noteUrl = `${runtime}/http-dev/acme/customer-operations/v1/customers/${customerId}/note`;
@@ -519,9 +505,12 @@ assert.ok(
   ),
   "redacted structured Function logs were persisted and are queryable by request ID",
 );
-const httpExecutions = await json(`${control}/executions?endpointId=${httpEndpoint.id}`, {
-  headers: { cookie },
-});
+const httpExecutions = await json(
+  `${control}/executions?endpointId=${httpEndpoint.id}`,
+  {
+    headers: { cookie },
+  },
+);
 assert.ok(
   httpExecutions.body.items.some((entry) => entry.invocationSource === "http"),
   "HTTP execution was persisted",
@@ -539,8 +528,7 @@ const deploymentList = await json(`${control}/deployments`, {
   headers: { cookie },
 });
 const versionOne = deploymentList.body.items.find(
-  (entry) =>
-    entry.environment.slug === "development" && entry.version === 1,
+  (entry) => entry.environment.slug === "development" && entry.version === 1,
 );
 assert.ok(versionOne, "seeded immutable v1 rollback release exists");
 await json(`${control}/deployments/${versionOne.id}/rollback`, {
@@ -756,9 +744,7 @@ if (
 const reusedFunctions = await json(`${control}/functions`, {
   headers: { cookie },
 });
-const reusedEntry = reusedFunctions.body.find(
-  (entry) => entry.id === composedEntry.id,
-);
+const reusedEntry = reusedFunctions.body.find((entry) => entry.id === composedEntry.id);
 assert.deepEqual(
   new Set(reusedEntry.usages.map((usage) => usage.endpointId)),
   new Set([mcpEndpoint.id, reuseEndpoint.id]),
@@ -776,18 +762,15 @@ await json(
     body: "{}",
   },
 );
-const composedDeployment = await json(
-  `${control}/deployments`,
-  {
-    method: "POST",
-    headers: {
-      cookie,
-      "x-csrf-token": csrf,
-      "content-type": "application/json",
-    },
-    body: "{}",
+const composedDeployment = await json(`${control}/deployments`, {
+  method: "POST",
+  headers: {
+    cookie,
+    "x-csrf-token": csrf,
+    "content-type": "application/json",
   },
-);
+  body: "{}",
+});
 await waitForDeployment(composedDeployment.body.id, cookie);
 const composedCall = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
@@ -848,11 +831,7 @@ await fetch(`${control}/projects/${createdProject.body.id}`, {
   method: "DELETE",
   headers: { cookie, "x-csrf-token": csrf },
 }).then((response) => {
-  assert.equal(
-    response.status,
-    204,
-    "an empty unselected project can be deleted",
-  );
+  assert.equal(response.status, 204, "an empty unselected project can be deleted");
 });
 
 const e2eEmail = `e2e-user-${Date.now()}@acme.test`;

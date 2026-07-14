@@ -152,9 +152,7 @@ export default function TemplatesPage() {
             endpoints.map((endpoint) => (
               <option key={endpoint.id} value={endpoint.id}>
                 {endpoint.name}
-                {endpoint.environment?.name
-                  ? ` · ${endpoint.environment.name}`
-                  : ""}
+                {endpoint.environment?.name ? ` · ${endpoint.environment.name}` : ""}
               </option>
             ))
           )}
@@ -250,9 +248,7 @@ function TemplateCard({
           <KeyRound size={10} />
           {template.secrets.length} secrets
         </Badge>
-        {template.localExample && (
-          <Badge tone="warning">Synthetic local example</Badge>
-        )}
+        {template.localExample && <Badge tone="warning">Synthetic local example</Badge>}
       </div>
       <details className="mt-4 rounded-lg border p-3">
         <summary className="cursor-pointer text-xs font-semibold">
@@ -289,10 +285,7 @@ function TemplateCard({
               {JSON.stringify(template.documentation.expectedOutput, null, 2)}
             </pre>
           </div>
-          <DocList
-            title="Limitations"
-            items={template.documentation.limitations}
-          />
+          <DocList title="Limitations" items={template.documentation.limitations} />
         </div>
       </details>
       {unavailable ? (
@@ -341,7 +334,8 @@ function TemplateInstallDialog({
     secretGrants,
     authPolicyId: authPolicyId || undefined,
   });
-  const previewCurrent: Preview | undefined = preview && previewKey === selectionKey ? preview : undefined;
+  const previewCurrent: Preview | undefined =
+    preview && previewKey === selectionKey ? preview : undefined;
   useEffect(() => {
     if (!open || !endpointId) return;
     setLoading(true);
@@ -401,9 +395,7 @@ function TemplateInstallDialog({
         body: JSON.stringify(body),
       });
       const enabled =
-        result.function?.enabled ??
-        result.enabled ??
-        previewCurrent.draft?.enabled;
+        result.function?.enabled ?? result.enabled ?? previewCurrent.draft?.enabled;
       toast({
         title: "Template installed",
         description: `${template.name} was added to ${endpointName ?? "the endpoint"} as an ${enabled ? "enabled" : "disabled"} draft.`,
@@ -427,11 +419,7 @@ function TemplateInstallDialog({
         }
       }}
       trigger={
-        <Button
-          variant="secondary"
-          className="mt-5 w-full"
-          disabled={!endpointId}
-        >
+        <Button variant="secondary" className="mt-5 w-full" disabled={!endpointId}>
           Configure and preview <ArrowRight size={13} />
         </Button>
       }
@@ -487,9 +475,7 @@ function TemplateInstallDialog({
           </div>
           <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-[10px] text-muted-foreground sm:grid-cols-2">
             <span>Network state: {network ? "loaded" : "unavailable"}</span>
-            <span>
-              Capability state: {capabilities ? "loaded" : "unavailable"}
-            </span>
+            <span>Capability state: {capabilities ? "loaded" : "unavailable"}</span>
           </div>
           {formError && (
             <div
@@ -510,8 +496,8 @@ function TemplateInstallDialog({
           {previewCurrent && <PreviewResult preview={previewCurrent} />}
           {previewCurrent?.installable && (
             <Button className="w-full" loading={saving} onClick={install}>
-              Install confirmed{" "}
-              {previewCurrent.draft?.enabled ? "enabled" : "disabled"} draft
+              Install confirmed {previewCurrent.draft?.enabled ? "enabled" : "disabled"}{" "}
+              draft
             </Button>
           )}
         </div>
@@ -522,12 +508,8 @@ function TemplateInstallDialog({
 
 function PreviewResult({ preview }: { preview: Preview }) {
   const knownBlockers = [
-    ...(preview.missingSecrets ?? []).map(
-      (value) => `Missing secret: ${value}`,
-    ),
-    ...(preview.missingHosts ?? []).map(
-      (value) => `Missing allowed host: ${value}`,
-    ),
+    ...(preview.missingSecrets ?? []).map((value) => `Missing secret: ${value}`),
+    ...(preview.missingHosts ?? []).map((value) => `Missing allowed host: ${value}`),
     ...(preview.missingCapabilities ?? []).map(
       (value) => `Missing capability: ${value}`,
     ),
@@ -543,9 +525,7 @@ function PreviewResult({ preview }: { preview: Preview }) {
     >
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold">
-          {preview.installable
-            ? "Installation is ready"
-            : "Installation is blocked"}
+          {preview.installable ? "Installation is ready" : "Installation is blocked"}
         </p>
         <Badge tone={preview.installable ? "success" : "warning"}>
           {preview.draft?.enabled ? "Enabled draft" : "Disabled draft"}
@@ -570,11 +550,7 @@ function PreviewResult({ preview }: { preview: Preview }) {
           Exact server preview
         </summary>
         <pre className="mt-2 max-h-48 overflow-auto rounded bg-[#0b0d14] p-2 font-mono text-[9px] text-slate-300">
-          {JSON.stringify(
-            preview.exactChanges ?? preview.blockers ?? preview,
-            null,
-            2,
-          )}
+          {JSON.stringify(preview.exactChanges ?? preview.blockers ?? preview, null, 2)}
         </pre>
       </details>
     </div>

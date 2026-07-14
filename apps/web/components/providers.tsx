@@ -17,9 +17,7 @@ type Toast = {
   tone?: "success" | "error" | "info";
 };
 type ToastInput = Omit<Toast, "id">;
-const ToastContext = createContext<(toast: ToastInput) => void>(
-  () => undefined,
-);
+const ToastContext = createContext<(toast: ToastInput) => void>(() => undefined);
 
 export function useToast() {
   return useContext(ToastContext);

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { Ajv } from "ajv";
-import * as esbuild from "esbuild";
+import { bundleFunction as bundleRestrictedFunction } from "@mcpops/sandbox";
 import {
   canonicalJson,
   resolveFunctionCallGraph,
@@ -29,19 +29,6 @@ type AuthPolicyRow = {
   config: unknown;
 };
 
-const forbiddenSyntax: Array<[RegExp, string]> = [
-  [/\brequire\s*\(/, "require is not available"],
-  [/\bimport\s*\(/, "dynamic imports are not available"],
-  [/\bprocess\b/, "process is not available"],
-  [/\bchild_process\b|node:child_process/, "child processes are not available"],
-  [/\bfs\b|node:fs/, "filesystem APIs are not available"],
-  [/\bDeno\b|\bBun\b/, "host runtime APIs are not available"],
-];
-const platformModules: Record<string, string> = {
-  "@mcpops/shared/auth": `export function requirePermission(ctx, value) { if (!ctx.permissions.includes(value)) { const error = new Error("Permission denied"); error.code = "FORBIDDEN"; throw error; } }`,
-  "@mcpops/shared/http": `export function safeJson(response) { return response && typeof response === "object" ? response.data : response; } export function request(ctx, options) { return ctx.http.request(options); }`,
-};
-
 export type BuildInput = {
   code: string;
   inputSchema: unknown;
@@ -52,57 +39,21 @@ export type BuildInput = {
 export async function bundleFunction(
   input: BuildInput,
 ): Promise<{ code: string; sourceMap?: string; warnings: string[] }> {
-  for (const [pattern, message] of forbiddenSyntax)
-    if (pattern.test(input.code)) throw new Error(message);
   const ajv = new Ajv({ allErrors: true, strict: false });
   ajv.compile(input.inputSchema as object);
   ajv.compile(input.outputSchema as object);
-  const virtual = new Map<string, string>([
-    ...Object.entries(platformModules),
-    ...input.libraries.map(
-      (library) => [library.importPath, library.code] as const,
-    ),
-  ]);
-  const result = await esbuild.build({
-    stdin: {
-      contents: input.code,
-      loader: "ts",
-      sourcefile: input.sourcefile ?? "function.ts",
-      resolveDir: "/virtual",
-    },
-    outfile: "function.js",
-    bundle: true,
-    write: false,
-    platform: "neutral",
-    target: "es2022",
-    format: "esm",
-    sourcemap: "external",
-    minify: false,
-    plugins: [
-      {
-        name: "restricted-imports",
-        setup(build) {
-          build.onResolve({ filter: /.*/ }, (args) => {
-            if (args.kind === "entry-point") return;
-            if (virtual.has(args.path))
-              return { path: args.path, namespace: "mcpops" };
-            throw new Error(`Import '${args.path}' is not allowed`);
-          });
-          build.onLoad({ filter: /.*/, namespace: "mcpops" }, (args) => ({
-            contents: virtual.get(args.path),
-            loader: "ts",
-          }));
-        },
-      },
-    ],
+  const result = await bundleRestrictedFunction({
+    code: input.code,
+    sourcefile: input.sourcefile,
+    projectLibraries: input.libraries.map((library) => ({
+      ...library,
+      version: 0,
+    })),
   });
-  const js = result.outputFiles.find((file) => file.path.endsWith(".js"));
-  const map = result.outputFiles.find((file) => file.path.endsWith(".map"));
-  if (!js) throw new Error("Bundler did not emit JavaScript");
   return {
-    code: js.text,
-    ...(map ? { sourceMap: map.text } : {}),
-    warnings: result.warnings.map((warning) => warning.text),
+    code: result.compiledCode,
+    ...(result.sourceMap ? { sourceMap: result.sourceMap } : {}),
+    warnings: [],
   };
 }
 
@@ -147,51 +98,43 @@ export async function buildDeployment(
       (endpoint.kind === "mcp" && endpoint.httpRouteBindings.length > 0) ||
       (endpoint.kind === "http" && endpoint.mcpToolBindings.length > 0)
     )
-      throw new Error(
-        "Runtime endpoint contains bindings for the wrong protocol",
-      );
+      throw new Error("Runtime endpoint contains bindings for the wrong protocol");
     const projectFunctions = await prisma.function.findMany({
-    where: { projectId: endpoint.projectId, enabled: true },
-    include: {
-      versions: { orderBy: { version: "desc" }, take: 1 },
-      grants: true,
-    },
-  });
+      where: { projectId: endpoint.projectId, enabled: true },
+      include: {
+        versions: { orderBy: { version: "desc" }, take: 1 },
+        grants: true,
+      },
+    });
     const entryFunctionIds = new Set([
-    ...(endpoint.kind === "mcp" ? endpoint.mcpToolBindings : [])
-      .filter((binding) => binding.enabled)
-      .map((binding) => binding.functionId),
-    ...(endpoint.kind === "http" ? endpoint.httpRouteBindings : [])
-      .filter((binding) => binding.enabled)
-      .map((binding) => binding.functionId),
-  ]);
+      ...(endpoint.kind === "mcp" ? endpoint.mcpToolBindings : [])
+        .filter((binding) => binding.enabled)
+        .map((binding) => binding.functionId),
+      ...(endpoint.kind === "http" ? endpoint.httpRouteBindings : [])
+        .filter((binding) => binding.enabled)
+        .map((binding) => binding.functionId),
+    ]);
     const { functions: selectedFunctions, calls: functionCalls } =
       resolveFunctionCallGraph(projectFunctions, entryFunctionIds);
     const requiredFunctionSecrets = [
-    ...new Set(
-      selectedFunctions.flatMap((fn) =>
-        fn.grants.map((grant) => grant.secretName),
+      ...new Set(
+        selectedFunctions.flatMap((fn) => fn.grants.map((grant) => grant.secretName)),
       ),
-    ),
-  ];
+    ];
     if (requiredFunctionSecrets.length) {
       const configured = await prisma.secret.findMany({
-      where: {
-        projectId: endpoint.projectId,
-        environmentId: endpoint.environmentId,
-        name: { in: requiredFunctionSecrets },
-      },
-      select: { name: true },
-    });
+        where: {
+          projectId: endpoint.projectId,
+          environmentId: endpoint.environmentId,
+          name: { in: requiredFunctionSecrets },
+        },
+        select: { name: true },
+      });
       const available = new Set(configured.map((secret) => secret.name));
-      const missing = requiredFunctionSecrets.filter(
-        (name) => !available.has(name),
-      );
+      const missing = requiredFunctionSecrets.filter((name) => !available.has(name));
       if (missing.length) {
         failureFunctions = selectedFunctions
-          .filter((fn) =>
-            fn.grants.some((grant) => missing.includes(grant.secretName)),
-          )
+          .filter((fn) => fn.grants.some((grant) => missing.includes(grant.secretName)))
           .map((fn) => ({
             id: fn.id,
             name: fn.name,
@@ -302,9 +245,7 @@ export async function buildDeployment(
       },
     });
     if (reviewedQueryRows.length && !reviewedQueryFeatureEnabled) {
-      const affectedIds = new Set(
-        reviewedQueryRows.map((row) => row.functionId),
-      );
+      const affectedIds = new Set(reviewedQueryRows.map((row) => row.functionId));
       failureFunctions = selectedFunctions
         .filter((fn) => affectedIds.has(fn.id))
         .map((fn) => ({
@@ -328,8 +269,7 @@ export async function buildDeployment(
     const functions = [];
     for (const fn of selectedFunctions) {
       const version = fn.versions[0];
-      if (!version)
-        throw new Error(`Function ${fn.name} has no source version`);
+      if (!version) throw new Error(`Function ${fn.name} has no source version`);
       failureFunctions = [
         {
           id: fn.id,
@@ -441,9 +381,7 @@ export async function buildDeployment(
           method: binding.method,
           path: binding.path,
           inputMapping: binding.inputMapping,
-          responseMapping: validateResponseMappingDefinition(
-            binding.responseMapping,
-          ),
+          responseMapping: validateResponseMappingDefinition(binding.responseMapping),
           enabled: binding.enabled,
         })),
       libraries: libraries.map((library) => ({
@@ -454,9 +392,7 @@ export async function buildDeployment(
         code: library.code,
       })),
       authPolicies,
-      ...(requiredPolicyIds[0]
-        ? { defaultAuthPolicyId: requiredPolicyIds[0] }
-        : {}),
+      ...(requiredPolicyIds[0] ? { defaultAuthPolicyId: requiredPolicyIds[0] } : {}),
       capabilities: {
         reviewedDatabaseQueries: { enabled: reviewedQueryFeatureEnabled },
       },
@@ -478,9 +414,7 @@ export async function buildDeployment(
           }
         : {}),
     };
-    const sum = createHash("sha256")
-      .update(canonicalJson(snapshot))
-      .digest("hex");
+    const sum = createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
     await prisma.$transaction(async (tx) => {
       if (deployment.projectDeploymentId) {
         await tx.deployment.update({
@@ -595,9 +529,7 @@ function stringArray(value: unknown): string[] {
     ? value.filter((item): item is string => typeof item === "string")
     : [];
 }
-export function validateRuntimeEnvironment(
-  value: unknown,
-): Record<string, string> {
+export function validateRuntimeEnvironment(value: unknown): Record<string, string> {
   const input = asRecord(value);
   const output: Record<string, string> = {};
   for (const [name, raw] of Object.entries(input)) {
@@ -615,15 +547,12 @@ export function validateRuntimeEnvironment(
   }
   return output;
 }
-export function validateCachePolicy(
-  value: unknown,
-): null | Record<string, number> {
+export function validateCachePolicy(value: unknown): null | Record<string, number> {
   if (value === null || value === undefined) return null;
   const input = asRecord(value);
   const allowed = new Set(["ttlSeconds", "defaultTtlSeconds", "maxTtlSeconds"]);
   for (const name of Object.keys(input))
-    if (!allowed.has(name))
-      throw new Error(`Unsupported cache policy field: ${name}`);
+    if (!allowed.has(name)) throw new Error(`Unsupported cache policy field: ${name}`);
   const output: Record<string, number> = {};
   for (const [name, raw] of Object.entries(input)) {
     if (!Number.isInteger(raw) || Number(raw) < 1 || Number(raw) > 86_400)
@@ -660,8 +589,7 @@ export function validateResponseMappingDefinition(value: unknown): unknown {
 }
 function validatePathMapping(value: unknown, label: string): void {
   if (typeof value === "string") {
-    if (!value.trim())
-      throw new Error(`HTTP response ${label} path cannot be empty`);
+    if (!value.trim()) throw new Error(`HTTP response ${label} path cannot be empty`);
     return;
   }
   const mapping = asRecord(value);
@@ -689,10 +617,7 @@ function validateEndpointAccessPolicy(
     throw new Error("Restricted endpoint access requires at least one subject");
   return policy;
 }
-function validatePrivateHosts(
-  hosts: string[],
-  allowedHosts: string[],
-): string[] {
+function validatePrivateHosts(hosts: string[], allowedHosts: string[]): string[] {
   const hardBlocked = new Set([
     "169.254.169.254",
     "100.100.100.200",
@@ -762,9 +687,7 @@ export function snapshotReviewedQueries(
       grant.queryVersionId !== version.id ||
       version.queryDefinitionId !== definition.id
     )
-      throw new Error(
-        "Reviewed query grant references an inconsistent query version",
-      );
+      throw new Error("Reviewed query grant references an inconsistent query version");
     if (
       definition.projectId !== projectId ||
       connection.projectId !== projectId ||
@@ -782,9 +705,7 @@ export function snapshotReviewedQueries(
         `Reviewed query ${definition.queryId}@${version.version} or its connection is disabled`,
       );
     if (connection.secretId !== connection.secret.id)
-      throw new Error(
-        "Reviewed query connection secret reference is inconsistent",
-      );
+      throw new Error("Reviewed query connection secret reference is inconsistent");
 
     const parameterOrder = stringArray(version.parameterOrder);
     if (
@@ -958,13 +879,9 @@ export function validateAuthPolicyConfig(type: string, value: unknown): void {
         !name ||
         !Array.isArray(allowed) ||
         !allowed.length ||
-        !allowed.every((item) =>
-          ["string", "number", "boolean"].includes(typeof item),
-        )
+        !allowed.every((item) => ["string", "number", "boolean"].includes(typeof item))
       )
-        throw new Error(
-          "jwt requiredClaims entries must be non-empty scalar arrays",
-        );
+        throw new Error("jwt requiredClaims entries must be non-empty scalar arrays");
     validateClockSkew(config.clockSkewSeconds);
     return;
   }
@@ -977,9 +894,7 @@ export function validateAuthPolicyConfig(type: string, value: unknown): void {
     requiredString(config, "audience");
     requiredStringArray(config, "allowedTenantIds");
     validateClockSkew(config.clockSkewSeconds);
-    if (
-      !new Set(["single_tenant", "multi_tenant"]).has(String(config.tenantMode))
-    )
+    if (!new Set(["single_tenant", "multi_tenant"]).has(String(config.tenantMode)))
       throw new Error("entra_id tenantMode is invalid");
     const tenant = String(config.tenantId);
     if (config.tenantMode === "single_tenant" && !isUuid(tenant))
@@ -992,9 +907,7 @@ export function validateAuthPolicyConfig(type: string, value: unknown): void {
       throw new Error("Multi-tenant Entra tenantId is invalid");
     if (config.jwksUrl !== undefined) {
       requiredUrl(config, "jwksUrl");
-      if (
-        new URL(String(config.jwksUrl)).hostname !== "login.microsoftonline.com"
-      )
+      if (new URL(String(config.jwksUrl)).hostname !== "login.microsoftonline.com")
         throw new Error("Entra JWKS must use login.microsoftonline.com");
     }
     return;
@@ -1029,9 +942,7 @@ export function validateAuthPolicyConfig(type: string, value: unknown): void {
       Number(config.toleranceSeconds) < 30 ||
       Number(config.toleranceSeconds) > 900
     )
-      throw new Error(
-        "Webhook timestamp tolerance must be 30 through 900 seconds",
-      );
+      throw new Error("Webhook timestamp tolerance must be 30 through 900 seconds");
     return;
   }
   throw new Error(`Unsupported authentication policy type: ${type}`);
@@ -1040,17 +951,12 @@ function requiredString(config: Record<string, unknown>, name: string): void {
   if (typeof config[name] !== "string" || !String(config[name]).trim())
     throw new Error(`Authentication policy requires ${name}`);
 }
-function requiredStringArray(
-  config: Record<string, unknown>,
-  name: string,
-): void {
+function requiredStringArray(config: Record<string, unknown>, name: string): void {
   if (
     !Array.isArray(config[name]) ||
     !(config[name] as unknown[]).every((item) => typeof item === "string")
   )
-    throw new Error(
-      `Static authentication policy requires explicit ${name}: string[]`,
-    );
+    throw new Error(`Static authentication policy requires explicit ${name}: string[]`);
 }
 function requiredUrl(config: Record<string, unknown>, name: string): void {
   requiredString(config, name);
@@ -1081,12 +987,9 @@ function referencedAuthSecretNames(
     ...new Set(
       policies.flatMap((policy) => {
         if (
-          !new Set([
-            "api_key",
-            "bearer_token",
-            "basic_auth",
-            "webhook_signature",
-          ]).has(policy.type)
+          !new Set(["api_key", "bearer_token", "basic_auth", "webhook_signature"]).has(
+            policy.type,
+          )
         )
           return [];
         const value = asRecord(policy.config).secretRef;

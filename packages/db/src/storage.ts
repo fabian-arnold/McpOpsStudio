@@ -39,7 +39,12 @@ export function scopedStorageRepository(client: PrismaClient, scope: StorageScop
     },
     delete(key: string) {
       return client.storageEntry.deleteMany({
-        where: { namespaceId: scope.namespaceId, functionId: scope.functionId, tenantScope, key },
+        where: {
+          namespaceId: scope.namespaceId,
+          functionId: scope.functionId,
+          tenantScope,
+          key,
+        },
       });
     },
   };

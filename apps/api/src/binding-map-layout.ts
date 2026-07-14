@@ -6,9 +6,7 @@ export const bindingMapLayoutSchema = z
       .array(
         z
           .object({
-            id: z
-              .string()
-              .regex(/^(endpoint|binding|function):[0-9a-f-]{36}$/i),
+            id: z.string().regex(/^(endpoint|binding|function):[0-9a-f-]{36}$/i),
             x: z.number().finite().min(0).max(5000),
             y: z.number().finite().min(0).max(5000),
           })

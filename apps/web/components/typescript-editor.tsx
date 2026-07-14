@@ -107,9 +107,7 @@ function libraryDeclarations(libraries: ProjectLibrary[]) {
     .map((library) => {
       const exports = (library.exportedFunctions ?? []).filter(identifier);
       return `declare module ${JSON.stringify(library.importPath)} {\n${exports
-        .map(
-          (name) => `  export function ${name}(...args: unknown[]): unknown;`,
-        )
+        .map((name) => `  export function ${name}(...args: unknown[]): unknown;`)
         .join("\n")}\n}`;
     })
     .join("\n");
@@ -123,8 +121,7 @@ function schemaType(property: NonNullable<JsonSchema["properties"]>[string]) {
     : [property.type ?? "unknown"];
   return types
     .map((type) => {
-      if (type === "string" || type === "boolean" || type === "number")
-        return type;
+      if (type === "string" || type === "boolean" || type === "number") return type;
       if (type === "integer") return "number";
       if (type === "null") return "null";
       if (type === "array") return "unknown[]";
@@ -176,9 +173,7 @@ export function TypeScriptEditor({
   height?: string | number;
   readOnly?: boolean;
 }) {
-  const completionDisposable = useRef<{ dispose(): void } | undefined>(
-    undefined,
-  );
+  const completionDisposable = useRef<{ dispose(): void } | undefined>(undefined);
   const libraryDisposable = useRef<{ dispose(): void } | undefined>(undefined);
   const schema = useMemo(() => inputSchema ?? {}, [inputSchema]);
   useEffect(
@@ -194,8 +189,7 @@ export function TypeScriptEditor({
       monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
         target: monaco.languages.typescript.ScriptTarget.ES2022,
         module: monaco.languages.typescript.ModuleKind.ESNext,
-        moduleResolution:
-          monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
         allowNonTsExtensions: true,
         strict: true,
         noEmit: true,
@@ -217,8 +211,9 @@ export function TypeScriptEditor({
   const onMount = useCallback<OnMount>(
     (_editor, monaco) => {
       completionDisposable.current?.dispose();
-      completionDisposable.current =
-        monaco.languages.registerCompletionItemProvider("typescript", {
+      completionDisposable.current = monaco.languages.registerCompletionItemProvider(
+        "typescript",
+        {
           triggerCharacters: ["."],
           provideCompletionItems(model: TextModel, position: EditorPosition) {
             const prefix = model
@@ -286,7 +281,8 @@ export function TypeScriptEditor({
             }
             return { suggestions: [] };
           },
-        });
+        },
+      );
     },
     [runtimeContext, schema],
   );

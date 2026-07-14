@@ -102,10 +102,8 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
   const [revision, setRevision] = useState(0);
   const [saving, setSaving] = useState(false);
   const [activeNode, setActiveNode] = useState<string>();
-  const [connectionPreview, setConnectionPreview] =
-    useState<ConnectionPreview>();
-  const [pendingConnection, setPendingConnection] =
-    useState<PendingConnection>();
+  const [connectionPreview, setConnectionPreview] = useState<ConnectionPreview>();
+  const [pendingConnection, setPendingConnection] = useState<PendingConnection>();
   const graphRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Layout>({});
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -269,9 +267,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
       .elementFromPoint(clientX, clientY)
       ?.closest<HTMLElement>("[data-endpoint-id]");
     return target
-      ? (endpoints ?? []).find(
-          (endpoint) => endpoint.id === target.dataset.endpointId,
-        )
+      ? (endpoints ?? []).find((endpoint) => endpoint.id === target.dataset.endpointId)
       : undefined;
   }
 
@@ -280,9 +276,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
       .elementFromPoint(clientX, clientY)
       ?.closest<HTMLElement>("[data-function-id]");
     return target
-      ? functions.find(
-          (fn) => fn.id === target.dataset.functionId && fn.enabled,
-        )
+      ? functions.find((fn) => fn.id === target.dataset.functionId && fn.enabled)
       : undefined;
   }
 
@@ -350,9 +344,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
     setConnectionPreview(undefined);
     if (preview.source === "function") {
       const endpoint = endpointConnectionTarget(event.clientX, event.clientY);
-      const fn = functions.find(
-        (candidate) => candidate.id === preview.functionId,
-      );
+      const fn = functions.find((candidate) => candidate.id === preview.functionId);
       if (endpoint && fn) setPendingConnection({ endpoint, fn });
       return;
     }
@@ -369,8 +361,8 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
         <div>
           <h2 className="text-sm font-semibold">Binding topology</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Connect in either direction between a service and Function. Use the
-            grip to move nodes.
+            Connect in either direction between a service and Function. Use the grip to
+            move nodes.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -506,9 +498,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
                     connectionPreview.functionId === fn.id
                   }
                   connectionTarget={connectionPreview?.source === "endpoint"}
-                  onConnectionStart={(event) =>
-                    startFunctionConnection(fn, event)
-                  }
+                  onConnectionStart={(event) => startFunctionConnection(fn, event)}
                   onConnectionMove={moveConnection}
                   onConnectionEnd={finishConnection}
                 />
@@ -532,8 +522,8 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Positions are shared with the Project. Binding changes remain drafts
-        until the Project is deployed.
+        Positions are shared with the Project. Binding changes remain drafts until the
+        Project is deployed.
       </p>
     </div>
   );
@@ -626,9 +616,7 @@ function EndpointNode({
       onDrop={(event) => {
         event.preventDefault();
         setDraggingOver(false);
-        const functionId = event.dataTransfer.getData(
-          "application/x-mcpops-function",
-        );
+        const functionId = event.dataTransfer.getData("application/x-mcpops-function");
         const fn = functions.find(
           (candidate) => candidate.id === functionId && candidate.enabled,
         );
@@ -652,11 +640,7 @@ function EndpointNode({
         <span
           className={`grid size-9 shrink-0 place-items-center rounded-lg ${endpoint.kind === "mcp" ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}
         >
-          {endpoint.kind === "mcp" ? (
-            <Server size={16} />
-          ) : (
-            <Globe2 size={16} />
-          )}
+          {endpoint.kind === "mcp" ? <Server size={16} /> : <Globe2 size={16} />}
         </span>
         <div className="min-w-0">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -694,9 +678,7 @@ function BindingNodeCard({
   const [removing, setRemoving] = useState(false);
   const toast = useToast();
   async function remove() {
-    if (
-      !window.confirm("Remove this binding from the development configuration?")
-    )
+    if (!window.confirm("Remove this binding from the development configuration?"))
       return;
     setRemoving(true);
     try {
@@ -744,9 +726,7 @@ function BindingNodeCard({
           <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
             {binding.endpointKind === "mcp" ? "Tool" : "Route"}
           </p>
-          <code className="block truncate text-xs font-semibold">
-            {binding.label}
-          </code>
+          <code className="block truncate text-xs font-semibold">{binding.label}</code>
         </div>
       </div>
       <p className="mt-2 truncate text-[10px] text-muted-foreground">
@@ -826,9 +806,7 @@ function FunctionNode({
         <Badge tone={fn.enabled ? "success" : "neutral"}>
           {fn.enabled ? `v${fn.version}` : "disabled"}
         </Badge>
-        <span className="text-[10px] text-muted-foreground">
-          {fn.riskLevel}
-        </span>
+        <span className="text-[10px] text-muted-foreground">{fn.riskLevel}</span>
       </div>
     </div>
   );
@@ -890,8 +868,7 @@ function GraphEdges({
         const functionPosition = positions[`function:${binding.functionId}`];
         const bindingPosition = positions[`binding:${binding.id}`];
         const endpointPosition = positions[`endpoint:${binding.endpointId}`];
-        if (!functionPosition || !bindingPosition || !endpointPosition)
-          return [];
+        if (!functionPosition || !bindingPosition || !endpointPosition) return [];
         const endpointToBinding = {
           startX: endpointPosition.x + NODE_SIZE.endpoint.width,
           startY: endpointPosition.y + NODE_SIZE.endpoint.height / 2,
@@ -915,18 +892,10 @@ function GraphEdges({
       })}
       {preview && (
         <TopologyEdge
-          startX={
-            preview.source === "endpoint" ? preview.start.x : preview.current.x
-          }
-          startY={
-            preview.source === "endpoint" ? preview.start.y : preview.current.y
-          }
-          endX={
-            preview.source === "endpoint" ? preview.current.x : preview.start.x
-          }
-          endY={
-            preview.source === "endpoint" ? preview.current.y : preview.start.y
-          }
+          startX={preview.source === "endpoint" ? preview.start.x : preview.current.x}
+          startY={preview.source === "endpoint" ? preview.start.y : preview.current.y}
+          endX={preview.source === "endpoint" ? preview.current.x : preview.start.x}
+          endY={preview.source === "endpoint" ? preview.current.y : preview.start.y}
           enabled
           preview
           kind={preview.colorKind}
@@ -958,12 +927,7 @@ function TopologyEdge({
   const path = `M ${startX} ${startY} C ${startX + direction * bend} ${startY}, ${endX - direction * bend} ${endY}, ${endX} ${endY}`;
   return (
     <g className={enabled ? "opacity-100" : "opacity-35"}>
-      <path
-        d={path}
-        fill="none"
-        stroke="hsl(var(--background))"
-        strokeWidth="7"
-      />
+      <path d={path} fill="none" stroke="hsl(var(--background))" strokeWidth="7" />
       <path
         d={path}
         fill="none"
@@ -1129,15 +1093,11 @@ function buildDefaultLayout(
   let endpointCursor = 90;
   for (const endpoint of endpoints) {
     const bindings =
-      endpoint.kind === "mcp"
-        ? endpoint.mcpToolBindings
-        : endpoint.httpRouteBindings;
+      endpoint.kind === "mcp" ? endpoint.mcpToolBindings : endpoint.httpRouteBindings;
     const groupHeight = Math.max(130, bindings.length * 112);
     layout[`endpoint:${endpoint.id}`] = {
       x: 70,
-      y:
-        endpointCursor +
-        Math.max(0, (groupHeight - NODE_SIZE.endpoint.height) / 2),
+      y: endpointCursor + Math.max(0, (groupHeight - NODE_SIZE.endpoint.height) / 2),
     };
     bindings.forEach((binding, index) => {
       layout[`binding:${binding.id}`] = {

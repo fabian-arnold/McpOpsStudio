@@ -22,25 +22,55 @@ describe("project Function call graph", () => {
 
   it("pins transitive literal calls from a endpoint entry Function", () => {
     const functions = [
-      fn("entry", "agent_order", `export default async function handler(ctx) { return ctx.functions.call("get_order", {}); }`),
-      fn("order", "get_order", `export default async function handler(ctx) { return ctx.functions.call("read_ticket", {}); }`),
-      fn("ticket", "read_ticket", `export default async function handler() { return { ok: true }; }`),
-      fn("unused", "unused", `export default async function handler() { return null; }`),
+      fn(
+        "entry",
+        "agent_order",
+        `export default async function handler(ctx) { return ctx.functions.call("get_order", {}); }`,
+      ),
+      fn(
+        "order",
+        "get_order",
+        `export default async function handler(ctx) { return ctx.functions.call("read_ticket", {}); }`,
+      ),
+      fn(
+        "ticket",
+        "read_ticket",
+        `export default async function handler() { return { ok: true }; }`,
+      ),
+      fn(
+        "unused",
+        "unused",
+        `export default async function handler() { return null; }`,
+      ),
     ];
 
     const result = resolveFunctionCallGraph(functions, new Set(["entry"]));
 
-    expect(result.functions.map((item) => item.id)).toEqual(["entry", "order", "ticket"]);
+    expect(result.functions.map((item) => item.id)).toEqual([
+      "entry",
+      "order",
+      "ticket",
+    ]);
     expect(result.calls).toEqual([
       { callerFunctionId: "entry", calleeFunctionId: "order", calleeSlug: "get_order" },
-      { callerFunctionId: "order", calleeFunctionId: "ticket", calleeSlug: "read_ticket" },
+      {
+        callerFunctionId: "order",
+        calleeFunctionId: "ticket",
+        calleeSlug: "read_ticket",
+      },
     ]);
   });
 
   it("rejects dynamic call targets and cycles before activation", () => {
     expect(() =>
       resolveFunctionCallGraph(
-        [fn("entry", "entry", `export default async function handler(ctx, input) { return ctx.functions.call(input.slug, {}); }`)],
+        [
+          fn(
+            "entry",
+            "entry",
+            `export default async function handler(ctx, input) { return ctx.functions.call(input.slug, {}); }`,
+          ),
+        ],
         new Set(["entry"]),
       ),
     ).toThrow(/dynamic ctx\.functions\.call/);
@@ -48,8 +78,16 @@ describe("project Function call graph", () => {
     expect(() =>
       resolveFunctionCallGraph(
         [
-          fn("one", "one", `export default async function handler(ctx) { return ctx.functions.call("two", {}); }`),
-          fn("two", "two", `export default async function handler(ctx) { return ctx.functions.call("one", {}); }`),
+          fn(
+            "one",
+            "one",
+            `export default async function handler(ctx) { return ctx.functions.call("two", {}); }`,
+          ),
+          fn(
+            "two",
+            "two",
+            `export default async function handler(ctx) { return ctx.functions.call("one", {}); }`,
+          ),
         ],
         new Set(["one"]),
       ),
@@ -89,6 +127,17 @@ describe("deployment function bundling", () => {
       }),
     ).rejects.toThrow(/customer-search\.ts/);
   });
+
+  it("uses the reviewed sandbox restrictions for deployment builds", async () => {
+    await expect(
+      bundleFunction({
+        code: `export default async function handler() { return fetch("https://example.test"); }`,
+        inputSchema: {},
+        outputSchema: {},
+        libraries: [],
+      }),
+    ).rejects.toThrow(/ctx\.http/);
+  });
 });
 describe("declarative deployment policy validation", () => {
   it("accepts an explicit public policy with bounded Function permissions", () => {
@@ -99,9 +148,10 @@ describe("declarative deployment policy validation", () => {
     ).not.toThrow();
   });
   it("validates cache bounds and HTTP response mappings before activation", () => {
-    expect(
-      validateCachePolicy({ defaultTtlSeconds: 60, maxTtlSeconds: 300 }),
-    ).toEqual({ defaultTtlSeconds: 60, maxTtlSeconds: 300 });
+    expect(validateCachePolicy({ defaultTtlSeconds: 60, maxTtlSeconds: 300 })).toEqual({
+      defaultTtlSeconds: 60,
+      maxTtlSeconds: 300,
+    });
     expect(() =>
       validateCachePolicy({ defaultTtlSeconds: 600, maxTtlSeconds: 300 }),
     ).toThrow(/cannot exceed/);
@@ -111,9 +161,9 @@ describe("declarative deployment policy validation", () => {
         body: { id: "$.customer.id" },
       }),
     ).toBeTruthy();
-    expect(() =>
-      validateResponseMappingDefinition({ statusCode: 700 }),
-    ).toThrow(/statusCode/);
+    expect(() => validateResponseMappingDefinition({ statusCode: 700 })).toThrow(
+      /statusCode/,
+    );
   });
   it("requires explicit permission arrays for static identities", () => {
     expect(() =>
@@ -205,12 +255,12 @@ describe("declarative deployment policy validation", () => {
     ]);
     expect(snapshot.map((policy) => policy.id)).toEqual(["secondary", "default"]);
     expect(snapshot[0]?.config).not.toBe(config);
-    expect(() =>
-      snapshotReferencedAuthPolicies("org", ids, []),
-    ).toThrow(/missing or outside/);
-    expect(() =>
-      collectRequiredAuthPolicyIds([], [{ enabled: true }], []),
-    ).toThrow(/authentication policy/);
+    expect(() => snapshotReferencedAuthPolicies("org", ids, [])).toThrow(
+      /missing or outside/,
+    );
+    expect(() => collectRequiredAuthPolicyIds([], [{ enabled: true }], [])).toThrow(
+      /authentication policy/,
+    );
     expect(() => validateAuthSecretReferences(["CLIENT_KEY"], [])).toThrow(
       /endpoint environment/,
     );
@@ -222,16 +272,16 @@ describe("declarative deployment policy validation", () => {
 
 describe("immutable runtime environment", () => {
   it("accepts only explicit non-secret snapshot values", () => {
-    expect(
-      validateRuntimeEnvironment({ CRM_API_URL: "http://mock-crm:8090" }),
-    ).toEqual({ CRM_API_URL: "http://mock-crm:8090" });
+    expect(validateRuntimeEnvironment({ CRM_API_URL: "http://mock-crm:8090" })).toEqual(
+      { CRM_API_URL: "http://mock-crm:8090" },
+    );
     expect(() => validateRuntimeEnvironment({ invalidName: "value" })).toThrow(
       /Invalid non-secret/,
     );
     expect(validateRuntimeEnvironment(undefined)).toEqual({});
-    expect(() =>
-      validateRuntimeEnvironment({ CRM_API_TOKEN: "plaintext" }),
-    ).toThrow(/Secret-like/);
+    expect(() => validateRuntimeEnvironment({ CRM_API_TOKEN: "plaintext" })).toThrow(
+      /Secret-like/,
+    );
   });
 });
 
@@ -297,9 +347,9 @@ describe("reviewed query snapshots", () => {
         { ...grant, queryVersion: { ...grant.queryVersion, enabled: false } },
       ]),
     ).toThrow(/disabled/);
-    expect(() =>
-      snapshotReviewedQueries("org-1", "other-env", [grant]),
-    ).toThrow(/environment/);
+    expect(() => snapshotReviewedQueries("org-1", "other-env", [grant])).toThrow(
+      /environment/,
+    );
     expect(() =>
       snapshotReviewedQueries("org-1", "env-1", [
         grant,

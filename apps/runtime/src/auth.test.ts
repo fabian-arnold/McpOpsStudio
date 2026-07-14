@@ -110,12 +110,10 @@ describe("ordered endpoint authentication", () => {
 
 describe("static endpoint credentials", () => {
   it("accepts only an exact API key", () => {
-    expect(verifyStaticCredential("dev-acme-mcp-key", "dev-acme-mcp-key")).toBe(
-      true,
+    expect(verifyStaticCredential("dev-acme-mcp-key", "dev-acme-mcp-key")).toBe(true);
+    expect(verifyStaticCredential("dev-acme-mcp-key-x", "dev-acme-mcp-key")).toBe(
+      false,
     );
-    expect(
-      verifyStaticCredential("dev-acme-mcp-key-x", "dev-acme-mcp-key"),
-    ).toBe(false);
   });
   it("maps explicit static permissions without policy roles or scopes", () => {
     expect(
@@ -139,15 +137,9 @@ describe("static endpoint credentials", () => {
   });
   it("verifies an exact HTTP Basic authorization value", () => {
     const valid = `Basic ${Buffer.from("service-user:correct horse").toString("base64")}`;
-    expect(
-      verifyBasicAuthorization(valid, "service-user", "correct horse"),
-    ).toBe(true);
-    expect(verifyBasicAuthorization(valid, "service-user", "wrong")).toBe(
-      false,
-    );
-    expect(verifyBasicAuthorization(valid, "bad:user", "correct horse")).toBe(
-      false,
-    );
+    expect(verifyBasicAuthorization(valid, "service-user", "correct horse")).toBe(true);
+    expect(verifyBasicAuthorization(valid, "service-user", "wrong")).toBe(false);
+    expect(verifyBasicAuthorization(valid, "bad:user", "correct horse")).toBe(false);
   });
 });
 describe("endpoint access authorization", () => {
@@ -173,10 +165,7 @@ describe("JWT/JWKS authentication", () => {
   it("requires explicit provider feature opt-in", () => {
     expect(runtimeAuthFeatureEnabled({}, "ENABLE_JWT_AUTH")).toBe(false);
     expect(
-      runtimeAuthFeatureEnabled(
-        { ENABLE_JWT_AUTH: "false" },
-        "ENABLE_JWT_AUTH",
-      ),
+      runtimeAuthFeatureEnabled({ ENABLE_JWT_AUTH: "false" }, "ENABLE_JWT_AUTH"),
     ).toBe(false);
     expect(
       runtimeAuthFeatureEnabled({ ENABLE_JWT_AUTH: "true" }, "ENABLE_JWT_AUTH"),
@@ -207,13 +196,13 @@ describe("JWT/JWKS authentication", () => {
       requiredClaims: { role: ["mcp_user", "mcp_admin"] },
       clockSkewSeconds: 30,
     });
-    await expect(
-      verifyJwtAccessToken(token, config, key, "r1"),
-    ).resolves.toMatchObject({
-      subject: "user-1",
-      email: "user@example.test",
-      permissions: ["customers.read"],
-    });
+    await expect(verifyJwtAccessToken(token, config, key, "r1")).resolves.toMatchObject(
+      {
+        subject: "user-1",
+        email: "user@example.test",
+        permissions: ["customers.read"],
+      },
+    );
     await expect(
       verifyJwtAccessToken(token, { ...config, audience: "wrong" }, key, "r1"),
     ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });

@@ -125,9 +125,7 @@ export default function AuthenticationPoliciesPage() {
         description={`Reusable endpoint authentication policies for ${user?.project.name ?? "the selected project"}. Assign and order them from each MCP Endpoint or HTTP API.`}
         actions={
           canManage ? (
-            <PolicyDialog
-              onSaved={() => setRevision((value) => value + 1)}
-            />
+            <PolicyDialog onSaved={() => setRevision((value) => value + 1)} />
           ) : undefined
         }
       />
@@ -163,18 +161,16 @@ export default function AuthenticationPoliciesPage() {
           description="Create a reusable policy, then assign it to one or more endpoints."
           action={
             canManage ? (
-              <PolicyDialog
-                onSaved={() => setRevision((value) => value + 1)}
-              />
+              <PolicyDialog onSaved={() => setRevision((value) => value + 1)} />
             ) : undefined
           }
         />
       )}
       <div className="mt-5 rounded-xl border p-4 text-xs text-muted-foreground">
-        <strong className="text-foreground">Draft configuration.</strong>{" "}
-        Policy changes reach development only after a Project deployment and
-        production only after releasing that immutable snapshot. Secret values
-        are never shown here; configurations contain Secret names only.
+        <strong className="text-foreground">Draft configuration.</strong> Policy changes
+        reach development only after a Project deployment and production only after
+        releasing that immutable snapshot. Secret values are never shown here;
+        configurations contain Secret names only.
       </div>
     </AppShell>
   );
@@ -193,12 +189,7 @@ function PolicyRow({
   const [deleting, setDeleting] = useState(false);
 
   async function remove() {
-    if (
-      !window.confirm(
-        `Delete “${policy.name}”? This cannot be undone.`,
-      )
-    )
-      return;
+    if (!window.confirm(`Delete “${policy.name}”? This cannot be undone.`)) return;
     setDeleting(true);
     try {
       await api(`/api/auth-policies/${policy.id}`, { method: "DELETE" });
@@ -329,7 +320,12 @@ function PolicyDialog({
       onOpenChange={setOpen}
       trigger={
         policy ? (
-          <Button variant="ghost" size="icon" className="size-8" aria-label={`${readOnly ? "View" : "Edit"} ${policy.name}`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            aria-label={`${readOnly ? "View" : "Edit"} ${policy.name}`}
+          >
             {readOnly ? <Eye size={14} /> : <Pencil size={14} />}
           </Button>
         ) : (
@@ -338,7 +334,11 @@ function PolicyDialog({
           </Button>
         )
       }
-      title={policy ? `${readOnly ? "View" : "Edit"} authentication policy` : "New authentication policy"}
+      title={
+        policy
+          ? `${readOnly ? "View" : "Edit"} authentication policy`
+          : "New authentication policy"
+      }
       description="Policies are reusable across endpoints. Credential fields reference environment Secrets by name."
     >
       <div className="space-y-4">
@@ -376,15 +376,15 @@ function PolicyDialog({
             onChange={(event) => setConfig(event.target.value)}
           />
           <p className="mt-1 text-[10px] text-muted-foreground">
-            Use Secret names in <code>secretRef</code>; never paste a credential
-            value into this configuration.
+            Use Secret names in <code>secretRef</code>; never paste a credential value
+            into this configuration.
           </p>
         </div>
         {policy?.assignments.length ? (
           <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
             Assigned to {policy.assignments.length} endpoint
-            {policy.assignments.length === 1 ? "" : "s"}. Updates affect their
-            next Project deployment.
+            {policy.assignments.length === 1 ? "" : "s"}. Updates affect their next
+            Project deployment.
           </p>
         ) : null}
         {error && <p className="text-xs text-red-500">{error}</p>}

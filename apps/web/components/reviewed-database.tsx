@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Ban,
   Database,
@@ -100,9 +94,7 @@ export function ReviewedDatabaseQueries({
   useEffect(() => {
     api<Capabilities>("/api/capabilities")
       .then((result) =>
-        setCapability(
-          result.runtimeCapabilities?.reviewedDatabaseQueries === true,
-        ),
+        setCapability(result.runtimeCapabilities?.reviewedDatabaseQueries === true),
       )
       .catch((error) => setCapabilityError(errorMessage(error)));
   }, []);
@@ -132,13 +124,7 @@ export function ReviewedDatabaseQueries({
         setGrants(grantResults.flatMap((result) => result.grants));
       })
       .catch((error) => setLoadError(errorMessage(error)));
-  }, [
-    authorized,
-    capability,
-    endpoint.environment.id,
-    endpoint.functions,
-    endpoint.id,
-  ]);
+  }, [authorized, capability, endpoint.environment.id, endpoint.functions]);
 
   useEffect(load, [load, refresh]);
   const changed = () => setRefresh((value) => value + 1);
@@ -201,9 +187,9 @@ export function ReviewedDatabaseQueries({
             <Badge tone="success">Enabled</Badge>
           </div>
           <p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">
-            Owner/admin-reviewed, immutable SELECT contracts. Runtime functions
-            receive only explicit query-version grants; connection values remain
-            encrypted environment secrets.
+            Owner/admin-reviewed, immutable SELECT contracts. Runtime functions receive
+            only explicit query-version grants; connection values remain encrypted
+            environment secrets.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -213,11 +199,7 @@ export function ReviewedDatabaseQueries({
             connections={connections.filter((item) => item.enabled)}
             onChanged={changed}
           />
-          <GrantDialog
-            endpoint={endpoint}
-            queries={queries}
-            onChanged={changed}
-          />
+          <GrantDialog endpoint={endpoint} queries={queries} onChanged={changed} />
         </div>
       </div>
       <div className="grid gap-5 p-5 xl:grid-cols-[0.8fr_1.2fr]">
@@ -247,8 +229,8 @@ export function ReviewedDatabaseQueries({
         <div>
           <h3 className="text-xs font-semibold">Immutable query versions</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            SQL is visible here only to authenticated owners and admins. It is
-            never returned to runtime callers.
+            SQL is visible here only to authenticated owners and admins. It is never
+            returned to runtime callers.
           </p>
           <div className="mt-3 space-y-3">
             {queries.length ? (
@@ -275,8 +257,8 @@ export function ReviewedDatabaseQueries({
       </div>
       <div className="border-t bg-muted/20 px-5 py-3 text-[10px] leading-5 text-muted-foreground">
         No raw SQL is exposed in the function editor or runtime context. Query
-        definitions are reviewed control-plane resources and grants target one
-        exact immutable version.
+        definitions are reviewed control-plane resources and grants target one exact
+        immutable version.
       </div>
     </section>
   );
@@ -520,9 +502,7 @@ function QueryCard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-medium">
-                {query.queryId}
-              </span>
+              <span className="font-mono text-xs font-medium">{query.queryId}</span>
               <Badge>{query.connection.name}</Badge>
               <Badge tone={latest?.enabled ? "success" : "neutral"}>
                 v{latest?.version ?? 0}
@@ -545,11 +525,7 @@ function QueryCard({
         {[...query.versions]
           .sort((left, right) => right.version - left.version)
           .map((version) => (
-            <QueryVersionRow
-              key={version.id}
-              version={version}
-              onChanged={onChanged}
-            />
+            <QueryVersionRow key={version.id} version={version} onChanged={onChanged} />
           ))}
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -664,8 +640,7 @@ function QueryDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [sql, setSql] = useState(
-    latest?.sql ??
-      "SELECT id, name FROM customers WHERE tenant_id = $1 LIMIT $2",
+    latest?.sql ?? "SELECT id, name FROM customers WHERE tenant_id = $1 LIMIT $2",
   );
   const [parameterOrder, setParameterOrder] = useState(
     latest?.parameterOrder.join(", ") ?? "tenant_id, limit",
@@ -714,9 +689,7 @@ function QueryDialog({
         enabled: true,
       };
       await api(
-        query
-          ? `/api/database/queries/${query.id}/versions`
-          : "/api/database/queries",
+        query ? `/api/database/queries/${query.id}/versions` : "/api/database/queries",
         {
           method: "POST",
           body: JSON.stringify(
@@ -734,11 +707,8 @@ function QueryDialog({
         },
       );
       toast({
-        title: query
-          ? "Immutable query version created"
-          : "Reviewed query created",
-        description:
-          "The server validated one bounded read-only PostgreSQL SELECT.",
+        title: query ? "Immutable query version created" : "Reviewed query created",
+        description: "The server validated one bounded read-only PostgreSQL SELECT.",
         tone: "success",
       });
       setOpen(false);
@@ -881,9 +851,7 @@ function QueryDialog({
         <div className="flex justify-end">
           <Button
             loading={saving}
-            disabled={
-              !sql.trim() || (!query && (!connectionId || !queryId || !name))
-            }
+            disabled={!sql.trim() || (!query && (!connectionId || !queryId || !name))}
           >
             Create immutable version
           </Button>
@@ -946,10 +914,7 @@ function GrantDialog({
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <Button
-          size="sm"
-          disabled={!endpoint.functions.length || !versions.length}
-        >
+        <Button size="sm" disabled={!endpoint.functions.length || !versions.length}>
           <Link2 size={13} />
           Grant
         </Button>
@@ -1032,9 +997,7 @@ function GrantRow({
   return (
     <div className="flex items-center justify-between gap-3 rounded border bg-card p-2.5">
       <div>
-        <p className="font-mono text-[11px]">
-          {fn?.name ?? "Unknown function"}
-        </p>
+        <p className="font-mono text-[11px]">{fn?.name ?? "Unknown function"}</p>
         <p className="mt-0.5 text-[10px] text-muted-foreground">
           Exact version {grant.query.version}
           {!grant.query.versionEnabled || !grant.query.connection.enabled
@@ -1100,9 +1063,7 @@ function NumberField({
 function JsonSummary({ label, value }: { label: string; value: unknown }) {
   return (
     <details className="rounded border bg-card p-2">
-      <summary className="cursor-pointer text-[10px] font-medium">
-        {label}
-      </summary>
+      <summary className="cursor-pointer text-[10px] font-medium">{label}</summary>
       <pre className="mt-2 max-h-32 overflow-auto font-mono text-[9px] leading-4 text-muted-foreground">
         {JSON.stringify(value, null, 2)}
       </pre>

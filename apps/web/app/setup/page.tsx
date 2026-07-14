@@ -79,9 +79,9 @@ export default function SetupPage() {
               Note App demo deployment queued
             </p>
             <p className="mt-2 text-muted-foreground">
-              MCP and HTTP Basic authentication: <code>DEMO</code> /{" "}
-              <code>DEMO</code>. These credentials are publicly known and must
-              not be used for real exposure.
+              MCP and HTTP Basic authentication: <code>DEMO</code> / <code>DEMO</code>.
+              These credentials are publicly known and must not be used for real
+              exposure.
             </p>
           </div>
         )}
@@ -103,11 +103,14 @@ export default function SetupPage() {
         Set up MCP Ops Studio
       </h1>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Create the installation owner and first Project. Setup closes
-        permanently when this form succeeds.
+        Create the installation owner and first Project. Setup closes permanently when
+        this form succeeds.
       </p>
       <form className="mt-7 space-y-5" onSubmit={submit}>
-        <Field label="Setup code" hint="Run docker compose logs --no-log-prefix mcpops-config">
+        <Field
+          label="Setup code"
+          hint="Run docker compose logs --no-log-prefix mcpops-config"
+        >
           <input
             className="field font-mono"
             value={setupCode}
@@ -236,7 +239,9 @@ function Field({
     <label className="block">
       <span className="label">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>}
+      {hint && (
+        <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+      )}
     </label>
   );
 }

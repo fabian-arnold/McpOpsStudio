@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { networkPolicyWarnings, providerStatus, validateProjectLibrary } from "./control-plane-validation.js";
+import {
+  networkPolicyWarnings,
+  providerStatus,
+  validateProjectLibrary,
+} from "./control-plane-validation.js";
 
 describe("control-plane policy validation", () => {
   it("compiles pure project utility libraries and rejects privileged globals", async () => {
-    await expect(validateProjectLibrary("@mcpops/lib/customer", "export const normalize = (value: string) => value.trim();")).resolves.toBeUndefined();
-    await expect(validateProjectLibrary("@mcpops/lib/customer", "export const unsafe = () => process.env.SECRET;")).rejects.toMatchObject({ code: "UNSAFE_LIBRARY" });
+    await expect(
+      validateProjectLibrary(
+        "@mcpops/lib/customer",
+        "export const normalize = (value: string) => value.trim();",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateProjectLibrary(
+        "@mcpops/lib/customer",
+        "export const unsafe = () => process.env.SECRET;",
+      ),
+    ).rejects.toMatchObject({ code: "UNSAFE_LIBRARY" });
   });
 
   it("returns explicit private and wildcard warnings without DNS lookups", () => {

@@ -2,13 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Check,
-  Command,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { ArrowRight, Check, Command, Eye, EyeOff } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
 import { Button } from "@/components/ui";
 
@@ -31,10 +25,13 @@ export default function LoginPage() {
     setLoading(true);
     setError(undefined);
     try {
-      const session = await api<{ user: { mustChangePassword?: boolean } }>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const session = await api<{ user: { mustChangePassword?: boolean } }>(
+        "/api/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        },
+      );
       router.push(session.user.mustChangePassword ? "/change-password" : "/");
       router.refresh();
     } catch (err) {
@@ -54,9 +51,7 @@ export default function LoginPage() {
             <span className="font-semibold tracking-tight">MCP Ops Studio</span>
           </div>
           <p className="eyebrow mb-3">Control plane</p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Welcome back
-          </h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Welcome back</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Sign in to build, deploy, and observe your operations functions.
           </p>
@@ -146,8 +141,8 @@ export default function LoginPage() {
             <span className="text-slate-500">Every operational surface.</span>
           </h2>
           <p className="mt-5 max-w-lg text-sm leading-7 text-slate-400">
-            Author TypeScript once, deploy an immutable snapshot, then expose it
-            through MCP tools and secure HTTP handlers.
+            Author TypeScript once, deploy an immutable snapshot, then expose it through
+            MCP tools and secure HTTP handlers.
           </p>
           <div className="mt-10 max-w-xl overflow-hidden rounded-xl border border-white/10 bg-white/[.035] shadow-2xl">
             <div className="flex h-10 items-center gap-2 border-b border-white/10 px-4">
@@ -159,20 +154,15 @@ export default function LoginPage() {
               </span>
             </div>
             <pre className="overflow-hidden p-5 font-mono text-[12px] leading-6 text-slate-300">
-              <span className="text-violet-400">
-                export default async function
-              </span>{" "}
+              <span className="text-violet-400">export default async function</span>{" "}
               handler(ctx, input) {`{`}
               <br /> <span className="text-sky-300">ctx.logger.info</span>(
-              <span className="text-emerald-300">
-                &quot;Searching customers&quot;
-              </span>
+              <span className="text-emerald-300">&quot;Searching customers&quot;</span>
               );
               <br /> <span className="text-violet-400">return await</span>{" "}
               ctx.http.request({`{`}
-              <br /> method:{" "}
-              <span className="text-emerald-300">&quot;GET&quot;</span>,<br />{" "}
-              url:{" "}
+              <br /> method: <span className="text-emerald-300">&quot;GET&quot;</span>,
+              <br /> url:{" "}
               <span className="text-emerald-300">
                 `${`$`}
                 {`{`}ctx.env.CRM_API_URL{`}`}/customers`
@@ -183,16 +173,14 @@ export default function LoginPage() {
             </pre>
           </div>
           <div className="mt-8 grid max-w-xl grid-cols-3 gap-4 text-xs text-slate-400">
-            {["Immutable deploys", "MCP + HTTP", "Execution audit"].map(
-              (item) => (
-                <div className="flex items-center gap-2" key={item}>
-                  <span className="grid size-5 place-items-center rounded-full bg-violet-500/15 text-violet-400">
-                    <Check size={12} />
-                  </span>
-                  {item}
-                </div>
-              ),
-            )}
+            {["Immutable deploys", "MCP + HTTP", "Execution audit"].map((item) => (
+              <div className="flex items-center gap-2" key={item}>
+                <span className="grid size-5 place-items-center rounded-full bg-violet-500/15 text-violet-400">
+                  <Check size={12} />
+                </span>
+                {item}
+              </div>
+            ))}
           </div>
         </div>
       </section>

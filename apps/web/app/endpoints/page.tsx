@@ -45,10 +45,7 @@ type DiscoveryDocument = {
   containsSecretValues: false;
 };
 
-const formatDetails: Record<
-  DocumentFormat,
-  { label: string; description: string }
-> = {
+const formatDetails: Record<DocumentFormat, { label: string; description: string }> = {
   "openapi-json": {
     label: "openapi.json",
     description: "OpenAPI 3.1 JSON for client generation and API tooling.",
@@ -76,13 +73,7 @@ const formatDetails: Record<
 };
 
 const formatsByKind: Record<"mcp" | "http", DocumentFormat[]> = {
-  http: [
-    "openapi-json",
-    "openapi-yaml",
-    "postman",
-    "manifest-json",
-    "manifest-yaml",
-  ],
+  http: ["openapi-json", "openapi-yaml", "postman", "manifest-json", "manifest-yaml"],
   mcp: ["mcp-client", "manifest-json", "manifest-yaml"],
 };
 
@@ -195,7 +186,8 @@ export default function EndpointsPage() {
             <div className="border-b p-4">
               <h2 className="text-sm font-semibold">Project endpoints</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {endpoints.length} configured endpoint{endpoints.length === 1 ? "" : "s"}
+                {endpoints.length} configured endpoint
+                {endpoints.length === 1 ? "" : "s"}
               </p>
             </div>
             <div className="max-h-[32rem] divide-y overflow-y-auto">
@@ -220,7 +212,9 @@ export default function EndpointsPage() {
                         <span className="truncate text-xs font-semibold">
                           {endpoint.name}
                         </span>
-                        {selectedEndpoint && <Check className="text-primary" size={13} />}
+                        {selectedEndpoint && (
+                          <Check className="text-primary" size={13} />
+                        )}
                       </span>
                       <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground">
                         {endpoint.slug}
@@ -282,7 +276,8 @@ export default function EndpointsPage() {
                     <h2 className="text-sm font-semibold">Discovery formats</h2>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Generated from current bindings and schemas. Credentials are placeholders; secret values are never included.
+                    Generated from current bindings and schemas. Credentials are
+                    placeholders; secret values are never included.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2" role="tablist">
                     {availableFormats.map((item) => (

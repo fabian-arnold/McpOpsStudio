@@ -69,26 +69,30 @@ describe("control-plane mutation contracts", () => {
   });
 
   it("validates project logging levels and bounded retention", () => {
-    expect(projectSettingsUpdateSchema.parse({
-      logging: {
-        development: {
-          level: "debug",
-          retentionDays: 7,
-          retentionMaxEntries: 50000,
-          retentionMaxBytes: 52428800,
+    expect(
+      projectSettingsUpdateSchema.parse({
+        logging: {
+          development: {
+            level: "debug",
+            retentionDays: 7,
+            retentionMaxEntries: 50000,
+            retentionMaxBytes: 52428800,
+          },
         },
-      },
-    }).logging?.development?.level).toBe("debug");
-    expect(() => projectSettingsUpdateSchema.parse({
-      logging: {
-        production: {
-          level: "trace",
-          retentionDays: 0,
-          retentionMaxEntries: 1,
-          retentionMaxBytes: 1,
+      }).logging?.development?.level,
+    ).toBe("debug");
+    expect(() =>
+      projectSettingsUpdateSchema.parse({
+        logging: {
+          production: {
+            level: "trace",
+            retentionDays: 0,
+            retentionMaxEntries: 1,
+            retentionMaxBytes: 1,
+          },
         },
-      },
-    })).toThrow();
+      }),
+    ).toThrow();
   });
 
   it("accepts only secret IDs and rejects the removed duplicate grant field", () => {

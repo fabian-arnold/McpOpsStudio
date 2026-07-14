@@ -53,12 +53,22 @@ export function BindingEditorDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"mcp" | "http">(binding?.kind ?? initialKind);
-  const [endpointId, setEndpointId] = useState(binding?.endpointId ?? fixedEndpointId ?? "");
-  const [functionId, setFunctionId] = useState(binding?.functionId ?? fixedFunctionId ?? "");
-  const [toolName, setToolName] = useState(binding?.kind === "mcp" ? binding.toolName : "");
+  const [endpointId, setEndpointId] = useState(
+    binding?.endpointId ?? fixedEndpointId ?? "",
+  );
+  const [functionId, setFunctionId] = useState(
+    binding?.functionId ?? fixedFunctionId ?? "",
+  );
+  const [toolName, setToolName] = useState(
+    binding?.kind === "mcp" ? binding.toolName : "",
+  );
   const [title, setTitle] = useState(binding?.kind === "mcp" ? binding.title : "");
-  const [description, setDescription] = useState(binding?.kind === "mcp" ? binding.description : "");
-  const [method, setMethod] = useState(binding?.kind === "http" ? binding.method : "GET");
+  const [description, setDescription] = useState(
+    binding?.kind === "mcp" ? binding.description : "",
+  );
+  const [method, setMethod] = useState(
+    binding?.kind === "http" ? binding.method : "GET",
+  );
   const [path, setPath] = useState(binding?.kind === "http" ? binding.path : "");
   const [inputMapping, setInputMapping] = useState(
     binding?.kind === "http" ? json(binding.inputMapping) : "",
@@ -85,7 +95,16 @@ export function BindingEditorDialog({
     if (nextFunction) setFunctionId(nextFunction);
     else if (!functions.some((fn) => fn.id === functionId))
       setFunctionId(functions[0]?.id ?? "");
-  }, [binding, endpointId, fixedEndpointId, fixedFunctionId, functionId, functions, matchingEndpoints, open]);
+  }, [
+    binding,
+    endpointId,
+    fixedEndpointId,
+    fixedFunctionId,
+    functionId,
+    functions,
+    matchingEndpoints,
+    open,
+  ]);
 
   async function save() {
     setBusy(true);
@@ -155,7 +174,9 @@ export function BindingEditorDialog({
               onChange={(event) => {
                 const next = event.target.value as "mcp" | "http";
                 setKind(next);
-                setEndpointId(endpoints.find((endpoint) => endpoint.kind === next)?.id ?? "");
+                setEndpointId(
+                  endpoints.find((endpoint) => endpoint.kind === next)?.id ?? "",
+                );
               }}
             >
               <option value="mcp">MCP tool</option>
@@ -171,7 +192,9 @@ export function BindingEditorDialog({
             disabled={Boolean(binding || fixedEndpointId)}
             onChange={(event) => setEndpointId(event.target.value)}
           >
-            {!matchingEndpoints.length && <option value="">No matching endpoint</option>}
+            {!matchingEndpoints.length && (
+              <option value="">No matching endpoint</option>
+            )}
             {matchingEndpoints.map((endpoint) => (
               <option key={endpoint.id} value={endpoint.id}>
                 {endpoint.name} · {endpoint.environment.name}
@@ -188,7 +211,9 @@ export function BindingEditorDialog({
             onChange={(event) => setFunctionId(event.target.value)}
           >
             {functions.map((fn) => (
-              <option key={fn.id} value={fn.id}>{fn.name}</option>
+              <option key={fn.id} value={fn.id}>
+                {fn.name}
+              </option>
             ))}
           </select>
         </div>
@@ -196,15 +221,29 @@ export function BindingEditorDialog({
           <>
             <div>
               <label className="label">Tool name</label>
-              <input className="field font-mono" value={toolName} onChange={(event) => setToolName(event.target.value)} placeholder="search_customers" />
+              <input
+                className="field font-mono"
+                value={toolName}
+                onChange={(event) => setToolName(event.target.value)}
+                placeholder="search_customers"
+              />
             </div>
             <div>
               <label className="label">Title</label>
-              <input className="field" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={toolName || "Search customers"} />
+              <input
+                className="field"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={toolName || "Search customers"}
+              />
             </div>
             <div>
               <label className="label">Description</label>
-              <textarea className="field min-h-20" value={description} onChange={(event) => setDescription(event.target.value)} />
+              <textarea
+                className="field min-h-20"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
             </div>
           </>
         ) : (
@@ -212,27 +251,53 @@ export function BindingEditorDialog({
             <div className="grid grid-cols-[110px_1fr] gap-3">
               <div>
                 <label className="label">Method</label>
-                <select className="field" value={method} onChange={(event) => setMethod(event.target.value)}>
-                  {["GET", "POST", "PUT", "PATCH", "DELETE"].map((value) => <option key={value}>{value}</option>)}
+                <select
+                  className="field"
+                  value={method}
+                  onChange={(event) => setMethod(event.target.value)}
+                >
+                  {["GET", "POST", "PUT", "PATCH", "DELETE"].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="label">Route path</label>
-                <input className="field font-mono" value={path} onChange={(event) => setPath(event.target.value)} placeholder="/v1/customers/:customerId" />
+                <input
+                  className="field font-mono"
+                  value={path}
+                  onChange={(event) => setPath(event.target.value)}
+                  placeholder="/v1/customers/:customerId"
+                />
               </div>
             </div>
             <div>
               <label className="label">Input mapping · JSON object</label>
-              <textarea className="field min-h-24 font-mono text-[11px]" value={inputMapping} onChange={(event) => setInputMapping(event.target.value)} placeholder={'{"customerId":"path.customerId"}'} />
+              <textarea
+                className="field min-h-24 font-mono text-[11px]"
+                value={inputMapping}
+                onChange={(event) => setInputMapping(event.target.value)}
+                placeholder={'{"customerId":"path.customerId"}'}
+              />
             </div>
             <div>
               <label className="label">Response mapping · JSON object</label>
-              <textarea className="field min-h-24 font-mono text-[11px]" value={responseMapping} onChange={(event) => setResponseMapping(event.target.value)} placeholder={'{"statusCode":200,"body":"$"}'} />
+              <textarea
+                className="field min-h-24 font-mono text-[11px]"
+                value={responseMapping}
+                onChange={(event) => setResponseMapping(event.target.value)}
+                placeholder={'{"statusCode":200,"body":"$"}'}
+              />
             </div>
           </>
         )}
         <label className="flex items-center gap-2 text-xs">
-          <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+          />{" "}
+          Enabled
         </label>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <Button
@@ -247,7 +312,10 @@ export function BindingEditorDialog({
   );
 }
 
-function parseOptionalObject(value: string, label: string): Record<string, unknown> | null {
+function parseOptionalObject(
+  value: string,
+  label: string,
+): Record<string, unknown> | null {
   if (!value.trim()) return null;
   const parsed = JSON.parse(value) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))

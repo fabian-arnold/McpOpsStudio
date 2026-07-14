@@ -75,9 +75,7 @@ export default function SecretsPage() {
         description={`Synchronized Development and Production credentials for ${user?.project.name ?? "the selected project"}. Each environment keeps its own encrypted, write-only value.`}
         actions={
           canManage && hasRequiredEnvironments ? (
-            <SecretValuesDialog
-              onSaved={() => setRevision((value) => value + 1)}
-            />
+            <SecretValuesDialog onSaved={() => setRevision((value) => value + 1)} />
           ) : undefined
         }
       />
@@ -121,9 +119,7 @@ export default function SecretsPage() {
           description="Create one Secret name with separate encrypted values for Development and Production."
           action={
             canManage ? (
-              <SecretValuesDialog
-                onSaved={() => setRevision((value) => value + 1)}
-              />
+              <SecretValuesDialog onSaved={() => setRevision((value) => value + 1)} />
             ) : undefined
           }
         />
@@ -176,9 +172,7 @@ function SecretRow({
           <KeyRound size={16} />
         </span>
         <div className="min-w-0">
-          <code className="block truncate text-xs font-semibold">
-            {pair.name}
-          </code>
+          <code className="block truncate text-xs font-semibold">{pair.name}</code>
           <span className="text-[10px] text-muted-foreground">
             Encrypted - values hidden
           </span>
@@ -377,12 +371,9 @@ function groupSecrets(
     current.updatedAt =
       new Date(current.updatedAt) > new Date(secret.updatedAt ?? secret.createdAt)
         ? current.updatedAt
-        : secret.updatedAt ?? secret.createdAt;
+        : (secret.updatedAt ?? secret.createdAt);
     const usageById = new Map(
-      [...current.usage, ...secret.usage].map((usage) => [
-        usage.functionId,
-        usage,
-      ]),
+      [...current.usage, ...secret.usage].map((usage) => [usage.functionId, usage]),
     );
     current.usage = [...usageById.values()];
     groups.set(secret.name, current);

@@ -29,8 +29,7 @@ export function EnvironmentEndpointUrls({
         const endpointUrls =
           urls?.[environment.slug] ??
           (environment.slug === "development" ? fallback : undefined);
-        const value =
-          kind === "mcp" ? endpointUrls?.mcpUrl : endpointUrls?.httpBaseUrl;
+        const value = kind === "mcp" ? endpointUrls?.mcpUrl : endpointUrls?.httpBaseUrl;
         return (
           <div
             className="flex min-w-0 items-center gap-3 px-3 py-2.5"

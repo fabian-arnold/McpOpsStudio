@@ -96,15 +96,11 @@ export default function ExecutionsPage() {
               onChange={(event) => setStatus(event.target.value)}
             >
               <option value="">All statuses</option>
-              {[
-                "success",
-                "error",
-                "denied",
-                "timeout",
-                "validation_error",
-              ].map((item) => (
-                <option key={item}>{item}</option>
-              ))}
+              {["success", "error", "denied", "timeout", "validation_error"].map(
+                (item) => (
+                  <option key={item}>{item}</option>
+                ),
+              )}
             </select>
             <select
               className="field h-9 py-1 text-xs"
@@ -174,16 +170,10 @@ export default function ExecutionsPage() {
                         <td className="px-4 py-3 font-mono text-[10px]">
                           {item.requestId}
                         </td>
-                        <td className="px-4 py-3 text-[10px]">
-                          {item.caller ?? "—"}
-                        </td>
+                        <td className="px-4 py-3 text-[10px]">{item.caller ?? "—"}</td>
                         <td className="px-4 py-3">
                           <Badge
-                            tone={
-                              item.invocationSource === "mcp"
-                                ? "primary"
-                                : "info"
-                            }
+                            tone={item.invocationSource === "mcp" ? "primary" : "info"}
                           >
                             {item.invocationSource}
                           </Badge>
@@ -194,11 +184,11 @@ export default function ExecutionsPage() {
                             {item.status}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-xs">{item.durationMs} ms</td>
                         <td className="px-4 py-3 text-xs">
-                          {item.durationMs} ms
-                        </td>
-                        <td className="px-4 py-3 text-xs">
-                          <span className="block">Function v{item.functionVersion}</span>
+                          <span className="block">
+                            Function v{item.functionVersion}
+                          </span>
                           <span className="text-[10px] text-muted-foreground">
                             Environment v{item.deploymentVersion}
                           </span>

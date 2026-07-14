@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  authorizePermissions,
-  redactSensitive,
-  SafeRuntimeError,
-} from "./index.js";
+import { authorizePermissions, redactSensitive, SafeRuntimeError } from "./index.js";
 
 describe("redaction", () => {
   it("redacts nested credentials and known values", () => {

@@ -25,7 +25,11 @@ export function withProjectScope(client: PrismaClient, projectId: string) {
           where: { id, projectId },
           ...(include ? { include } : {}),
         }),
-      bySlug: (environmentId: string, slug: string, include?: Prisma.RuntimeEndpointInclude) =>
+      bySlug: (
+        environmentId: string,
+        slug: string,
+        include?: Prisma.RuntimeEndpointInclude,
+      ) =>
         client.runtimeEndpoint.findFirst({
           where: { projectId, environmentId, slug },
           ...(include ? { include } : {}),
@@ -37,7 +41,8 @@ export function withProjectScope(client: PrismaClient, projectId: string) {
       byId: (id: string) => client.function.findFirst({ where: { id, projectId } }),
     },
     environments: {
-      list: () => client.environment.findMany({ where: { projectId }, orderBy: { name: "asc" } }),
+      list: () =>
+        client.environment.findMany({ where: { projectId }, orderBy: { name: "asc" } }),
     },
     executions: {
       list: (where: Omit<Prisma.FunctionExecutionWhereInput, "projectId"> = {}) =>
@@ -45,7 +50,8 @@ export function withProjectScope(client: PrismaClient, projectId: string) {
           where: { ...where, projectId },
           orderBy: { createdAt: "desc" },
         }),
-      byId: (id: string) => client.functionExecution.findFirst({ where: { id, projectId } }),
+      byId: (id: string) =>
+        client.functionExecution.findFirst({ where: { id, projectId } }),
     },
     auditEvents: {
       list: (where: Omit<Prisma.AuditEventWhereInput, "projectId"> = {}) =>
@@ -59,7 +65,13 @@ export function withProjectScope(client: PrismaClient, projectId: string) {
       listMetadata: () =>
         client.secret.findMany({
           where: { projectId },
-          select: { id: true, environmentId: true, name: true, createdAt: true, updatedAt: true },
+          select: {
+            id: true,
+            environmentId: true,
+            name: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         }),
     },
   };

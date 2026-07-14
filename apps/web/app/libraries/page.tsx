@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Library, Plus } from "lucide-react";
 import { AppShell } from "@/components/shell";
-import {
-  Badge,
-  EmptyState,
-  LoadError,
-  PageHeader,
-  Skeleton,
-} from "@/components/ui";
+import { Badge, EmptyState, LoadError, PageHeader, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { roleAllows, useCurrentUser } from "@/lib/session";
 import type { ProjectLibrary } from "@/lib/types";
@@ -77,9 +71,7 @@ export default function ProjectLibrariesPage() {
                   <Library size={16} />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-semibold">
-                    {library.name}
-                  </h2>
+                  <h2 className="truncate text-sm font-semibold">{library.name}</h2>
                   <code className="block truncate text-[10px] text-muted-foreground">
                     {library.importPath}
                   </code>
@@ -116,9 +108,9 @@ export default function ProjectLibrariesPage() {
         />
       )}
       <div className="mt-5 rounded-xl border p-4 text-xs text-muted-foreground">
-        <strong className="text-foreground">Restricted pure code.</strong>{" "}
-        Project libraries cannot access secrets, network, process, filesystem,
-        child processes, or raw databases.
+        <strong className="text-foreground">Restricted pure code.</strong> Project
+        libraries cannot access secrets, network, process, filesystem, child processes,
+        or raw databases.
       </div>
     </AppShell>
   );

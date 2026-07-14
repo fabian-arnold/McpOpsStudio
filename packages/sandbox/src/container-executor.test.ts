@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  RuntimeContext,
-  ScopedCache,
-  ScopedStorage,
-} from "@mcpops/runtime-sdk";
+import type { RuntimeContext, ScopedCache, ScopedStorage } from "@mcpops/runtime-sdk";
 import {
   buildContainerRunArguments,
   cleanupContainer,
@@ -27,11 +23,7 @@ const config = {
 } as const;
 describe("disposable-container executor security", () => {
   it("constructs a no-network, read-only, non-root, capability-free command with quotas", () => {
-    const args = buildContainerRunArguments(
-      config,
-      "mcpops-exec-id",
-      "/tmp/work",
-    );
+    const args = buildContainerRunArguments(config, "mcpops-exec-id", "/tmp/work");
     expect(args).toEqual(
       expect.arrayContaining([
         "--network=none",

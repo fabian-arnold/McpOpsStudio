@@ -41,22 +41,14 @@ export interface ScopedStorage {
     pattern: string,
     options?: { limit?: number },
   ): Promise<Array<{ key: string; value: unknown }>>;
-  set(
-    key: string,
-    value: unknown,
-    options?: { ttlSeconds?: number },
-  ): Promise<void>;
+  set(key: string, value: unknown, options?: { ttlSeconds?: number }): Promise<void>;
   delete(key: string): Promise<void>;
   deleteMany(pattern: string, options?: { limit?: number }): Promise<number>;
   forTenant(tenantId: string): ScopedStorage;
 }
 export interface ScopedCache {
   get(key: string): Promise<unknown>;
-  set(
-    key: string,
-    value: unknown,
-    options?: { ttlSeconds?: number },
-  ): Promise<void>;
+  set(key: string, value: unknown, options?: { ttlSeconds?: number }): Promise<void>;
   delete(key: string): Promise<void>;
   getOrSet(
     key: string,
@@ -114,7 +106,4 @@ export type RuntimeContext = {
   abortSignal: AbortSignal;
 };
 
-export type RuntimeHandler = (
-  ctx: RuntimeContext,
-  input: unknown,
-) => Promise<unknown>;
+export type RuntimeHandler = (ctx: RuntimeContext, input: unknown) => Promise<unknown>;

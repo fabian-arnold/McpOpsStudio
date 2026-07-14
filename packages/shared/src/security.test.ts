@@ -7,14 +7,13 @@ import {
   redactSensitive,
   verifyApiKey,
 } from "./security.js";
+
 describe("security helpers", () => {
   const key = Buffer.alloc(32, 7);
   it("round trips AES-256-GCM", () =>
     expect(decryptSecret(encryptSecret("secret", key), key)).toBe("secret"));
   it("rejects tampered ciphertext", () =>
-    expect(() =>
-      decryptSecret(encryptSecret("secret", key) + "x", key),
-    ).toThrow());
+    expect(() => decryptSecret(encryptSecret("secret", key) + "x", key)).toThrow());
   it("authorizes complete permission sets", () =>
     expect(hasPermissions({ permissions: ["a", "b"] }, ["a", "b"])).toBe(true));
   it("verifies API keys without direct comparison", () =>

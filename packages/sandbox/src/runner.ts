@@ -58,9 +58,7 @@ async function execute(message: ExecuteMessage): Promise<void> {
   try {
     activeAbortController = new AbortController();
     if (pendingCancellation)
-      activeAbortController.abort(
-        new DOMException(pendingCancellation, "AbortError"),
-      );
+      activeAbortController.abort(new DOMException(pendingCancellation, "AbortError"));
     Object.defineProperties(globalThis, {
       process: { value: undefined, configurable: false, writable: false },
       fetch: { value: undefined, configurable: false, writable: false },
@@ -138,14 +136,10 @@ function createContext(
     secrets: Object.freeze({
       get(name: string) {
         if (!Object.hasOwn(secretMap, name))
-          throw Object.assign(
-            new Error("The requested secret is not granted."),
-            {
-              code: "CONFIGURATION_ERROR",
-              requestId: (serialized.invocation as { requestId: string })
-                .requestId,
-            },
-          );
+          throw Object.assign(new Error("The requested secret is not granted."), {
+            code: "CONFIGURATION_ERROR",
+            requestId: (serialized.invocation as { requestId: string }).requestId,
+          });
         return secretMap[name];
       },
     }),
@@ -171,8 +165,7 @@ function createContext(
       query: (request: unknown) => rpc("db.query", request),
     }),
     functions: Object.freeze({
-      call: (slug: string, input: unknown) =>
-        rpc("functions.call", slug, input),
+      call: (slug: string, input: unknown) => rpc("functions.call", slug, input),
     }),
     abortSignal,
   });

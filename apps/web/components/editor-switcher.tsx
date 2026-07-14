@@ -20,8 +20,7 @@ export function EditorSwitcher({
 }) {
   const router = useRouter();
   const confirmNavigation = () =>
-    !dirty ||
-    window.confirm("Discard the unsaved changes in the current editor?");
+    !dirty || window.confirm("Discard the unsaved changes in the current editor?");
 
   return (
     <div className="flex min-w-0 items-center gap-1.5">
@@ -38,9 +37,7 @@ export function EditorSwitcher({
           onChange={(event) => {
             if (!confirmNavigation()) return;
             const [kind, id] = event.target.value.split(":", 2);
-            router.push(
-              kind === "library" ? `/libraries/${id}` : `/functions/${id}`,
-            );
+            router.push(kind === "library" ? `/libraries/${id}` : `/functions/${id}`);
           }}
         >
           {active === "function:new" && (
@@ -53,9 +50,7 @@ export function EditorSwitcher({
               </option>
             ))}
           </optgroup>
-          {active === "library:new" && (
-            <option value="library:new">New library</option>
-          )}
+          {active === "library:new" && <option value="library:new">New library</option>}
           <optgroup label="Libraries">
             {libraries.map((library) => (
               <option key={library.id} value={`library:${library.id}`}>

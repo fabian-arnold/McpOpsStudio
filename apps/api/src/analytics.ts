@@ -7,12 +7,7 @@ export type ExecutionSample = {
   status: string;
 };
 
-const failedStatuses = new Set([
-  "error",
-  "timeout",
-  "validation_error",
-  "denied",
-]);
+const failedStatuses = new Set(["error", "timeout", "validation_error", "denied"]);
 
 export type PeriodMetric = {
   current: number;
@@ -49,10 +44,7 @@ function rounded(value: number, digits = 0): number {
   return Math.round(value * factor) / factor;
 }
 
-export function percentChange(
-  current: number,
-  previous: number,
-): number | null {
+export function percentChange(current: number, previous: number): number | null {
   if (previous === 0) return current === 0 ? 0 : null;
   return rounded(((current - previous) / previous) * 100, 1);
 }
@@ -66,9 +58,7 @@ export function percentile(values: number[], percentileValue: number): number {
 
 function period(samples: ExecutionSample[]) {
   const calls = samples.length;
-  const failures = samples.filter((sample) =>
-    failedStatuses.has(sample.status),
-  ).length;
+  const failures = samples.filter((sample) => failedStatuses.has(sample.status)).length;
   const durations = samples.map((sample) => sample.durationMs);
   return {
     calls,
@@ -94,8 +84,7 @@ export function summarizeExecutions(
   );
   const previous = period(
     samples.filter(
-      (sample) =>
-        sample.createdAt >= previousStart && sample.createdAt < currentStart,
+      (sample) => sample.createdAt >= previousStart && sample.createdAt < currentStart,
     ),
   );
   const comparison = (key: keyof typeof current): PeriodMetric => ({
@@ -129,9 +118,7 @@ export function hourlyTraffic(
     failures: 0,
   }));
   for (const sample of samples) {
-    const index = Math.floor(
-      (sample.createdAt.getTime() - start.getTime()) / HOUR_MS,
-    );
+    const index = Math.floor((sample.createdAt.getTime() - start.getTime()) / HOUR_MS);
     const bucket = buckets[index];
     if (!bucket || sample.createdAt >= end) continue;
     bucket.calls += 1;
@@ -152,9 +139,7 @@ export function canonicalEndpointUrls(
     configured.username ||
     configured.password
   ) {
-    throw new Error(
-      "Environment baseUrl must be an HTTP(S) URL without credentials.",
-    );
+    throw new Error("Environment baseUrl must be an HTTP(S) URL without credentials.");
   }
   const base = `${configured.origin}${configured.pathname}`.replace(/\/+$/, "");
   return {
@@ -201,9 +186,7 @@ export function policySummary(
     snapshotValue && typeof snapshotValue === "object"
       ? (snapshotValue as SnapshotLike)
       : {};
-  const policies = Array.isArray(snapshot.authPolicies)
-    ? snapshot.authPolicies
-    : [];
+  const policies = Array.isArray(snapshot.authPolicies) ? snapshot.authPolicies : [];
   const defaultPolicy =
     policies.find((policy) => policy.id === snapshot.defaultAuthPolicyId) ??
     databaseDefault ??
@@ -220,9 +203,7 @@ export function policySummary(
         }
       : null,
     snapshottedPolicyCount: policies.length,
-    source: policies.length
-      ? ("active_snapshot" as const)
-      : ("database" as const),
+    source: policies.length ? ("active_snapshot" as const) : ("database" as const),
   };
 }
 
@@ -239,8 +220,7 @@ export function summarizeDeployments(
 ) {
   const since = new Date(now.getTime() - 7 * DAY_MS);
   const recent = deployments.filter(
-    (deployment) =>
-      deployment.createdAt >= since && deployment.createdAt <= now,
+    (deployment) => deployment.createdAt >= since && deployment.createdAt <= now,
   );
   const completedDurations = recent
     .filter(
@@ -249,10 +229,7 @@ export function summarizeDeployments(
         ["active", "rolled_back", "failed"].includes(deployment.status),
     )
     .map((deployment) =>
-      Math.max(
-        0,
-        deployment.completedAt!.getTime() - deployment.createdAt.getTime(),
-      ),
+      Math.max(0, deployment.completedAt!.getTime() - deployment.createdAt.getTime()),
     );
   return {
     activeSnapshots,
@@ -260,9 +237,8 @@ export function summarizeDeployments(
     successfulDeployments: recent.filter((deployment) =>
       ["active", "rolled_back"].includes(deployment.status),
     ).length,
-    failedDeployments: recent.filter(
-      (deployment) => deployment.status === "failed",
-    ).length,
+    failedDeployments: recent.filter((deployment) => deployment.status === "failed")
+      .length,
     inProgressDeployments: deployments.filter((deployment) =>
       ["queued", "building", "deploying"].includes(deployment.status),
     ).length,

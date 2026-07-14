@@ -62,9 +62,7 @@ export function shouldCapturePayloads(environment: {
   slug: string;
   capturePayloads?: boolean;
 }): boolean {
-  return (
-    environment.slug === "development" && environment.capturePayloads === true
-  );
+  return environment.slug === "development" && environment.capturePayloads === true;
 }
 
 export function capturedPayload(
@@ -155,7 +153,7 @@ export class RuntimeInvoker {
     const logs: RuntimeLogEvent[] = [];
     const controller = new AbortController();
     const unlinkAbort = linkAbortSignal(request.abortSignal, controller);
-    let executionStatus = "error";
+    let executionStatus: string;
     let output: unknown;
     let recordedError: unknown;
     let secretValues: readonly string[] = [];
@@ -193,8 +191,7 @@ export class RuntimeInvoker {
           1,
           Math.min(
             request.fn.timeoutMs,
-            (request.deadlineAt ?? Date.now() + request.fn.timeoutMs) -
-              Date.now(),
+            (request.deadlineAt ?? Date.now() + request.fn.timeoutMs) - Date.now(),
           ),
         ),
         abortController: controller,
@@ -276,8 +273,7 @@ export class RuntimeInvoker {
   }
   async claimReplay(key: string, ttlSeconds: number): Promise<boolean> {
     return (
-      (await this.redis.set(key, "1", "EX", Math.max(1, ttlSeconds), "NX")) ===
-      "OK"
+      (await this.redis.set(key, "1", "EX", Math.max(1, ttlSeconds), "NX")) === "OK"
     );
   }
 
@@ -316,20 +312,13 @@ export class RuntimeInvoker {
     secrets: GrantedSecrets,
   ): RuntimeContext {
     const scope = `${request.endpoint.project.id}:${request.endpoint.environment.id}:${request.fn.functionId}`;
-    const logger = new InvocationLogger(
-      request,
-      executionId,
-      logs,
-      secrets.values(),
-    );
+    const logger = new InvocationLogger(request, executionId, logs, secrets.values());
     const audit = new InvocationAudit(request);
     const base = {
       invocation: {
         source: request.source,
         requestId: request.requestId,
-        ...(request.correlationId
-          ? { correlationId: request.correlationId }
-          : {}),
+        ...(request.correlationId ? { correlationId: request.correlationId } : {}),
         ...(request.simulatedSource
           ? { simulatedSource: request.simulatedSource }
           : {}),
@@ -375,10 +364,7 @@ export class RuntimeInvoker {
         requestId: request.requestId,
         abortSignal,
         resolveConnectionSecret: async (secretId) => {
-          const encrypted = await getEncryptedSecretById(
-            request.endpoint,
-            secretId,
-          );
+          const encrypted = await getEncryptedSecretById(request.endpoint, secretId);
           if (!encrypted)
             throw new SafeRuntimeError({
               code: "CONFIGURATION_ERROR",
@@ -432,9 +418,7 @@ export class RuntimeInvoker {
             input,
             caller: request.caller,
             requestId: randomUUID(),
-            ...(request.correlationId
-              ? { correlationId: request.correlationId }
-              : {}),
+            ...(request.correlationId ? { correlationId: request.correlationId } : {}),
             ...(request.tenantId ? { tenantId: request.tenantId } : {}),
             abortSignal,
             parentExecutionId: executionId,
@@ -449,9 +433,7 @@ export class RuntimeInvoker {
       },
       abortSignal,
     } satisfies RuntimeContext;
-    return request.tenantId
-      ? { ...base, tenant: { id: request.tenantId } }
-      : base;
+    return request.tenantId ? { ...base, tenant: { id: request.tenantId } } : base;
   }
 
   private async record(
@@ -464,26 +446,18 @@ export class RuntimeInvoker {
     secrets: readonly string[],
     logs: readonly RuntimeLogEvent[],
   ): Promise<void> {
-    const capturePayloads = shouldCapturePayloads(
-      request.endpoint.environment,
-    );
+    const capturePayloads = shouldCapturePayloads(request.endpoint.environment);
     await saveExecution({
       id: executionId,
       projectId: request.endpoint.project.id,
       endpointId: request.endpoint.id,
       functionId: request.fn.functionId,
       functionVersionId: request.fn.versionId,
-      ...(request.mcpBinding
-        ? { mcpToolBindingId: request.mcpBinding.id }
-        : {}),
-      ...(request.httpBinding
-        ? { httpRouteBindingId: request.httpBinding.id }
-        : {}),
+      ...(request.mcpBinding ? { mcpToolBindingId: request.mcpBinding.id } : {}),
+      ...(request.httpBinding ? { httpRouteBindingId: request.httpBinding.id } : {}),
       deploymentId: request.endpoint.deployment.id,
       requestId: request.requestId,
-      ...(request.correlationId
-        ? { correlationId: request.correlationId }
-        : {}),
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       invocationSource: request.source,
       callerIdentity: redactSensitive(request.caller, secrets),
       input: capturePayloads
@@ -496,9 +470,7 @@ export class RuntimeInvoker {
               ? capturedPayload(output, secrets)
               : payloadCaptureDisabled,
           }),
-      ...(error === undefined
-        ? {}
-        : { error: redactSensitive(error, secrets) }),
+      ...(error === undefined ? {} : { error: redactSensitive(error, secrets) }),
       durationMs,
       status,
       ...(request.parentExecutionId
@@ -518,9 +490,7 @@ export class RuntimeInvoker {
         actorType: "caller",
         ...(request.caller.subject ? { actorId: request.caller.subject } : {}),
         action:
-          status === "denied"
-            ? "function.invoke.denied"
-            : "function.invoke.succeeded",
+          status === "denied" ? "function.invoke.denied" : "function.invoke.succeeded",
         targetType: "function",
         targetId: request.fn.functionId,
         metadata: {
@@ -615,9 +585,7 @@ export function buildRuntimeLogEvent(
     timestamp: new Date().toISOString(),
     level,
     message: redactSensitive(message, secrets),
-    ...(metadata === undefined
-      ? {}
-      : { metadata: redactSensitive(metadata, secrets) }),
+    ...(metadata === undefined ? {} : { metadata: redactSensitive(metadata, secrets) }),
     requestId: request.requestId,
     executionId,
     ...(request.correlationId ? { correlationId: request.correlationId } : {}),
@@ -626,9 +594,7 @@ export function buildRuntimeLogEvent(
     endpointId: request.endpoint.id,
     functionId: request.fn.functionId,
     deploymentId: request.endpoint.deployment.id,
-    ...(request.caller.subject
-      ? { callerSubject: request.caller.subject }
-      : {}),
+    ...(request.caller.subject ? { callerSubject: request.caller.subject } : {}),
   };
 }
 class DatabaseStorage implements ScopedStorage {
@@ -638,12 +604,7 @@ class DatabaseStorage implements ScopedStorage {
     private readonly tenantScope = "_",
   ) {}
   get(key: string): Promise<unknown> {
-    return storageGet(
-      this.endpoint,
-      this.functionId,
-      this.tenantScope,
-      safeKey(key),
-    );
+    return storageGet(this.endpoint, this.functionId, this.tenantScope, safeKey(key));
   }
   list(
     pattern: string,
@@ -657,11 +618,7 @@ class DatabaseStorage implements ScopedStorage {
       safeStorageLimit(options?.limit),
     );
   }
-  set(
-    key: string,
-    value: unknown,
-    options?: { ttlSeconds?: number },
-  ): Promise<void> {
+  set(key: string, value: unknown, options?: { ttlSeconds?: number }): Promise<void> {
     return storageSet(
       this.endpoint,
       this.functionId,
@@ -679,10 +636,7 @@ class DatabaseStorage implements ScopedStorage {
       safeKey(key),
     );
   }
-  deleteMany(
-    pattern: string,
-    options?: { limit?: number },
-  ): Promise<number> {
+  deleteMany(pattern: string, options?: { limit?: number }): Promise<number> {
     return storageDeleteMany(
       this.endpoint,
       this.functionId,
@@ -692,11 +646,7 @@ class DatabaseStorage implements ScopedStorage {
     );
   }
   forTenant(tenantId: string): ScopedStorage {
-    return new DatabaseStorage(
-      this.endpoint,
-      this.functionId,
-      safeTenant(tenantId),
-    );
+    return new DatabaseStorage(this.endpoint, this.functionId, safeTenant(tenantId));
   }
 }
 class RedisCache implements ScopedCache {
@@ -737,12 +687,7 @@ class RedisCache implements ScopedCache {
     return value;
   }
   forTenant(tenantId: string): ScopedCache {
-    return new RedisCache(
-      this.redis,
-      this.scope,
-      safeTenant(tenantId),
-      this.policy,
-    );
+    return new RedisCache(this.redis, this.scope, safeTenant(tenantId), this.policy);
   }
   private key(key: string): string {
     return `mcpops:${this.scope}:${this.tenantScope}:${safeKey(key)}`;
@@ -750,10 +695,7 @@ class RedisCache implements ScopedCache {
   private ttl(requested?: number): number {
     return Math.max(
       1,
-      Math.min(
-        requested ?? this.policy.defaultTtlSeconds,
-        this.policy.maxTtlSeconds,
-      ),
+      Math.min(requested ?? this.policy.defaultTtlSeconds, this.policy.maxTtlSeconds),
     );
   }
 }
@@ -771,9 +713,7 @@ class InvocationAudit implements AuditWriter {
       endpointId: this.request.endpoint.id,
       functionId: this.request.fn.functionId,
       actorType: "caller",
-      ...(this.request.caller.subject
-        ? { actorId: this.request.caller.subject }
-        : {}),
+      ...(this.request.caller.subject ? { actorId: this.request.caller.subject } : {}),
       action: event.action,
       targetType: event.targetType,
       ...(event.targetId ? { targetId: event.targetId } : {}),
@@ -812,8 +752,7 @@ export type EffectiveCachePolicy = {
 export function normalizeCachePolicy(
   policy: SnapshotFunction["cachePolicy"],
 ): EffectiveCachePolicy {
-  const defaultTtlSeconds =
-    policy?.defaultTtlSeconds ?? policy?.ttlSeconds ?? 300;
+  const defaultTtlSeconds = policy?.defaultTtlSeconds ?? policy?.ttlSeconds ?? 300;
   const maxTtlSeconds = policy?.maxTtlSeconds ?? 86_400;
   return {
     defaultTtlSeconds: Math.min(defaultTtlSeconds, maxTtlSeconds),
@@ -851,7 +790,6 @@ function safeStorageLimit(value = 100): number {
   return value;
 }
 function safeTenant(value: string): string {
-  if (!/^[A-Za-z0-9._-]{1,128}$/.test(value))
-    throw new Error("Invalid tenant scope");
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(value)) throw new Error("Invalid tenant scope");
   return value;
 }

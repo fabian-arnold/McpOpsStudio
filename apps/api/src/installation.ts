@@ -96,8 +96,7 @@ export function registerInstallationRoutes(
           });
 
           let deployment:
-            | { id: string; status: string; childIds: string[] }
-            | undefined;
+            { id: string; status: string; childIds: string[] } | undefined;
           if (input.starter === "notes-demo")
             deployment = await createNotesDemo(tx, {
               projectId: project.id,

@@ -39,10 +39,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       /* use status text */
     }
     throw new ApiError(
-      body.error?.message ??
-        body.message ??
-        response.statusText ??
-        "Request failed",
+      body.error?.message ?? body.message ?? response.statusText ?? "Request failed",
       response.status,
       body.error?.code,
     );

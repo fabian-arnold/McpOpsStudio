@@ -33,13 +33,7 @@ import {
   SchemaDefinitionEditor,
   SchemaDrivenInput,
 } from "@/components/schema-input-tools";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  LoadError,
-  Skeleton,
-} from "@/components/ui";
+import { Badge, Button, EmptyState, LoadError, Skeleton } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { api, errorMessage } from "@/lib/api";
 import { roleAllows, useCurrentUser } from "@/lib/session";
@@ -104,7 +98,12 @@ function FunctionWorkbench() {
   const toast = useToast();
   const user = useCurrentUser();
   const canEdit = roleAllows(user?.role, ["owner", "admin", "developer"]);
-  const canOperate = roleAllows(user?.role, ["owner", "admin", "developer", "operator"]);
+  const canOperate = roleAllows(user?.role, [
+    "owner",
+    "admin",
+    "developer",
+    "operator",
+  ]);
   const [fn, setFn] = useState<FunctionDetail>();
   const [functions, setFunctions] = useState<OpsFunction[]>([]);
   const [libraries, setLibraries] = useState<ProjectLibrary[]>([]);
@@ -136,13 +135,12 @@ function FunctionWorkbench() {
   const load = useCallback(async () => {
     setLoadError(undefined);
     try {
-      const [allFunctions, allLibraries, allEndpoints, allSecrets] =
-        await Promise.all([
-          api<OpsFunction[]>("/api/functions"),
-          api<ProjectLibrary[]>("/api/libraries"),
-          api<RuntimeEndpoint[]>("/api/runtime-endpoints"),
-          api<Secret[]>("/api/secrets"),
-        ]);
+      const [allFunctions, allLibraries, allEndpoints, allSecrets] = await Promise.all([
+        api<OpsFunction[]>("/api/functions"),
+        api<ProjectLibrary[]>("/api/libraries"),
+        api<RuntimeEndpoint[]>("/api/runtime-endpoints"),
+        api<Secret[]>("/api/secrets"),
+      ]);
       setFunctions(allFunctions);
       setLibraries(allLibraries);
       setEndpoints(allEndpoints);
@@ -152,8 +150,7 @@ function FunctionWorkbench() {
           value ||
           allEndpoints.find(
             (endpoint) =>
-              endpoint.environment.slug === "development" &&
-              endpoint.activeDeployment,
+              endpoint.environment.slug === "development" && endpoint.activeDeployment,
           )?.id ||
           "",
       );
@@ -218,18 +215,17 @@ function FunctionWorkbench() {
       setDirty(false);
       setEndpointId(
         availableEndpoint(savedTestValues?.endpointId)?.id ??
-        allEndpoints.find(
-          (endpoint) =>
-            endpoint.environment.slug === "development" &&
-            endpoint.activeDeployment &&
-            boundEndpointIds.has(endpoint.id),
-        )?.id ??
-        allEndpoints.find(
-          (endpoint) =>
-            endpoint.environment.slug === "development" &&
-            endpoint.activeDeployment,
-        )?.id ??
-        "",
+          allEndpoints.find(
+            (endpoint) =>
+              endpoint.environment.slug === "development" &&
+              endpoint.activeDeployment &&
+              boundEndpointIds.has(endpoint.id),
+          )?.id ??
+          allEndpoints.find(
+            (endpoint) =>
+              endpoint.environment.slug === "development" && endpoint.activeDeployment,
+          )?.id ??
+          "",
       );
       setTestInput(savedTestValues?.input ?? "{}");
       setTestInputMode(savedTestValues?.inputMode ?? "form");
@@ -243,12 +239,19 @@ function FunctionWorkbench() {
   }, [functionId, router, user?.project.id]);
   useEffect(() => void load(), [attempt, load]);
   useEffect(() => {
-    setWorkbenchLayout(readWorkbenchLayout(window.localStorage.getItem("mcpops:function-workbench-layout")));
+    setWorkbenchLayout(
+      readWorkbenchLayout(
+        window.localStorage.getItem("mcpops:function-workbench-layout"),
+      ),
+    );
     setLayoutHydrated(true);
   }, []);
   useEffect(() => {
     if (layoutHydrated)
-      window.localStorage.setItem("mcpops:function-workbench-layout", JSON.stringify(workbenchLayout));
+      window.localStorage.setItem(
+        "mcpops:function-workbench-layout",
+        JSON.stringify(workbenchLayout),
+      );
   }, [layoutHydrated, workbenchLayout]);
   useEffect(() => {
     if (!fn || testValuesHydratedFor !== fn.id) return;
@@ -264,7 +267,17 @@ function FunctionWorkbench() {
       `mcpops:function-test:${user?.project.id ?? "project"}:${fn.id}`,
       JSON.stringify(values),
     );
-  }, [endpointId, fn, testInput, testInputMode, testPermissions, testSource, testSubject, testValuesHydratedFor, user?.project.id]);
+  }, [
+    endpointId,
+    fn,
+    testInput,
+    testInputMode,
+    testPermissions,
+    testSource,
+    testSubject,
+    testValuesHydratedFor,
+    user?.project.id,
+  ]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -341,7 +354,9 @@ function FunctionWorkbench() {
       if (!fn) router.replace(`/functions/${saved.id}`);
       setFunctions((items) => {
         const next = items.filter((item) => item.id !== saved.id);
-        return [...next, saved].sort((left, right) => left.name.localeCompare(right.name));
+        return [...next, saved].sort((left, right) =>
+          left.name.localeCompare(right.name),
+        );
       });
     } catch (error) {
       toast({
@@ -355,11 +370,15 @@ function FunctionWorkbench() {
   }
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s")
-        return;
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") return;
       event.preventDefault();
       if (busy || !canEdit) return;
-      if (!draft || draft.name.trim().length < 2 || !validFunctionSlug(draft.slug) || !schemas) {
+      if (
+        !draft ||
+        draft.name.trim().length < 2 ||
+        !validFunctionSlug(draft.slug) ||
+        !schemas
+      ) {
         toast({
           title: "Function cannot be saved yet",
           description: "Add a valid name and slug, and fix invalid schema JSON.",
@@ -387,9 +406,7 @@ function FunctionWorkbench() {
         title: result.valid ? "Validation passed" : "Validation failed",
         ...(result.diagnostics?.length
           ? {
-              description: result.diagnostics
-                .map((item) => item.message)
-                .join("; "),
+              description: result.diagnostics.map((item) => item.message).join("; "),
             }
           : {}),
         tone: result.valid ? "success" : "error",
@@ -408,7 +425,9 @@ function FunctionWorkbench() {
     if (!fn) return;
     setBusy("test");
     try {
-      const result = await api<Record<string, unknown>>(`/api/functions/${fn.id}/test`, {
+      const result = await api<Record<string, unknown>>(
+        `/api/functions/${fn.id}/test`,
+        {
           method: "POST",
           body: JSON.stringify({
             endpointId,
@@ -420,7 +439,8 @@ function FunctionWorkbench() {
               claims: {},
             },
           }),
-        });
+        },
+      );
       setTestResult(result);
       setTestConsoleTab(result.status === "success" ? "output" : "error");
     } catch (error) {
@@ -435,7 +455,9 @@ function FunctionWorkbench() {
     const needle = navigatorQuery.trim().toLowerCase();
     return needle
       ? functions.filter((item) =>
-          `${item.name} ${item.slug} ${item.description}`.toLowerCase().includes(needle),
+          `${item.name} ${item.slug} ${item.description}`
+            .toLowerCase()
+            .includes(needle),
         )
       : functions;
   }, [functions, navigatorQuery]);
@@ -448,14 +470,20 @@ function FunctionWorkbench() {
         !current ||
         selected.has(secret.id) ||
         (!selected.has(current.id) &&
-          endpoints.find((endpoint) => endpoint.environment.id === secret.environmentId)?.environment.slug === "development")
+          endpoints.find((endpoint) => endpoint.environment.id === secret.environmentId)
+            ?.environment.slug === "development")
       )
         byName.set(secret.name, secret);
     }
-    return [...byName.values()].sort((left, right) => left.name.localeCompare(right.name));
+    return [...byName.values()].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
   }, [draft?.secretGrantIds, endpoints, secrets]);
   const permissionSuggestions = useMemo(
-    () => [...new Set(functions.flatMap((item) => item.requiredPermissions))].sort((left, right) => left.localeCompare(right)),
+    () =>
+      [...new Set(functions.flatMap((item) => item.requiredPermissions))].sort(
+        (left, right) => left.localeCompare(right),
+      ),
     [functions],
   );
   const testRecord = asRecord(testResult);
@@ -463,7 +491,10 @@ function FunctionWorkbench() {
   const selectedSummary = functions.find((item) => item.id === fn?.id);
 
   function navigate(next: string) {
-    if (dirty && !window.confirm("Discard the unsaved changes in the current Function?"))
+    if (
+      dirty &&
+      !window.confirm("Discard the unsaved changes in the current Function?")
+    )
       return;
     router.push(next);
   }
@@ -483,11 +514,12 @@ function FunctionWorkbench() {
     document.body.style.userSelect = "none";
     document.body.style.cursor = panel === "bottom" ? "row-resize" : "col-resize";
     const move = (moveEvent: PointerEvent) => {
-      const delta = panel === "left"
-        ? moveEvent.clientX - startX
-        : panel === "right"
-          ? startX - moveEvent.clientX
-          : startY - moveEvent.clientY;
+      const delta =
+        panel === "left"
+          ? moveEvent.clientX - startX
+          : panel === "right"
+            ? startX - moveEvent.clientX
+            : startY - moveEvent.clientY;
       setWorkbenchLayout((current) => ({
         ...current,
         [panel]: clampPanelSize(panel, initial + delta),
@@ -522,14 +554,22 @@ function FunctionWorkbench() {
       );
       await refreshFunctionMetadata();
     } catch (error) {
-      toast({ title: "Binding was not changed", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Binding was not changed",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setBindingBusyId(undefined);
     }
   }
 
   async function removeBinding(binding: EditableFunctionBinding) {
-    if (!window.confirm("Remove this binding? Runtime traffic remains unchanged until the Project is deployed."))
+    if (
+      !window.confirm(
+        "Remove this binding? Runtime traffic remains unchanged until the Project is deployed.",
+      )
+    )
       return;
     setBindingBusyId(binding.id);
     try {
@@ -538,9 +578,17 @@ function FunctionWorkbench() {
         { method: "DELETE" },
       );
       await refreshFunctionMetadata();
-      toast({ title: "Binding removed", description: "Deploy the Project to publish this change.", tone: "success" });
+      toast({
+        title: "Binding removed",
+        description: "Deploy the Project to publish this change.",
+        tone: "success",
+      });
     } catch (error) {
-      toast({ title: "Binding was not removed", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Binding was not removed",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setBindingBusyId(undefined);
     }
@@ -550,9 +598,18 @@ function FunctionWorkbench() {
     setDeploying(true);
     try {
       await api("/api/deployments", { method: "POST", body: "{}" });
-      toast({ title: "Development deployment queued", description: "All saved Function and binding changes will be built as one immutable Project snapshot.", tone: "success" });
+      toast({
+        title: "Development deployment queued",
+        description:
+          "All saved Function and binding changes will be built as one immutable Project snapshot.",
+        tone: "success",
+      });
     } catch (error) {
-      toast({ title: "Deployment was not queued", description: errorMessage(error), tone: "error" });
+      toast({
+        title: "Deployment was not queued",
+        description: errorMessage(error),
+        tone: "error",
+      });
     } finally {
       setDeploying(false);
     }
@@ -563,15 +620,27 @@ function FunctionWorkbench() {
       <div className="-m-4 sm:-m-6 lg:-m-8">
         <header className="flex min-h-14 flex-wrap items-center gap-2 border-b bg-card px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Code2 size={15} /></span>
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Code2 size={15} />
+            </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Function workbench</p>
-              <p className="truncate text-xs font-semibold">{draft?.name || "New Function"}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Function workbench
+              </p>
+              <p className="truncate text-xs font-semibold">
+                {draft?.name || "New Function"}
+              </p>
             </div>
           </div>
           {fn && <Badge>v{fn.version}</Badge>}
-          {dirty && <Badge tone="warning"><Circle size={7} fill="currentColor" /> Unsaved</Badge>}
-          {selectedSummary?.usages?.some((usage) => usage.stale) && <Badge tone="warning">Deploy needed</Badge>}
+          {dirty && (
+            <Badge tone="warning">
+              <Circle size={7} fill="currentColor" /> Unsaved
+            </Badge>
+          )}
+          {selectedSummary?.usages?.some((usage) => usage.stale) && (
+            <Badge tone="warning">Deploy needed</Badge>
+          )}
           <div className="ml-auto flex flex-wrap gap-2">
             <Button
               size="sm"
@@ -582,17 +651,35 @@ function FunctionWorkbench() {
             >
               <ShieldCheck size={13} /> Validate
             </Button>
-            <Button size="sm" variant="secondary" onClick={test} loading={busy === "test"} disabled={!canOperate || !fn || !endpointId || dirty}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={test}
+              loading={busy === "test"}
+              disabled={!canOperate || !fn || !endpointId || dirty}
+            >
               <Beaker size={13} /> Test
             </Button>
-            <Button size="sm" variant="secondary" onClick={deploy} loading={deploying} disabled={!canOperate || !fn || dirty}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={deploy}
+              loading={deploying}
+              disabled={!canOperate || !fn || dirty}
+            >
               <Rocket size={13} /> Deploy Project
             </Button>
             <Button
               size="sm"
               onClick={save}
               loading={busy === "save"}
-              disabled={!draft || !canEdit || draft.name.trim().length < 2 || !validFunctionSlug(draft.slug) || !schemas}
+              disabled={
+                !draft ||
+                !canEdit ||
+                draft.name.trim().length < 2 ||
+                !validFunctionSlug(draft.slug) ||
+                !schemas
+              }
               title="Save (Ctrl+S)"
               data-function-save
             >
@@ -602,91 +689,578 @@ function FunctionWorkbench() {
         </header>
         <div
           className="grid min-h-[calc(100vh-150px)] grid-cols-1 xl:h-[calc(100vh-150px)] xl:min-h-0 xl:grid-cols-[var(--workbench-left)_6px_minmax(520px,1fr)_6px_var(--workbench-right)]"
-          style={{
-            "--workbench-left": `${workbenchLayout.left}px`,
-            "--workbench-right": `${workbenchLayout.right}px`,
-          } as React.CSSProperties}
+          style={
+            {
+              "--workbench-left": `${workbenchLayout.left}px`,
+              "--workbench-right": `${workbenchLayout.right}px`,
+            } as React.CSSProperties
+          }
         >
           <nav className="border-r bg-card p-3 xl:overflow-auto">
             <div className="mb-3 flex items-center gap-2">
-              <div className="relative min-w-0 flex-1"><Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" /><input className="field h-8 pl-8 text-xs" value={navigatorQuery} onChange={(event) => setNavigatorQuery(event.target.value)} placeholder="Search Functions…" /></div>
-              {canEdit && <Button size="icon" variant="secondary" className="size-8" onClick={() => { setInspectorTab("settings"); setSlugManuallyEdited(false); setNewFunctionSetupOpen(true); navigate("/functions/new"); }} aria-label="New Function"><Plus size={13} /></Button>}
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-2.5 text-muted-foreground"
+                />
+                <input
+                  className="field h-8 pl-8 text-xs"
+                  value={navigatorQuery}
+                  onChange={(event) => setNavigatorQuery(event.target.value)}
+                  placeholder="Search Functions…"
+                />
+              </div>
+              {canEdit && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="size-8"
+                  onClick={() => {
+                    setInspectorTab("settings");
+                    setSlugManuallyEdited(false);
+                    setNewFunctionSetupOpen(true);
+                    navigate("/functions/new");
+                  }}
+                  aria-label="New Function"
+                >
+                  <Plus size={13} />
+                </Button>
+              )}
             </div>
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Functions</p>
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Functions
+            </p>
             <div className="max-h-[48vh] space-y-0.5 overflow-auto">
-              {filteredFunctions.map((item) => <button key={item.id} onClick={() => navigate(`/functions/${item.id}`)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs ${fn?.id === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}><Code2 size={13} /><span className="min-w-0 flex-1 truncate">{item.name}</span><span className="text-[10px] text-muted-foreground">v{item.version}</span></button>)}
-              {!filteredFunctions.length && <p className="px-2 py-4 text-xs text-muted-foreground">No matching Functions.</p>}
+              {filteredFunctions.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(`/functions/${item.id}`)}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs ${fn?.id === item.id ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                >
+                  <Code2 size={13} />
+                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    v{item.version}
+                  </span>
+                </button>
+              ))}
+              {!filteredFunctions.length && (
+                <p className="px-2 py-4 text-xs text-muted-foreground">
+                  No matching Functions.
+                </p>
+              )}
             </div>
             <div className="my-3 border-t" />
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Project libraries</p>
-            <div className="space-y-0.5">{libraries.map((library) => <button key={library.id} onClick={() => navigate(`/libraries/${library.id}`)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs hover:bg-muted"><Library size={13} /><span className="truncate">{library.importPath}</span></button>)}</div>
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Project libraries
+            </p>
+            <div className="space-y-0.5">
+              {libraries.map((library) => (
+                <button
+                  key={library.id}
+                  onClick={() => navigate(`/libraries/${library.id}`)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs hover:bg-muted"
+                >
+                  <Library size={13} />
+                  <span className="truncate">{library.importPath}</span>
+                </button>
+              ))}
+            </div>
           </nav>
-          <ResizeHandle panel="left" value={workbenchLayout.left} onPointerDown={startPanelResize} onResize={resizePanel} onReset={() => setWorkbenchLayout((current) => ({ ...current, left: defaultWorkbenchLayout.left }))} />
+          <ResizeHandle
+            panel="left"
+            value={workbenchLayout.left}
+            onPointerDown={startPanelResize}
+            onResize={resizePanel}
+            onReset={() =>
+              setWorkbenchLayout((current) => ({
+                ...current,
+                left: defaultWorkbenchLayout.left,
+              }))
+            }
+          />
           <main className="flex min-w-0 flex-col xl:h-full xl:min-h-0 xl:overflow-hidden">
-            <div className="flex h-10 items-center gap-2 border-b bg-card px-3 text-[11px]"><FileInput size={12} /> {draft?.slug || "function"}.ts</div>
+            <div className="flex h-10 items-center gap-2 border-b bg-card px-3 text-[11px]">
+              <FileInput size={12} /> {draft?.slug || "function"}.ts
+            </div>
             {functionId === "new" && draft && newFunctionSetupOpen && (
               <section className="border-b bg-primary/5 p-4">
                 <div className="mx-auto max-w-3xl">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">New Function · required setup</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                    New Function · required setup
+                  </p>
                   <div className="mt-1 flex flex-wrap items-end gap-3">
                     <label className="min-w-52 flex-1">
                       <span className="label">Function name</span>
-                      <input autoFocus className="field" value={draft.name} placeholder="Search customers" onChange={(event) => { const name = event.target.value; update({ name, ...(!slugManuallyEdited ? { slug: functionSlug(name) } : {}) }); }} />
+                      <input
+                        autoFocus
+                        className="field"
+                        value={draft.name}
+                        placeholder="Search customers"
+                        onChange={(event) => {
+                          const name = event.target.value;
+                          update({
+                            name,
+                            ...(!slugManuallyEdited
+                              ? { slug: functionSlug(name) }
+                              : {}),
+                          });
+                        }}
+                      />
                     </label>
                     <label className="min-w-52 flex-1">
                       <span className="label">Slug</span>
-                      <input className="field font-mono" value={draft.slug} placeholder="search_customers" onChange={(event) => { setSlugManuallyEdited(true); update({ slug: functionSlug(event.target.value) }); }} />
+                      <input
+                        className="field font-mono"
+                        value={draft.slug}
+                        placeholder="search_customers"
+                        onChange={(event) => {
+                          setSlugManuallyEdited(true);
+                          update({ slug: functionSlug(event.target.value) });
+                        }}
+                      />
                     </label>
-                    <Button disabled={draft.name.trim().length < 2 || !validFunctionSlug(draft.slug)} onClick={() => setNewFunctionSetupOpen(false)}>Continue to editor</Button>
+                    <Button
+                      disabled={
+                        draft.name.trim().length < 2 || !validFunctionSlug(draft.slug)
+                      }
+                      onClick={() => setNewFunctionSetupOpen(false)}
+                    >
+                      Continue to editor
+                    </Button>
                   </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground">The slug is generated from the name and becomes the stable identifier used by <code>ctx.functions.call()</code>.</p>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    The slug is generated from the name and becomes the stable
+                    identifier used by <code>ctx.functions.call()</code>.
+                  </p>
                 </div>
               </section>
             )}
             <div className="min-h-80 flex-1 xl:min-h-0">
-              {loadError ? <div className="p-5"><LoadError title="Unable to open the Function editor" message={loadError} onRetry={() => setAttempt((value) => value + 1)} /></div> : !draft ? <Skeleton className="h-full min-h-[560px] rounded-none" /> : <TypeScriptEditor path={`file:///functions/${draft.slug || "new"}.ts`} value={draft.code} onChange={(code) => update({ code })} libraries={libraries} functions={functions} {...(schemas ? { inputSchema: schemas.input } : {})} runtimeContext readOnly={!canEdit} />}
+              {loadError ? (
+                <div className="p-5">
+                  <LoadError
+                    title="Unable to open the Function editor"
+                    message={loadError}
+                    onRetry={() => setAttempt((value) => value + 1)}
+                  />
+                </div>
+              ) : !draft ? (
+                <Skeleton className="h-full min-h-[560px] rounded-none" />
+              ) : (
+                <TypeScriptEditor
+                  path={`file:///functions/${draft.slug || "new"}.ts`}
+                  value={draft.code}
+                  onChange={(code) => update({ code })}
+                  libraries={libraries}
+                  functions={functions}
+                  {...(schemas ? { inputSchema: schemas.input } : {})}
+                  runtimeContext
+                  readOnly={!canEdit}
+                />
+              )}
             </div>
-            <ResizeHandle panel="bottom" value={workbenchLayout.bottom} onPointerDown={startPanelResize} onResize={resizePanel} onReset={() => setWorkbenchLayout((current) => ({ ...current, bottom: defaultWorkbenchLayout.bottom }))} />
-            <section className="shrink-0 overflow-auto border-t bg-card" style={{ height: workbenchLayout.bottom }}>
+            <ResizeHandle
+              panel="bottom"
+              value={workbenchLayout.bottom}
+              onPointerDown={startPanelResize}
+              onResize={resizePanel}
+              onReset={() =>
+                setWorkbenchLayout((current) => ({
+                  ...current,
+                  bottom: defaultWorkbenchLayout.bottom,
+                }))
+              }
+            />
+            <section
+              className="shrink-0 overflow-auto border-t bg-card"
+              style={{ height: workbenchLayout.bottom }}
+            >
               <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-                <div className="mr-2 flex items-center gap-2 text-xs font-semibold"><TerminalSquare size={13} /> Test console</div>
-                {(["setup", "output", "logs", "error"] as const).map((tab) => <button key={tab} onClick={() => setTestConsoleTab(tab)} className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium capitalize ${testConsoleTab === tab ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{tab}{tab === "logs" && testLogs.length ? ` (${testLogs.length})` : ""}</button>)}
+                <div className="mr-2 flex items-center gap-2 text-xs font-semibold">
+                  <TerminalSquare size={13} /> Test console
+                </div>
+                {(["setup", "output", "logs", "error"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setTestConsoleTab(tab)}
+                    className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium capitalize ${testConsoleTab === tab ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {tab}
+                    {tab === "logs" && testLogs.length ? ` (${testLogs.length})` : ""}
+                  </button>
+                ))}
                 <div className="ml-auto flex items-center gap-2">
-                  {typeof testRecord.status === "string" && <Badge tone={testRecord.status === "success" ? "success" : "danger"}>{testRecord.status}</Badge>}
-                  {typeof testRecord.durationMs === "number" && <span className="text-[10px] text-muted-foreground">{testRecord.durationMs} ms</span>}
-                  {dirty && <span className="text-[10px] text-amber-600">Save before testing</span>}
-                  <Button size="sm" variant="secondary" onClick={test} loading={busy === "test"} disabled={!canOperate || !fn || !endpointId || dirty}><Beaker size={12} /> Run</Button>
+                  {typeof testRecord.status === "string" && (
+                    <Badge
+                      tone={testRecord.status === "success" ? "success" : "danger"}
+                    >
+                      {testRecord.status}
+                    </Badge>
+                  )}
+                  {typeof testRecord.durationMs === "number" && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {testRecord.durationMs} ms
+                    </span>
+                  )}
+                  {dirty && (
+                    <span className="text-[10px] text-amber-600">
+                      Save before testing
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={test}
+                    loading={busy === "test"}
+                    disabled={!canOperate || !fn || !endpointId || dirty}
+                  >
+                    <Beaker size={12} /> Run
+                  </Button>
                 </div>
               </div>
               <div className="min-h-44 p-3">
-                {testConsoleTab === "setup" ? <div className="grid gap-3 lg:grid-cols-[220px_180px_1fr]">
-                  <div><label className="label">Capability endpoint</label><select className="field" value={endpointId} onChange={(event) => setEndpointId(event.target.value)}><option value="">Select endpoint</option>{endpoints.filter((endpoint) => endpoint.environment.slug === "development" && endpoint.activeDeployment).map((endpoint) => <option value={endpoint.id} key={endpoint.id}>{endpoint.name} · v{endpoint.activeDeployment?.version}</option>)}</select><label className="label mt-2">Simulated source</label><select className="field" value={testSource} onChange={(event) => setTestSource(event.target.value as typeof testSource)}><option value="test">Test</option><option value="mcp">MCP</option><option value="http">HTTP</option></select></div>
-                  <div><label className="label">Caller subject</label><input className="field font-mono" value={testSubject} onChange={(event) => setTestSubject(event.target.value)} /><label className="label mt-2">Caller permissions</label><PermissionAutocomplete value={testPermissions} suggestions={[...new Set([...permissionSuggestions, ...(draft?.permissions ?? [])])]} onChange={setTestPermissions} allowWildcard placeholder="Search project permissions" /></div>
-                  <div>
-                    <div className="mb-1 flex items-center gap-1"><label className="label mb-0 mr-auto">Function input</label><button type="button" className={`rounded px-2 py-1 text-[10px] ${testInputMode === "form" ? "bg-muted" : "text-muted-foreground"}`} onClick={() => setTestInputMode("form")}>Form</button><button type="button" className={`rounded px-2 py-1 text-[10px] ${testInputMode === "json" ? "bg-muted" : "text-muted-foreground"}`} onClick={() => setTestInputMode("json")}>JSON</button><Button size="sm" variant="ghost" onClick={() => schemas && setTestInput(JSON.stringify(generateExampleFromSchema(schemas.input), null, 2))}><WandSparkles size={11} /> Generate</Button></div>
-                    {testInputMode === "form" && schemas ? <SchemaDrivenInput schema={schemas.input} value={testInput} onChange={setTestInput} /> : <textarea className="field min-h-32 font-mono text-[11px]" value={testInput} onChange={(event) => setTestInput(event.target.value)} />}
+                {testConsoleTab === "setup" ? (
+                  <div className="grid gap-3 lg:grid-cols-[220px_180px_1fr]">
+                    <div>
+                      <label className="label">Capability endpoint</label>
+                      <select
+                        className="field"
+                        value={endpointId}
+                        onChange={(event) => setEndpointId(event.target.value)}
+                      >
+                        <option value="">Select endpoint</option>
+                        {endpoints
+                          .filter(
+                            (endpoint) =>
+                              endpoint.environment.slug === "development" &&
+                              endpoint.activeDeployment,
+                          )
+                          .map((endpoint) => (
+                            <option value={endpoint.id} key={endpoint.id}>
+                              {endpoint.name} · v{endpoint.activeDeployment?.version}
+                            </option>
+                          ))}
+                      </select>
+                      <label className="label mt-2">Simulated source</label>
+                      <select
+                        className="field"
+                        value={testSource}
+                        onChange={(event) =>
+                          setTestSource(event.target.value as typeof testSource)
+                        }
+                      >
+                        <option value="test">Test</option>
+                        <option value="mcp">MCP</option>
+                        <option value="http">HTTP</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Caller subject</label>
+                      <input
+                        className="field font-mono"
+                        value={testSubject}
+                        onChange={(event) => setTestSubject(event.target.value)}
+                      />
+                      <label className="label mt-2">Caller permissions</label>
+                      <PermissionAutocomplete
+                        value={testPermissions}
+                        suggestions={[
+                          ...new Set([
+                            ...permissionSuggestions,
+                            ...(draft?.permissions ?? []),
+                          ]),
+                        ]}
+                        onChange={setTestPermissions}
+                        allowWildcard
+                        placeholder="Search project permissions"
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 flex items-center gap-1">
+                        <label className="label mb-0 mr-auto">Function input</label>
+                        <button
+                          type="button"
+                          className={`rounded px-2 py-1 text-[10px] ${testInputMode === "form" ? "bg-muted" : "text-muted-foreground"}`}
+                          onClick={() => setTestInputMode("form")}
+                        >
+                          Form
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded px-2 py-1 text-[10px] ${testInputMode === "json" ? "bg-muted" : "text-muted-foreground"}`}
+                          onClick={() => setTestInputMode("json")}
+                        >
+                          JSON
+                        </button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            schemas &&
+                            setTestInput(
+                              JSON.stringify(
+                                generateExampleFromSchema(schemas.input),
+                                null,
+                                2,
+                              ),
+                            )
+                          }
+                        >
+                          <WandSparkles size={11} /> Generate
+                        </Button>
+                      </div>
+                      {testInputMode === "form" && schemas ? (
+                        <SchemaDrivenInput
+                          schema={schemas.input}
+                          value={testInput}
+                          onChange={setTestInput}
+                        />
+                      ) : (
+                        <textarea
+                          className="field min-h-32 font-mono text-[11px]"
+                          value={testInput}
+                          onChange={(event) => setTestInput(event.target.value)}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div> : testConsoleTab === "output" ? <ConsolePayload empty="Run the Function to inspect its structured output." value={testRecord.output} metadata={testRecord} /> : testConsoleTab === "logs" ? <div className="max-h-64 space-y-1 overflow-auto font-mono text-[10px]">{testLogs.length ? testLogs.map((log, index) => <div key={`${String(log.timestamp)}-${index}`} className="grid grid-cols-[70px_70px_1fr] gap-2 rounded-md border px-2 py-1.5"><span className="text-muted-foreground">{typeof log.timestamp === "string" ? new Date(log.timestamp).toLocaleTimeString() : ""}</span><span className="uppercase">{String(log.level ?? "info")}</span><span className="whitespace-pre-wrap">{String(log.message ?? "")}{log.metadata ? ` ${JSON.stringify(log.metadata)}` : ""}</span></div>) : <p className="text-xs text-muted-foreground">No runtime logs were emitted.</p>}</div> : <ConsolePayload empty="No error was returned by the latest test." value={testRecord.error} metadata={testRecord} />}
+                ) : testConsoleTab === "output" ? (
+                  <ConsolePayload
+                    empty="Run the Function to inspect its structured output."
+                    value={testRecord.output}
+                    metadata={testRecord}
+                  />
+                ) : testConsoleTab === "logs" ? (
+                  <div className="max-h-64 space-y-1 overflow-auto font-mono text-[10px]">
+                    {testLogs.length ? (
+                      testLogs.map((log, index) => (
+                        <div
+                          key={`${String(log.timestamp)}-${index}`}
+                          className="grid grid-cols-[70px_70px_1fr] gap-2 rounded-md border px-2 py-1.5"
+                        >
+                          <span className="text-muted-foreground">
+                            {typeof log.timestamp === "string"
+                              ? new Date(log.timestamp).toLocaleTimeString()
+                              : ""}
+                          </span>
+                          <span className="uppercase">
+                            {String(log.level ?? "info")}
+                          </span>
+                          <span className="whitespace-pre-wrap">
+                            {String(log.message ?? "")}
+                            {log.metadata ? ` ${JSON.stringify(log.metadata)}` : ""}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        No runtime logs were emitted.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <ConsolePayload
+                    empty="No error was returned by the latest test."
+                    value={testRecord.error}
+                    metadata={testRecord}
+                  />
+                )}
               </div>
             </section>
           </main>
-          <ResizeHandle panel="right" value={workbenchLayout.right} onPointerDown={startPanelResize} onResize={resizePanel} onReset={() => setWorkbenchLayout((current) => ({ ...current, right: defaultWorkbenchLayout.right }))} />
+          <ResizeHandle
+            panel="right"
+            value={workbenchLayout.right}
+            onPointerDown={startPanelResize}
+            onResize={resizePanel}
+            onReset={() =>
+              setWorkbenchLayout((current) => ({
+                ...current,
+                right: defaultWorkbenchLayout.right,
+              }))
+            }
+          />
           <aside className="border-l bg-card xl:overflow-hidden">
-            <div className="flex border-b p-1">{([{"id":"settings","label":"Settings","icon":Settings2},{"id":"schemas","label":"Schemas","icon":Braces},{"id":"bindings","label":"Bindings","icon":Link2}] as const).map((item) => <button key={item.id} onClick={() => setInspectorTab(item.id)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-[11px] font-medium ${inspectorTab === item.id ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}><item.icon size={12} /> {item.label}</button>)}</div>
+            <div className="flex border-b p-1">
+              {(
+                [
+                  { id: "settings", label: "Settings", icon: Settings2 },
+                  { id: "schemas", label: "Schemas", icon: Braces },
+                  { id: "bindings", label: "Bindings", icon: Link2 },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setInspectorTab(item.id)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-[11px] font-medium ${inspectorTab === item.id ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <item.icon size={12} /> {item.label}
+                </button>
+              ))}
+            </div>
             <div className="max-h-[calc(100vh-205px)] overflow-auto p-4">
-              {!draft ? <Skeleton className="h-96" /> : inspectorTab === "settings" ? <>
-                <Field label="Name"><input className="field" value={draft.name} onChange={(event) => { const name = event.target.value; update({ name, ...(!fn && !slugManuallyEdited ? { slug: functionSlug(name) } : {}) }); }} /></Field>
-                <Field label="Slug" hint={fn ? "Stable code identifier" : "Generated from the name"}><input className="field font-mono" value={draft.slug} onChange={(event) => { setSlugManuallyEdited(true); update({ slug: functionSlug(event.target.value) }); }} readOnly={Boolean(fn)} /></Field>
-                <Field label="Description"><textarea className="field min-h-20" value={draft.description} onChange={(event) => update({ description: event.target.value })} /></Field>
-                <div className="grid grid-cols-2 gap-2"><Field label="Risk"><select className="field" value={draft.riskLevel} onChange={(event) => update({ riskLevel: event.target.value as Draft["riskLevel"] })}><option>read</option><option>write</option><option>destructive</option></select></Field><Field label="Timeout ms"><input className="field" type="number" value={draft.timeoutMs} onChange={(event) => update({ timeoutMs: Number(event.target.value) })} /></Field></div>
-                <Field label="Required permissions" hint="Choose a known permission or enter a new project permission"><PermissionAutocomplete value={draft.permissions} suggestions={permissionSuggestions} onChange={(permissions) => update({ permissions })} /></Field>
-                <label className="mb-4 flex items-center gap-2 text-xs"><input type="checkbox" checked={draft.enabled} onChange={(event) => update({ enabled: event.target.checked })} /> Enabled</label>
-                <h3 className="mb-2 text-[11px] font-semibold">Secret grants</h3><p className="mb-2 text-[10px] text-muted-foreground">One grant per project Secret name; runtime values still resolve from the selected endpoint environment.</p><div className="max-h-40 space-y-1 overflow-auto">{logicalSecrets.map((secret) => { const granted = draft.secretGrantIds.includes(secret.id) || draft.secretGrantIds.some((id) => secrets.find((candidate) => candidate.id === id)?.name === secret.name); return <label key={secret.name} className="flex items-center gap-2 text-[11px]"><input type="checkbox" checked={granted} onChange={(event) => update({ secretGrantIds: event.target.checked ? [...draft.secretGrantIds.filter((id) => secrets.find((candidate) => candidate.id === id)?.name !== secret.name), secret.id] : draft.secretGrantIds.filter((id) => secrets.find((candidate) => candidate.id === id)?.name !== secret.name) })} /><code>{secret.name}</code></label>; })}</div>
-              </> : inspectorTab === "schemas" ? <>
-                <SchemaDefinitionEditor label="Input schema" value={draft.inputSchema} onChange={(inputSchema) => update({ inputSchema })} />
-                <SchemaDefinitionEditor label="Output schema" value={draft.outputSchema} onChange={(outputSchema) => update({ outputSchema })} />
-                {!schemas && <p className="text-xs text-red-500">Schema JSON is invalid.</p>}
-              </> : <FunctionBindings fn={fn} endpoints={endpoints} functions={functions} canEdit={canEdit} busyId={bindingBusyId} onChanged={refreshFunctionMetadata} onToggle={toggleBinding} onRemove={removeBinding} />}
+              {!draft ? (
+                <Skeleton className="h-96" />
+              ) : inspectorTab === "settings" ? (
+                <>
+                  <Field label="Name">
+                    <input
+                      className="field"
+                      value={draft.name}
+                      onChange={(event) => {
+                        const name = event.target.value;
+                        update({
+                          name,
+                          ...(!fn && !slugManuallyEdited
+                            ? { slug: functionSlug(name) }
+                            : {}),
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="Slug"
+                    hint={fn ? "Stable code identifier" : "Generated from the name"}
+                  >
+                    <input
+                      className="field font-mono"
+                      value={draft.slug}
+                      onChange={(event) => {
+                        setSlugManuallyEdited(true);
+                        update({ slug: functionSlug(event.target.value) });
+                      }}
+                      readOnly={Boolean(fn)}
+                    />
+                  </Field>
+                  <Field label="Description">
+                    <textarea
+                      className="field min-h-20"
+                      value={draft.description}
+                      onChange={(event) => update({ description: event.target.value })}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Risk">
+                      <select
+                        className="field"
+                        value={draft.riskLevel}
+                        onChange={(event) =>
+                          update({
+                            riskLevel: event.target.value as Draft["riskLevel"],
+                          })
+                        }
+                      >
+                        <option>read</option>
+                        <option>write</option>
+                        <option>destructive</option>
+                      </select>
+                    </Field>
+                    <Field label="Timeout ms">
+                      <input
+                        className="field"
+                        type="number"
+                        value={draft.timeoutMs}
+                        onChange={(event) =>
+                          update({ timeoutMs: Number(event.target.value) })
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <Field
+                    label="Required permissions"
+                    hint="Choose a known permission or enter a new project permission"
+                  >
+                    <PermissionAutocomplete
+                      value={draft.permissions}
+                      suggestions={permissionSuggestions}
+                      onChange={(permissions) => update({ permissions })}
+                    />
+                  </Field>
+                  <label className="mb-4 flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={draft.enabled}
+                      onChange={(event) => update({ enabled: event.target.checked })}
+                    />{" "}
+                    Enabled
+                  </label>
+                  <h3 className="mb-2 text-[11px] font-semibold">Secret grants</h3>
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    One grant per project Secret name; runtime values still resolve from
+                    the selected endpoint environment.
+                  </p>
+                  <div className="max-h-40 space-y-1 overflow-auto">
+                    {logicalSecrets.map((secret) => {
+                      const granted =
+                        draft.secretGrantIds.includes(secret.id) ||
+                        draft.secretGrantIds.some(
+                          (id) =>
+                            secrets.find((candidate) => candidate.id === id)?.name ===
+                            secret.name,
+                        );
+                      return (
+                        <label
+                          key={secret.name}
+                          className="flex items-center gap-2 text-[11px]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={granted}
+                            onChange={(event) =>
+                              update({
+                                secretGrantIds: event.target.checked
+                                  ? [
+                                      ...draft.secretGrantIds.filter(
+                                        (id) =>
+                                          secrets.find(
+                                            (candidate) => candidate.id === id,
+                                          )?.name !== secret.name,
+                                      ),
+                                      secret.id,
+                                    ]
+                                  : draft.secretGrantIds.filter(
+                                      (id) =>
+                                        secrets.find((candidate) => candidate.id === id)
+                                          ?.name !== secret.name,
+                                    ),
+                              })
+                            }
+                          />
+                          <code>{secret.name}</code>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : inspectorTab === "schemas" ? (
+                <>
+                  <SchemaDefinitionEditor
+                    label="Input schema"
+                    value={draft.inputSchema}
+                    onChange={(inputSchema) => update({ inputSchema })}
+                  />
+                  <SchemaDefinitionEditor
+                    label="Output schema"
+                    value={draft.outputSchema}
+                    onChange={(outputSchema) => update({ outputSchema })}
+                  />
+                  {!schemas && (
+                    <p className="text-xs text-red-500">Schema JSON is invalid.</p>
+                  )}
+                </>
+              ) : (
+                <FunctionBindings
+                  fn={fn}
+                  endpoints={endpoints}
+                  functions={functions}
+                  canEdit={canEdit}
+                  busyId={bindingBusyId}
+                  onChanged={refreshFunctionMetadata}
+                  onToggle={toggleBinding}
+                  onRemove={removeBinding}
+                />
+              )}
             </div>
           </aside>
         </div>
@@ -731,18 +1305,52 @@ function FunctionBindings({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold">Function bindings</h2>
-          <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Saved separately from Function versions. Deploy the Project to publish changes.</p>
+          <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+            Saved separately from Function versions. Deploy the Project to publish
+            changes.
+          </p>
         </div>
         {canEdit && (
-          <BindingEditorDialog endpoints={endpoints} functions={functions} fixedFunctionId={fn.id} onSaved={onChanged} />
+          <BindingEditorDialog
+            endpoints={endpoints}
+            functions={functions}
+            fixedFunctionId={fn.id}
+            onSaved={onChanged}
+          />
         )}
       </div>
       {!mcp.length && !http.length ? (
-        <EmptyState icon={<Link2 />} title="Not exposed" description="Add an MCP tool or HTTP route binding for this Function." />
+        <EmptyState
+          icon={<Link2 />}
+          title="Not exposed"
+          description="Add an MCP tool or HTTP route binding for this Function."
+        />
       ) : (
         <>
-          <BindingGroup label="MCP tools" bindings={mcp.map(editableMcp)} endpoints={endpoints} functions={functions} fixedFunctionId={fn.id} canEdit={canEdit} busyId={busyId} onChanged={onChanged} onToggle={onToggle} onRemove={onRemove} />
-          <BindingGroup label="HTTP routes" bindings={http.map(editableHttp)} endpoints={endpoints} functions={functions} fixedFunctionId={fn.id} canEdit={canEdit} busyId={busyId} onChanged={onChanged} onToggle={onToggle} onRemove={onRemove} />
+          <BindingGroup
+            label="MCP tools"
+            bindings={mcp.map(editableMcp)}
+            endpoints={endpoints}
+            functions={functions}
+            fixedFunctionId={fn.id}
+            canEdit={canEdit}
+            busyId={busyId}
+            onChanged={onChanged}
+            onToggle={onToggle}
+            onRemove={onRemove}
+          />
+          <BindingGroup
+            label="HTTP routes"
+            bindings={http.map(editableHttp)}
+            endpoints={endpoints}
+            functions={functions}
+            fixedFunctionId={fn.id}
+            canEdit={canEdit}
+            busyId={busyId}
+            onChanged={onChanged}
+            onToggle={onToggle}
+            onRemove={onRemove}
+          />
         </>
       )}
     </div>
@@ -775,25 +1383,71 @@ function BindingGroup({
   if (!bindings.length) return null;
   return (
     <section>
-      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</h3>
+      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h3>
       <div className="space-y-2">
         {bindings.map((binding) => {
-          const exposure = binding.kind === "mcp" ? binding.toolName : `${binding.method} ${binding.path}`;
+          const exposure =
+            binding.kind === "mcp"
+              ? binding.toolName
+              : `${binding.method} ${binding.path}`;
           const endpoint = endpoints.find((item) => item.id === binding.endpointId);
           return (
             <div key={binding.id} className="rounded-lg border p-3">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <code className="block truncate text-[11px] font-semibold">{exposure}</code>
-                  {endpoint ? <Link href={`${endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${endpoint.id}?tab=bindings`} className="mt-1 block truncate text-[10px] text-muted-foreground hover:text-primary">{endpoint.name} · {endpoint.environment.name}</Link> : <span className="text-[10px] text-muted-foreground">Endpoint unavailable</span>}
+                  <code className="block truncate text-[11px] font-semibold">
+                    {exposure}
+                  </code>
+                  {endpoint ? (
+                    <Link
+                      href={`${endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${endpoint.id}?tab=bindings`}
+                      className="mt-1 block truncate text-[10px] text-muted-foreground hover:text-primary"
+                    >
+                      {endpoint.name} · {endpoint.environment.name}
+                    </Link>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">
+                      Endpoint unavailable
+                    </span>
+                  )}
                 </div>
-                <Badge tone={binding.enabled ? "success" : "neutral"}>{binding.enabled ? "enabled" : "disabled"}</Badge>
+                <Badge tone={binding.enabled ? "success" : "neutral"}>
+                  {binding.enabled ? "enabled" : "disabled"}
+                </Badge>
               </div>
-              {canEdit && <div className="mt-2 flex justify-end gap-1 border-t pt-2">
-                <Button variant="ghost" size="sm" loading={busyId === binding.id} disabled={Boolean(busyId)} onClick={() => void onToggle(binding)}>{binding.enabled ? "Disable" : "Enable"}</Button>
-                <BindingEditorDialog endpoints={endpoints} functions={functions} fixedFunctionId={fixedFunctionId} binding={binding} onSaved={onChanged} />
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-500" loading={busyId === binding.id} disabled={Boolean(busyId)} onClick={() => void onRemove(binding)} aria-label="Remove binding"><Trash2 size={13} /></Button>
-              </div>}
+              {canEdit && (
+                <div className="mt-2 flex justify-end gap-1 border-t pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    loading={busyId === binding.id}
+                    disabled={Boolean(busyId)}
+                    onClick={() => void onToggle(binding)}
+                  >
+                    {binding.enabled ? "Disable" : "Enable"}
+                  </Button>
+                  <BindingEditorDialog
+                    endpoints={endpoints}
+                    functions={functions}
+                    fixedFunctionId={fixedFunctionId}
+                    binding={binding}
+                    onSaved={onChanged}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-red-500"
+                    loading={busyId === binding.id}
+                    disabled={Boolean(busyId)}
+                    onClick={() => void onRemove(binding)}
+                    aria-label="Remove binding"
+                  >
+                    <Trash2 size={13} />
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -844,8 +1498,10 @@ function ResizeHandle({
 }) {
   const horizontal = panel === "bottom";
   const keyboardDelta = (key: string) => {
-    if (panel === "left") return key === "ArrowLeft" ? -16 : key === "ArrowRight" ? 16 : 0;
-    if (panel === "right") return key === "ArrowLeft" ? 16 : key === "ArrowRight" ? -16 : 0;
+    if (panel === "left")
+      return key === "ArrowLeft" ? -16 : key === "ArrowRight" ? 16 : 0;
+    if (panel === "right")
+      return key === "ArrowLeft" ? 16 : key === "ArrowRight" ? -16 : 0;
     return key === "ArrowUp" ? 16 : key === "ArrowDown" ? -16 : 0;
   };
   return (
@@ -858,9 +1514,11 @@ function ResizeHandle({
       aria-valuemin={panel === "left" ? 190 : panel === "right" ? 300 : 180}
       aria-valuemax={panel === "left" ? 420 : panel === "right" ? 560 : 520}
       title="Drag to resize · Double-click to reset"
-      className={horizontal
-        ? "group flex h-1.5 cursor-row-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30"
-        : "group hidden cursor-col-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30 xl:flex"}
+      className={
+        horizontal
+          ? "group flex h-1.5 cursor-row-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30"
+          : "group hidden cursor-col-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30 xl:flex"
+      }
       onPointerDown={(event) => onPointerDown(panel, event)}
       onDoubleClick={onReset}
       onKeyDown={(event) => {
@@ -870,7 +1528,13 @@ function ResizeHandle({
         onResize(panel, delta);
       }}
     >
-      <span className={horizontal ? "h-0.5 w-10 rounded-full bg-muted-foreground/40 group-hover:bg-primary" : "h-10 w-0.5 rounded-full bg-muted-foreground/40 group-hover:bg-primary"} />
+      <span
+        className={
+          horizontal
+            ? "h-0.5 w-10 rounded-full bg-muted-foreground/40 group-hover:bg-primary"
+            : "h-10 w-0.5 rounded-full bg-muted-foreground/40 group-hover:bg-primary"
+        }
+      />
     </div>
   );
 }
@@ -889,9 +1553,7 @@ function Field({
       <span className="label">{label}</span>
       {children}
       {hint && (
-        <span className="mt-1 block text-[10px] text-muted-foreground">
-          {hint}
-        </span>
+        <span className="mt-1 block text-[10px] text-muted-foreground">{hint}</span>
       )}
     </label>
   );
@@ -912,8 +1574,9 @@ function ConsolePayload({
     ["Function version", metadata.functionVersion],
     ["Invocation source", metadata.invocationSource],
     ["Simulated source", metadata.simulatedSource],
-  ].filter((entry): entry is [string, string | number] =>
-    typeof entry[1] === "string" || typeof entry[1] === "number",
+  ].filter(
+    (entry): entry is [string, string | number] =>
+      typeof entry[1] === "string" || typeof entry[1] === "number",
   );
   const deployment = asRecord(metadata.activeDeployment);
   if (typeof deployment.version === "number")
@@ -931,13 +1594,23 @@ function ConsolePayload({
         )}
       </div>
       <dl className="space-y-2 rounded-lg border p-3 text-[10px]">
-        <dt className="font-semibold uppercase tracking-wider text-muted-foreground">Invocation metadata</dt>
-        {details.length ? details.map(([label, detail]) => (
-          <div key={label}>
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="truncate font-mono" title={String(detail)}>{detail}</dd>
-          </div>
-        )) : <dd className="text-muted-foreground">Run the Function to populate metadata.</dd>}
+        <dt className="font-semibold uppercase tracking-wider text-muted-foreground">
+          Invocation metadata
+        </dt>
+        {details.length ? (
+          details.map(([label, detail]) => (
+            <div key={label}>
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="truncate font-mono" title={String(detail)}>
+                {detail}
+              </dd>
+            </div>
+          ))
+        ) : (
+          <dd className="text-muted-foreground">
+            Run the Function to populate metadata.
+          </dd>
+        )}
       </dl>
     </div>
   );
@@ -963,7 +1636,8 @@ function readStoredTestValues(value: string | null): StoredTestValues | undefine
       !parsed.permissions.every((permission) => typeof permission === "string") ||
       (source !== "test" && source !== "mcp" && source !== "http") ||
       (inputMode !== "form" && inputMode !== "json")
-    ) return undefined;
+    )
+      return undefined;
     return {
       endpointId: parsed.endpointId,
       input: parsed.input,
@@ -982,9 +1656,20 @@ function readWorkbenchLayout(value: string | null): WorkbenchLayout {
   try {
     const parsed = asRecord(JSON.parse(value));
     return {
-      left: clampPanelSize("left", typeof parsed.left === "number" ? parsed.left : defaultWorkbenchLayout.left),
-      right: clampPanelSize("right", typeof parsed.right === "number" ? parsed.right : defaultWorkbenchLayout.right),
-      bottom: clampPanelSize("bottom", typeof parsed.bottom === "number" ? parsed.bottom : defaultWorkbenchLayout.bottom),
+      left: clampPanelSize(
+        "left",
+        typeof parsed.left === "number" ? parsed.left : defaultWorkbenchLayout.left,
+      ),
+      right: clampPanelSize(
+        "right",
+        typeof parsed.right === "number" ? parsed.right : defaultWorkbenchLayout.right,
+      ),
+      bottom: clampPanelSize(
+        "bottom",
+        typeof parsed.bottom === "number"
+          ? parsed.bottom
+          : defaultWorkbenchLayout.bottom,
+      ),
     };
   } catch {
     return defaultWorkbenchLayout;
@@ -992,7 +1677,8 @@ function readWorkbenchLayout(value: string | null): WorkbenchLayout {
 }
 
 function clampPanelSize(panel: WorkbenchPanel, value: number) {
-  const [minimum, maximum] = panel === "left" ? [190, 420] : panel === "right" ? [300, 560] : [180, 520];
+  const [minimum, maximum] =
+    panel === "left" ? [190, 420] : panel === "right" ? [300, 560] : [180, 520];
   return Math.min(maximum, Math.max(minimum, Math.round(value)));
 }
 
@@ -1006,5 +1692,9 @@ function functionSlug(value: string) {
 }
 
 function validFunctionSlug(value: string) {
-  return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(value) && value.length >= 2 && value.length <= 80;
+  return (
+    /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(value) &&
+    value.length >= 2 &&
+    value.length <= 80
+  );
 }

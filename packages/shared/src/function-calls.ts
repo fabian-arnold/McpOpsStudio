@@ -66,8 +66,7 @@ export function resolveFunctionCallGraph<T extends CallableFunction>(
     }
     visiting.add(id);
     selected.add(id);
-    for (const callee of callsById.get(id) ?? [])
-      visit(callee.id, [...path, fn.slug]);
+    for (const callee of callsById.get(id) ?? []) visit(callee.id, [...path, fn.slug]);
     visiting.delete(id);
     visited.add(id);
   };

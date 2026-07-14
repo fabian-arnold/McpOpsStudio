@@ -42,7 +42,9 @@ describe("runtime contracts", () => {
     expect(isPublicRuntimePath("/mcp/acme/customer-operations")).toBe(true);
     expect(isPublicRuntimePath("/mcp-dev/acme/customer-operations")).toBe(true);
     expect(isPublicRuntimePath("/http/acme/customer-operations/v1/search")).toBe(true);
-    expect(isPublicRuntimePath("/http-dev/acme/customer-operations/v1/search")).toBe(true);
+    expect(isPublicRuntimePath("/http-dev/acme/customer-operations/v1/search")).toBe(
+      true,
+    );
     expect(isPublicRuntimePath("/health")).toBe(false);
     expect(isPublicRuntimePath("/internal/capabilities")).toBe(false);
   });
@@ -80,12 +82,8 @@ describe("runtime contracts", () => {
       additionalProperties: false,
       properties: { query: { type: "string", minLength: 1 } },
     };
-    expect(() =>
-      validateAgainstSchema(schema, { query: "ada" }, "r1"),
-    ).not.toThrow();
-    expect(() => validateAgainstSchema(schema, {}, "r1")).toThrow(
-      /input is invalid/,
-    );
+    expect(() => validateAgainstSchema(schema, { query: "ada" }, "r1")).not.toThrow();
+    expect(() => validateAgainstSchema(schema, {}, "r1")).toThrow(/input is invalid/);
   });
   it("maps path, query and body into the shared invocation input", () => {
     const binding = {
@@ -130,11 +128,7 @@ describe("runtime contracts", () => {
   });
   it("rejects missing and invalid HTTP response mapping paths safely", () => {
     expect(() =>
-      applyHttpResponseMapping(
-        { customer: {} },
-        { customerId: "$.customer.id" },
-        "r1",
-      ),
+      applyHttpResponseMapping({ customer: {} }, { customerId: "$.customer.id" }, "r1"),
     ).toThrow(/was not present/);
     expect(() =>
       applyHttpResponseMapping({}, { statusCode: 700, body: "$" }, "r1"),
@@ -144,9 +138,10 @@ describe("runtime contracts", () => {
     expect(
       normalizeCachePolicy({ defaultTtlSeconds: 120, maxTtlSeconds: 600 }),
     ).toEqual({ defaultTtlSeconds: 120, maxTtlSeconds: 600 });
-    expect(
-      normalizeCachePolicy({ ttlSeconds: 900, maxTtlSeconds: 300 }),
-    ).toEqual({ defaultTtlSeconds: 300, maxTtlSeconds: 300 });
+    expect(normalizeCachePolicy({ ttlSeconds: 900, maxTtlSeconds: 300 })).toEqual({
+      defaultTtlSeconds: 300,
+      maxTtlSeconds: 300,
+    });
   });
   it("builds structured redacted test logs tied to an execution ID", () => {
     const request = {

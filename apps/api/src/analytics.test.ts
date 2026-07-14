@@ -71,11 +71,7 @@ describe("control-plane analytics", () => {
 
   it("derives encoded canonical endpoint URLs from configured base URL", () => {
     expect(
-      canonicalEndpointUrls(
-        "https://runtime.example.test/",
-        "acme eu",
-        "customer-ops",
-      ),
+      canonicalEndpointUrls("https://runtime.example.test/", "acme eu", "customer-ops"),
     ).toEqual({
       runtimeBaseUrl: "https://runtime.example.test",
       mcpUrl: "https://runtime.example.test/mcp/acme%20eu/customer-ops",

@@ -11,8 +11,7 @@ export const cachePolicySchema = z
   .strict()
   .refine(
     (policy) =>
-      (policy.defaultTtlSeconds ?? policy.ttlSeconds ?? 300) <=
-      policy.maxTtlSeconds,
+      (policy.defaultTtlSeconds ?? policy.ttlSeconds ?? 300) <= policy.maxTtlSeconds,
     "Default cache TTL cannot exceed maximum cache TTL",
   );
 export const endpointAccessPolicySchema = z
@@ -21,8 +20,7 @@ export const endpointAccessPolicySchema = z
     allowedSubjects: z.array(z.string().min(1).max(256)).default([]),
   })
   .refine(
-    (policy) =>
-      policy.mode !== "restricted" || policy.allowedSubjects.length > 0,
+    (policy) => policy.mode !== "restricted" || policy.allowedSubjects.length > 0,
     "Restricted endpoint access requires at least one subject rule",
   );
 export const snapshotFunctionSchema = z.object({
@@ -126,11 +124,17 @@ export const reviewedQuerySnapshotSchema = z
 export const deploymentSnapshotSchema = z
   .object({
     functions: z.array(snapshotFunctionSchema),
-    functionCalls: z.array(z.object({
-      callerFunctionId: z.string(),
-      calleeFunctionId: z.string(),
-      calleeSlug: z.string(),
-    }).strict()).default([]),
+    functionCalls: z
+      .array(
+        z
+          .object({
+            callerFunctionId: z.string(),
+            calleeFunctionId: z.string(),
+            calleeSlug: z.string(),
+          })
+          .strict(),
+      )
+      .default([]),
     mcpBindings: z.array(mcpBindingSchema).default([]),
     httpBindings: z.array(httpBindingSchema).default([]),
     authPolicies: z.array(authPolicySchema).default([]),
@@ -146,10 +150,7 @@ export const deploymentSnapshotSchema = z
       })
       .default({}),
     env: z
-      .record(
-        z.string().regex(/^[A-Z][A-Z0-9_]{0,127}$/),
-        z.string().max(8_192),
-      )
+      .record(z.string().regex(/^[A-Z][A-Z0-9_]{0,127}$/), z.string().max(8_192))
       .default({}),
     libraries: z.array(z.record(z.unknown())).default([]),
     capabilities: z

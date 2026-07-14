@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  bindingMapLayoutSchema,
-  bindingMapNodeIds,
-} from "./binding-map-layout.js";
+import { bindingMapLayoutSchema, bindingMapNodeIds } from "./binding-map-layout.js";
 
 const endpointId = "00000000-0000-4000-8000-000000000001";
 const bindingId = "00000000-0000-4000-8000-000000000002";

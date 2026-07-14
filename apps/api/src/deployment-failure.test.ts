@@ -14,7 +14,10 @@ describe("legacy deployment failure attribution", () => {
     expect(
       inferFailedFunction(
         'Build failed:\n../../../virtual/function.ts:1:14: ERROR: Expected ";" but found ":"',
-        [source("broken", "const value = : true"), source("valid", "const value = true")],
+        [
+          source("broken", "const value = : true"),
+          source("valid", "const value = true"),
+        ],
       )?.id,
     ).toBe("broken");
   });

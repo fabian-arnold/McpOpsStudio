@@ -31,11 +31,11 @@ describe("development payload capture", () => {
   });
 
   it("allows capture only in Development", () => {
-    expect(
-      shouldCapturePayloads({ slug: "development", capturePayloads: true }),
-    ).toBe(true);
-    expect(
-      shouldCapturePayloads({ slug: "production", capturePayloads: true }),
-    ).toBe(false);
+    expect(shouldCapturePayloads({ slug: "development", capturePayloads: true })).toBe(
+      true,
+    );
+    expect(shouldCapturePayloads({ slug: "production", capturePayloads: true })).toBe(
+      false,
+    );
   });
 });

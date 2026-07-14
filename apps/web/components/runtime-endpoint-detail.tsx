@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -34,11 +34,7 @@ import { useToast } from "@/components/providers";
 import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { roleAllows, useCurrentUser } from "@/lib/session";
-import type {
-  HttpBinding,
-  McpBinding,
-  RuntimeEndpointDetail,
-} from "@/lib/types";
+import type { HttpBinding, McpBinding, RuntimeEndpointDetail } from "@/lib/types";
 import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls";
 import {
   BindingEditorDialog,
@@ -71,9 +67,9 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
   const router = useRouter();
   const [endpoint, setEndpoint] = useState<RuntimeEndpointDetail>();
   const [error, setError] = useState<string>();
-  const tab = (tabs.some((item) => item.id === search.get("tab"))
-    ? search.get("tab")
-    : "overview") as Tab;
+  const tab = (
+    tabs.some((item) => item.id === search.get("tab")) ? search.get("tab") : "overview"
+  ) as Tab;
   const basePath = kind === "mcp" ? "/mcp-endpoints" : "/http-apis";
   const label = kind === "mcp" ? "MCP Endpoint" : "HTTP API";
 
@@ -83,8 +79,7 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
       const value = await api<RuntimeEndpointDetail>(
         `/api/runtime-endpoints/${endpointId}`,
       );
-      if (value.kind !== kind)
-        throw new Error(`This endpoint is not an ${label}.`);
+      if (value.kind !== kind) throw new Error(`This endpoint is not an ${label}.`);
       setEndpoint(value);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -165,14 +160,38 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
   );
 }
 
-function Overview({ endpoint, kind }: { endpoint: RuntimeEndpointDetail; kind: EndpointKind }) {
+function Overview({
+  endpoint,
+  kind,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  kind: EndpointKind;
+}) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat icon={<Boxes size={15} />} label="Active deployment" value={endpoint.activeDeployment ? `v${endpoint.activeDeployment.version}` : "None"} />
-        <Stat icon={<Code2 size={15} />} label="Bound Functions" value={endpoint.functionCount} />
-        <Stat icon={<Activity size={15} />} label="Calls · 24h" value={endpoint.telemetry?.calls ?? 0} />
-        <Stat icon={<ShieldCheck size={15} />} label="Authentication" value={endpoint.authMode} />
+        <Stat
+          icon={<Boxes size={15} />}
+          label="Active deployment"
+          value={
+            endpoint.activeDeployment ? `v${endpoint.activeDeployment.version}` : "None"
+          }
+        />
+        <Stat
+          icon={<Code2 size={15} />}
+          label="Bound Functions"
+          value={endpoint.functionCount}
+        />
+        <Stat
+          icon={<Activity size={15} />}
+          label="Calls · 24h"
+          value={endpoint.telemetry?.calls ?? 0}
+        />
+        <Stat
+          icon={<ShieldCheck size={15} />}
+          label="Authentication"
+          value={endpoint.authMode}
+        />
       </div>
       <section className="panel p-5">
         <h2 className="text-sm font-semibold">Public endpoint</h2>
@@ -190,16 +209,35 @@ function Overview({ endpoint, kind }: { endpoint: RuntimeEndpointDetail; kind: E
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function Stat({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="panel p-4">
-      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{label}</span>{icon}</div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        {icon}
+      </div>
       <p className="mt-3 text-xl font-semibold">{value}</p>
     </div>
   );
 }
 
-function Bindings({ endpoint, kind, onChanged }: { endpoint: RuntimeEndpointDetail; kind: EndpointKind; onChanged: () => Promise<void> }) {
+function Bindings({
+  endpoint,
+  kind,
+  onChanged,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  kind: EndpointKind;
+  onChanged: () => Promise<void>;
+}) {
   const user = useCurrentUser();
   const canManage = roleAllows(user?.role, ["owner", "admin", "developer"]);
   const bindings = kind === "mcp" ? endpoint.mcpBindings : endpoint.httpBindings;
@@ -207,32 +245,115 @@ function Bindings({ endpoint, kind, onChanged }: { endpoint: RuntimeEndpointDeta
     <section className="panel overflow-hidden">
       <div className="flex items-center justify-between border-b p-4">
         <div>
-          <h2 className="text-sm font-semibold">{kind === "mcp" ? "MCP tools" : "HTTP routes"}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Every binding selects a reusable project Function.</p>
+          <h2 className="text-sm font-semibold">
+            {kind === "mcp" ? "MCP tools" : "HTTP routes"}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Every binding selects a reusable project Function.
+          </p>
         </div>
-        {canManage && <BindingEditorDialog
-          endpoints={[endpoint]}
-          functions={endpoint.functions}
-          fixedEndpointId={endpoint.id}
-          initialKind={kind}
-          onSaved={onChanged}
-          trigger={<Button size="sm"><Plus size={14} /> Add {kind === "mcp" ? "tool" : "route"}</Button>}
-        />}
+        {canManage && (
+          <BindingEditorDialog
+            endpoints={[endpoint]}
+            functions={endpoint.functions}
+            fixedEndpointId={endpoint.id}
+            initialKind={kind}
+            onSaved={onChanged}
+            trigger={
+              <Button size="sm">
+                <Plus size={14} /> Add {kind === "mcp" ? "tool" : "route"}
+              </Button>
+            }
+          />
+        )}
       </div>
       {!bindings.length ? (
-        <EmptyState icon={kind === "mcp" ? <TerminalSquare /> : <Route />} title="No bindings" description="Assign a project Function to expose it from this endpoint." />
+        <EmptyState
+          icon={kind === "mcp" ? <TerminalSquare /> : <Route />}
+          title="No bindings"
+          description="Assign a project Function to expose it from this endpoint."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b bg-muted/30 text-muted-foreground"><tr><th className="p-3">Exposure</th><th className="p-3">Function</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead>
+            <thead className="border-b bg-muted/30 text-muted-foreground">
+              <tr>
+                <th className="p-3">Exposure</th>
+                <th className="p-3">Function</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Action</th>
+              </tr>
+            </thead>
             <tbody>
               {bindings.map((binding) => {
-                const fn = endpoint.functions.find((item) => item.id === binding.functionId);
-                const exposure = kind === "mcp" ? (binding as McpBinding).toolName : `${(binding as HttpBinding).method} ${(binding as HttpBinding).path}`;
-                const editable: EditableFunctionBinding = kind === "mcp"
-                  ? { kind: "mcp", id: binding.id, endpointId: endpoint.id, functionId: binding.functionId, toolName: (binding as McpBinding).toolName, title: (binding as McpBinding).title, description: (binding as McpBinding).description, enabled: binding.enabled }
-                  : { kind: "http", id: binding.id, endpointId: endpoint.id, functionId: binding.functionId, method: (binding as HttpBinding).method, path: (binding as HttpBinding).path, inputMapping: (binding as HttpBinding).inputMapping ?? null, responseMapping: (binding as HttpBinding).responseMapping ?? null, enabled: binding.enabled };
-                return <tr key={binding.id} className="border-b last:border-0"><td className="p-3 font-mono">{exposure}</td><td className="p-3"><Link className="hover:text-primary" href={`/functions/${binding.functionId}`}>{fn?.name ?? "Unknown"}</Link></td><td className="p-3"><Badge tone={binding.enabled ? "success" : "neutral"}>{binding.enabled ? "enabled" : "disabled"}</Badge></td><td className="p-3 text-right">{canManage && <div className="inline-flex items-center gap-1"><BindingEditorDialog endpoints={[endpoint]} functions={endpoint.functions} fixedEndpointId={endpoint.id} binding={editable} onSaved={onChanged} /><DeleteBinding endpointId={endpoint.id} kind={kind} bindingId={binding.id} onDeleted={onChanged} /></div>}</td></tr>;
+                const fn = endpoint.functions.find(
+                  (item) => item.id === binding.functionId,
+                );
+                const exposure =
+                  kind === "mcp"
+                    ? (binding as McpBinding).toolName
+                    : `${(binding as HttpBinding).method} ${(binding as HttpBinding).path}`;
+                const editable: EditableFunctionBinding =
+                  kind === "mcp"
+                    ? {
+                        kind: "mcp",
+                        id: binding.id,
+                        endpointId: endpoint.id,
+                        functionId: binding.functionId,
+                        toolName: (binding as McpBinding).toolName,
+                        title: (binding as McpBinding).title,
+                        description: (binding as McpBinding).description,
+                        enabled: binding.enabled,
+                      }
+                    : {
+                        kind: "http",
+                        id: binding.id,
+                        endpointId: endpoint.id,
+                        functionId: binding.functionId,
+                        method: (binding as HttpBinding).method,
+                        path: (binding as HttpBinding).path,
+                        inputMapping: (binding as HttpBinding).inputMapping ?? null,
+                        responseMapping:
+                          (binding as HttpBinding).responseMapping ?? null,
+                        enabled: binding.enabled,
+                      };
+                return (
+                  <tr key={binding.id} className="border-b last:border-0">
+                    <td className="p-3 font-mono">{exposure}</td>
+                    <td className="p-3">
+                      <Link
+                        className="hover:text-primary"
+                        href={`/functions/${binding.functionId}`}
+                      >
+                        {fn?.name ?? "Unknown"}
+                      </Link>
+                    </td>
+                    <td className="p-3">
+                      <Badge tone={binding.enabled ? "success" : "neutral"}>
+                        {binding.enabled ? "enabled" : "disabled"}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right">
+                      {canManage && (
+                        <div className="inline-flex items-center gap-1">
+                          <BindingEditorDialog
+                            endpoints={[endpoint]}
+                            functions={endpoint.functions}
+                            fixedEndpointId={endpoint.id}
+                            binding={editable}
+                            onSaved={onChanged}
+                          />
+                          <DeleteBinding
+                            endpointId={endpoint.id}
+                            kind={kind}
+                            bindingId={binding.id}
+                            onDeleted={onChanged}
+                          />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
@@ -242,13 +363,56 @@ function Bindings({ endpoint, kind, onChanged }: { endpoint: RuntimeEndpointDeta
   );
 }
 
-function DeleteBinding({ endpointId, kind, bindingId, onDeleted }: { endpointId: string; kind: EndpointKind; bindingId: string; onDeleted: () => Promise<void> }) {
+function DeleteBinding({
+  endpointId,
+  kind,
+  bindingId,
+  onDeleted,
+}: {
+  endpointId: string;
+  kind: EndpointKind;
+  bindingId: string;
+  onDeleted: () => Promise<void>;
+}) {
   const [busy, setBusy] = useState(false);
-  async function remove() { if (!window.confirm("Remove this binding? Runtime traffic remains unchanged until the Project is deployed.")) return; setBusy(true); try { await api(`/api/runtime-endpoints/${endpointId}/${kind === "mcp" ? "mcp-bindings" : "http-bindings"}/${bindingId}`, { method: "DELETE" }); await onDeleted(); } finally { setBusy(false); } }
-  return <Button variant="ghost" size="icon" loading={busy} onClick={() => void remove()} aria-label="Delete binding"><Trash2 size={14} /></Button>;
+  async function remove() {
+    if (
+      !window.confirm(
+        "Remove this binding? Runtime traffic remains unchanged until the Project is deployed.",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(
+        `/api/runtime-endpoints/${endpointId}/${kind === "mcp" ? "mcp-bindings" : "http-bindings"}/${bindingId}`,
+        { method: "DELETE" },
+      );
+      await onDeleted();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      loading={busy}
+      onClick={() => void remove()}
+      aria-label="Delete binding"
+    >
+      <Trash2 size={14} />
+    </Button>
+  );
 }
 
-function Authentication({ endpoint, onChanged }: { endpoint: RuntimeEndpointDetail; onChanged: () => Promise<void> }) {
+function Authentication({
+  endpoint,
+  onChanged,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  onChanged: () => Promise<void>;
+}) {
   const user = useCurrentUser();
   const canManage = roleAllows(user?.role, ["owner", "admin"]);
   const toast = useToast();
@@ -287,10 +451,9 @@ function Authentication({ endpoint, onChanged }: { endpoint: RuntimeEndpointDeta
   async function remove(policyId: string) {
     setBusyId(policyId);
     try {
-      await api(
-        `/api/runtime-endpoints/${endpoint.id}/auth-policies/${policyId}`,
-        { method: "DELETE" },
-      );
+      await api(`/api/runtime-endpoints/${endpoint.id}/auth-policies/${policyId}`, {
+        method: "DELETE",
+      });
       toast({
         title: "Authentication policy removed",
         description: "Deploy the Project to publish this change.",
@@ -333,13 +496,10 @@ function Authentication({ endpoint, onChanged }: { endpoint: RuntimeEndpointDeta
         <div>
           <h2 className="text-sm font-semibold">Endpoint authentication</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Policies are checked from top to bottom until one authenticates the
-            request.
+            Policies are checked from top to bottom until one authenticates the request.
           </p>
         </div>
-        {canManage && (
-          <CreateAuthPolicy endpoint={endpoint} onSaved={onChanged} />
-        )}
+        {canManage && <CreateAuthPolicy endpoint={endpoint} onSaved={onChanged} />}
       </div>
       {!assigned.length ? (
         <EmptyState
@@ -431,9 +591,17 @@ function Authentication({ endpoint, onChanged }: { endpoint: RuntimeEndpointDeta
   );
 }
 
-function CreateAuthPolicy({ endpoint, onSaved }: { endpoint: RuntimeEndpointDetail; onSaved: () => Promise<void> }) {
+function CreateAuthPolicy({
+  endpoint,
+  onSaved,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  onSaved: () => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"public" | "api_key" | "bearer_token" | "basic_auth">("api_key");
+  const [type, setType] = useState<
+    "public" | "api_key" | "bearer_token" | "basic_auth"
+  >("api_key");
   const [name, setName] = useState("");
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
@@ -444,56 +612,406 @@ function CreateAuthPolicy({ endpoint, onSaved }: { endpoint: RuntimeEndpointDeta
   const toast = useToast();
   const existingSecret = endpoint.secrets.some((secret) => secret.name === secretName);
   async function save() {
-    setBusy(true); setError(undefined);
+    setBusy(true);
+    setError(undefined);
     try {
-      if (type !== "public" && !existingSecret && !secretValue) throw new Error("Enter a credential value for the new Secret.");
+      if (type !== "public" && !existingSecret && !secretValue)
+        throw new Error("Enter a credential value for the new Secret.");
       if (type !== "public" && !existingSecret)
         await api("/api/secrets", {
           method: "POST",
-          body: JSON.stringify({ environmentId: endpoint.environment.id, name: secretName, value: secretValue }),
+          body: JSON.stringify({
+            environmentId: endpoint.environment.id,
+            name: secretName,
+            value: secretValue,
+          }),
         });
-      const permissionList = permissions.split(",").map((value) => value.trim()).filter(Boolean);
-      const config = type === "public"
-        ? { permissions: permissionList }
-        : type === "api_key"
-          ? { header: "x-api-key", secretRef: secretName, permissions: permissionList }
-        : type === "bearer_token"
-          ? { header: "authorization", scheme: "Bearer", secretRef: secretName, permissions: permissionList }
-          : { header: "authorization", scheme: "Basic", username, secretRef: secretName, permissions: permissionList };
+      const permissionList = permissions
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const config =
+        type === "public"
+          ? { permissions: permissionList }
+          : type === "api_key"
+            ? {
+                header: "x-api-key",
+                secretRef: secretName,
+                permissions: permissionList,
+              }
+            : type === "bearer_token"
+              ? {
+                  header: "authorization",
+                  scheme: "Bearer",
+                  secretRef: secretName,
+                  permissions: permissionList,
+                }
+              : {
+                  header: "authorization",
+                  scheme: "Basic",
+                  username,
+                  secretRef: secretName,
+                  permissions: permissionList,
+                };
       await api(`/api/runtime-endpoints/${endpoint.id}/auth-policies`, {
         method: "POST",
         body: JSON.stringify({ name, type, config }),
       });
-      setOpen(false); setSecretValue("");
-      toast({ title: "Authentication policy created", description: "The policy was added last in the authentication order. Deploy the Project to publish it.", tone: "success" });
+      setOpen(false);
+      setSecretValue("");
+      toast({
+        title: "Authentication policy created",
+        description:
+          "The policy was added last in the authentication order. Deploy the Project to publish it.",
+        tone: "success",
+      });
       await onSaved();
-    } catch (reason) { setError(errorMessage(reason)); } finally { setBusy(false); }
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
   }
-  return <Dialog open={open} onOpenChange={setOpen} trigger={<Button size="sm"><Plus size={14} /> Add authentication</Button>} title="Add endpoint authentication" description="Create and append an authentication policy to this endpoint."><div className="space-y-4"><div><label className="label">Authentication type</label><select className="field" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="public">Public (no authentication)</option><option value="api_key">API key</option><option value="bearer_token">Bearer token</option><option value="basic_auth">HTTP Basic</option></select></div>{type === "public" && <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">Anyone who can reach this endpoint can list or invoke bindings allowed by the permissions below. A public policy makes every policy below it unreachable.</p>}<div><label className="label">Policy name</label><input className="field" value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "public" ? "Public access" : "Agent access"} /></div>{type === "basic_auth" && <div><label className="label">Username</label><input className="field" value={username} onChange={(event) => setUsername(event.target.value)} /></div>}{type !== "public" && <><div><label className="label">Credential Secret name</label><input className="field font-mono" list={`auth-secrets-${endpoint.id}`} value={secretName} onChange={(event) => setSecretName(event.target.value.toUpperCase())} placeholder="MCP_CLIENT_API_KEY" /><datalist id={`auth-secrets-${endpoint.id}`}>{endpoint.secrets.map((secret) => <option key={secret.id} value={secret.name} />)}</datalist><p className="mt-1 text-[10px] text-muted-foreground">Select an existing environment Secret or enter a new uppercase name.</p></div><div><label className="label">{existingSecret ? "Credential value (already stored)" : "Credential value"}</label><input className="field" type="password" value={secretValue} disabled={existingSecret} onChange={(event) => setSecretValue(event.target.value)} placeholder={existingSecret ? "Existing Secret will be used" : "Stored encrypted and never shown again"} /></div></>}<div><label className="label">Granted Function permissions</label><input className="field font-mono" value={permissions} onChange={(event) => setPermissions(event.target.value)} placeholder="customers.read, customers.write" /></div>{error && <p className="text-xs text-red-500">{error}</p>}<Button loading={busy} disabled={!name || (type !== "public" && !secretName) || (type === "basic_auth" && !username)} onClick={() => void save()}>Create and add policy</Button></div></Dialog>;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button size="sm">
+          <Plus size={14} /> Add authentication
+        </Button>
+      }
+      title="Add endpoint authentication"
+      description="Create and append an authentication policy to this endpoint."
+    >
+      <div className="space-y-4">
+        <div>
+          <label className="label">Authentication type</label>
+          <select
+            className="field"
+            value={type}
+            onChange={(event) => setType(event.target.value as typeof type)}
+          >
+            <option value="public">Public (no authentication)</option>
+            <option value="api_key">API key</option>
+            <option value="bearer_token">Bearer token</option>
+            <option value="basic_auth">HTTP Basic</option>
+          </select>
+        </div>
+        {type === "public" && (
+          <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+            Anyone who can reach this endpoint can list or invoke bindings allowed by
+            the permissions below. A public policy makes every policy below it
+            unreachable.
+          </p>
+        )}
+        <div>
+          <label className="label">Policy name</label>
+          <input
+            className="field"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={type === "public" ? "Public access" : "Agent access"}
+          />
+        </div>
+        {type === "basic_auth" && (
+          <div>
+            <label className="label">Username</label>
+            <input
+              className="field"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+          </div>
+        )}
+        {type !== "public" && (
+          <>
+            <div>
+              <label className="label">Credential Secret name</label>
+              <input
+                className="field font-mono"
+                list={`auth-secrets-${endpoint.id}`}
+                value={secretName}
+                onChange={(event) => setSecretName(event.target.value.toUpperCase())}
+                placeholder="MCP_CLIENT_API_KEY"
+              />
+              <datalist id={`auth-secrets-${endpoint.id}`}>
+                {endpoint.secrets.map((secret) => (
+                  <option key={secret.id} value={secret.name} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Select an existing environment Secret or enter a new uppercase name.
+              </p>
+            </div>
+            <div>
+              <label className="label">
+                {existingSecret
+                  ? "Credential value (already stored)"
+                  : "Credential value"}
+              </label>
+              <input
+                className="field"
+                type="password"
+                value={secretValue}
+                disabled={existingSecret}
+                onChange={(event) => setSecretValue(event.target.value)}
+                placeholder={
+                  existingSecret
+                    ? "Existing Secret will be used"
+                    : "Stored encrypted and never shown again"
+                }
+              />
+            </div>
+          </>
+        )}
+        <div>
+          <label className="label">Granted Function permissions</label>
+          <input
+            className="field font-mono"
+            value={permissions}
+            onChange={(event) => setPermissions(event.target.value)}
+            placeholder="customers.read, customers.write"
+          />
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <Button
+          loading={busy}
+          disabled={
+            !name ||
+            (type !== "public" && !secretName) ||
+            (type === "basic_auth" && !username)
+          }
+          onClick={() => void save()}
+        >
+          Create and add policy
+        </Button>
+      </div>
+    </Dialog>
+  );
 }
 
-function NetworkPolicy({ endpoint, onChanged }: { endpoint: RuntimeEndpointDetail; onChanged: () => Promise<void> }) {
-  const policy = endpoint.networkPolicy as RuntimeEndpointDetail["networkPolicy"] & { allowedPorts?: number[]; allowPrivateHosts?: string[]; maxResponseBytes?: number };
+function NetworkPolicy({
+  endpoint,
+  onChanged,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  onChanged: () => Promise<void>;
+}) {
+  const policy = endpoint.networkPolicy as RuntimeEndpointDetail["networkPolicy"] & {
+    allowedPorts?: number[];
+    allowPrivateHosts?: string[];
+    maxResponseBytes?: number;
+  };
   const [hosts, setHosts] = useState((policy.allowedHosts ?? []).join("\n"));
   const [methods, setMethods] = useState((policy.allowedMethods ?? ["GET"]).join(", "));
   const [busy, setBusy] = useState(false);
-  async function save() { setBusy(true); try { await api(`/api/runtime-endpoints/${endpoint.id}/network-policy`, { method: "PUT", body: JSON.stringify({ allowedHosts: hosts.split(/\s+/).filter(Boolean), allowedMethods: methods.split(",").map((value) => value.trim().toUpperCase()).filter(Boolean), allowedPorts: policy.allowedPorts ?? [443], allowPrivateHosts: policy.allowPrivateHosts ?? [], maxResponseBytes: policy.maxResponseBytes ?? 1048576 }) }); await onChanged(); } finally { setBusy(false); } }
-  return <section className="panel p-5"><h2 className="text-sm font-semibold">Outbound network policy</h2><p className="mt-1 text-xs text-muted-foreground">The policy is endpoint-specific even when Functions are reused elsewhere.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><div><label className="label">Allowed hosts · one per line</label><textarea className="field min-h-36 font-mono" value={hosts} onChange={(event) => setHosts(event.target.value)} /></div><div><label className="label">Allowed methods · comma separated</label><input className="field font-mono" value={methods} onChange={(event) => setMethods(event.target.value)} /></div></div><Button className="mt-4" loading={busy} onClick={() => void save()}>Save network policy</Button></section>;
+  async function save() {
+    setBusy(true);
+    try {
+      await api(`/api/runtime-endpoints/${endpoint.id}/network-policy`, {
+        method: "PUT",
+        body: JSON.stringify({
+          allowedHosts: hosts.split(/\s+/).filter(Boolean),
+          allowedMethods: methods
+            .split(",")
+            .map((value) => value.trim().toUpperCase())
+            .filter(Boolean),
+          allowedPorts: policy.allowedPorts ?? [443],
+          allowPrivateHosts: policy.allowPrivateHosts ?? [],
+          maxResponseBytes: policy.maxResponseBytes ?? 1048576,
+        }),
+      });
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel p-5">
+      <h2 className="text-sm font-semibold">Outbound network policy</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        The policy is endpoint-specific even when Functions are reused elsewhere.
+      </p>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="label">Allowed hosts · one per line</label>
+          <textarea
+            className="field min-h-36 font-mono"
+            value={hosts}
+            onChange={(event) => setHosts(event.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Allowed methods · comma separated</label>
+          <input
+            className="field font-mono"
+            value={methods}
+            onChange={(event) => setMethods(event.target.value)}
+          />
+        </div>
+      </div>
+      <Button className="mt-4" loading={busy} onClick={() => void save()}>
+        Save network policy
+      </Button>
+    </section>
+  );
 }
 
 function Executions({ endpoint }: { endpoint: RuntimeEndpointDetail }) {
-  return <section className="panel overflow-hidden"><div className="border-b p-4"><h2 className="text-sm font-semibold">Recent executions</h2></div>{!endpoint.executions.length ? <EmptyState icon={<Activity />} title="No executions" description="Calls through this endpoint will appear here." /> : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="border-b bg-muted/30"><tr><th className="p-3">Time</th><th className="p-3">Function</th><th className="p-3">Version</th><th className="p-3">Source</th><th className="p-3">Status</th><th className="p-3">Latency</th></tr></thead><tbody>{endpoint.executions.map((item) => <tr key={item.id} className="border-b last:border-0"><td className="p-3">{new Date(item.createdAt).toLocaleString()}</td><td className="p-3 font-mono">{item.functionName}</td><td className="p-3">v{item.functionVersion}</td><td className="p-3">{item.invocationSource}</td><td className="p-3"><Badge tone={item.status === "success" ? "success" : "danger"}>{item.status}</Badge></td><td className="p-3">{item.durationMs} ms</td></tr>)}</tbody></table></div>}</section>;
+  return (
+    <section className="panel overflow-hidden">
+      <div className="border-b p-4">
+        <h2 className="text-sm font-semibold">Recent executions</h2>
+      </div>
+      {!endpoint.executions.length ? (
+        <EmptyState
+          icon={<Activity />}
+          title="No executions"
+          description="Calls through this endpoint will appear here."
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b bg-muted/30">
+              <tr>
+                <th className="p-3">Time</th>
+                <th className="p-3">Function</th>
+                <th className="p-3">Version</th>
+                <th className="p-3">Source</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {endpoint.executions.map((item) => (
+                <tr key={item.id} className="border-b last:border-0">
+                  <td className="p-3">{new Date(item.createdAt).toLocaleString()}</td>
+                  <td className="p-3 font-mono">{item.functionName}</td>
+                  <td className="p-3">v{item.functionVersion}</td>
+                  <td className="p-3">{item.invocationSource}</td>
+                  <td className="p-3">
+                    <Badge tone={item.status === "success" ? "success" : "danger"}>
+                      {item.status}
+                    </Badge>
+                  </td>
+                  <td className="p-3">{item.durationMs} ms</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Manifest({ endpoint }: { endpoint: RuntimeEndpointDetail }) {
-  const [content, setContent] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string>();
-  useEffect(() => { api<{ content: string }>(`/api/runtime-endpoints/${endpoint.id}/manifest?format=yaml`).then((value) => setContent(value.content)).catch((reason) => setMessage(errorMessage(reason))); }, [endpoint.id]);
-  async function apply() { setBusy(true); setMessage(undefined); try { await api(`/api/runtime-endpoints/${endpoint.id}/manifest`, { method: "POST", body: JSON.stringify({ format: "yaml", content, apply: true }) }); setMessage("Manifest applied."); } catch (reason) { setMessage(errorMessage(reason)); } finally { setBusy(false); } }
-  return <section className="panel p-5"><div className="flex items-center gap-2"><FileJson size={16} /><h2 className="text-sm font-semibold">Endpoint manifest</h2></div><p className="mt-1 text-xs text-muted-foreground">Exports contain secret references only.</p><textarea className="field mt-4 min-h-[420px] font-mono text-xs" value={content} onChange={(event) => setContent(event.target.value)} />{message && <p className="mt-3 text-xs text-muted-foreground">{message}</p>}<Button className="mt-4" loading={busy} onClick={() => void apply()}>Validate and apply</Button></section>;
+  const [content, setContent] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string>();
+  useEffect(() => {
+    api<{ content: string }>(
+      `/api/runtime-endpoints/${endpoint.id}/manifest?format=yaml`,
+    )
+      .then((value) => setContent(value.content))
+      .catch((reason) => setMessage(errorMessage(reason)));
+  }, [endpoint.id]);
+  async function apply() {
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      await api(`/api/runtime-endpoints/${endpoint.id}/manifest`, {
+        method: "POST",
+        body: JSON.stringify({ format: "yaml", content, apply: true }),
+      });
+      setMessage("Manifest applied.");
+    } catch (reason) {
+      setMessage(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel p-5">
+      <div className="flex items-center gap-2">
+        <FileJson size={16} />
+        <h2 className="text-sm font-semibold">Endpoint manifest</h2>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Exports contain secret references only.
+      </p>
+      <textarea
+        className="field mt-4 min-h-[420px] font-mono text-xs"
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+      />
+      {message && <p className="mt-3 text-xs text-muted-foreground">{message}</p>}
+      <Button className="mt-4" loading={busy} onClick={() => void apply()}>
+        Validate and apply
+      </Button>
+    </section>
+  );
 }
 
-function Settings({ endpoint, onChanged }: { endpoint: RuntimeEndpointDetail; onChanged: () => Promise<void> }) {
-  const [name, setName] = useState(endpoint.name); const [slug, setSlug] = useState(endpoint.slug); const [description, setDescription] = useState(endpoint.description); const [busy, setBusy] = useState(false);
-  async function save() { setBusy(true); try { await api(`/api/runtime-endpoints/${endpoint.id}`, { method: "PATCH", body: JSON.stringify({ name, slug, description }) }); await onChanged(); } finally { setBusy(false); } }
-  return <section className="panel p-5"><div className="flex items-center gap-2"><Settings2 size={16} /><h2 className="text-sm font-semibold">Endpoint settings</h2></div><div className="mt-5 grid gap-4 md:grid-cols-2"><div><label className="label">Name</label><input className="field" value={name} onChange={(event) => setName(event.target.value)} /></div><div><label className="label">Slug</label><input className="field font-mono" value={slug} onChange={(event) => setSlug(event.target.value)} /></div><div className="md:col-span-2"><label className="label">Description</label><textarea className="field min-h-28" value={description} onChange={(event) => setDescription(event.target.value)} /></div></div><Button className="mt-4" loading={busy} onClick={() => void save()}>Save settings</Button></section>;
+function Settings({
+  endpoint,
+  onChanged,
+}: {
+  endpoint: RuntimeEndpointDetail;
+  onChanged: () => Promise<void>;
+}) {
+  const [name, setName] = useState(endpoint.name);
+  const [slug, setSlug] = useState(endpoint.slug);
+  const [description, setDescription] = useState(endpoint.description);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await api(`/api/runtime-endpoints/${endpoint.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, slug, description }),
+      });
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel p-5">
+      <div className="flex items-center gap-2">
+        <Settings2 size={16} />
+        <h2 className="text-sm font-semibold">Endpoint settings</h2>
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="label">Name</label>
+          <input
+            className="field"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Slug</label>
+          <input
+            className="field font-mono"
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="label">Description</label>
+          <textarea
+            className="field min-h-28"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+      </div>
+      <Button className="mt-4" loading={busy} onClick={() => void save()}>
+        Save settings
+      </Button>
+    </section>
+  );
 }

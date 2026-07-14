@@ -10,6 +10,9 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   sharp: true
+  # Optional native resolver used by static-analysis tooling. The JavaScript
+  # fallback is sufficient here and keeps installs reproducible in CI.
+  unrs-resolver: false
 
 overrides:
   dompurify: 3.4.11

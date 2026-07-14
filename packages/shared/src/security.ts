@@ -6,8 +6,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-const SENSITIVE_KEY =
-  /authorization|cookie|password|secret|token|api[-_]?key|refresh/i;
+const SENSITIVE_KEY = /authorization|cookie|password|secret|token|api[-_]?key|refresh/i;
 const BEARER_VALUE = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi;
 const JWT_VALUE = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 
@@ -31,10 +30,7 @@ export function encryptSecret(
 ): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `v1:${iv.toString("base64url")}:${tag.toString("base64url")}:${encrypted.toString("base64url")}`;
 }
@@ -55,10 +51,9 @@ export function decryptSecret(
   };
   const decipher = createDecipheriv("aes-256-gcm", key, decode(iv));
   decipher.setAuthTag(decode(tag));
-  return Buffer.concat([
-    decipher.update(decode(encrypted)),
-    decipher.final(),
-  ]).toString("utf8");
+  return Buffer.concat([decipher.update(decode(encrypted)), decipher.final()]).toString(
+    "utf8",
+  );
 }
 
 export function redactSensitive<T>(value: T, knownSecrets: string[] = []): T {
@@ -96,15 +91,10 @@ export function hasPermissions(
   required: string[],
 ): boolean {
   const granted = new Set(caller.permissions);
-  return required.every(
-    (permission) => granted.has(permission) || granted.has("*"),
-  );
+  return required.every((permission) => granted.has(permission) || granted.has("*"));
 }
 
-export function verifyApiKey(
-  provided: string | undefined,
-  expected: string,
-): boolean {
+export function verifyApiKey(provided: string | undefined, expected: string): boolean {
   if (!provided) return false;
   const left = createHash("sha256").update(provided).digest();
   const right = createHash("sha256").update(expected).digest();

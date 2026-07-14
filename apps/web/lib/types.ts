@@ -1,5 +1,4 @@
-export type RuntimeEndpointStatus =
-  "draft" | "deployed" | "disabled" | "failed";
+export type RuntimeEndpointStatus = "draft" | "deployed" | "disabled" | "failed";
 export type FunctionRisk = "read" | "write" | "destructive";
 
 export type EndpointUrls = {
@@ -118,8 +117,7 @@ export type RuntimeEndpoint = {
   status: RuntimeEndpointStatus;
   environment: { id: string; name: string; slug: string };
   activeDeployment:
-    | { id: string; version: number; createdAt: string; checksum: string }
-    | undefined;
+    { id: string; version: number; createdAt: string; checksum: string } | undefined;
   functionCount: number;
   mcpToolCount: number;
   httpRouteCount: number;

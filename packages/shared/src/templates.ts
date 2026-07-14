@@ -46,10 +46,7 @@ export type FunctionTemplate = {
   localExample?: boolean;
 };
 
-const object = (
-  properties: Record<string, unknown>,
-  required: string[] = [],
-) => ({
+const object = (properties: Record<string, unknown>, required: string[] = []) => ({
   type: "object",
   properties,
   required,
@@ -69,8 +66,7 @@ export const functionTemplates: FunctionTemplate[] = [
   {
     id: "http-api-proxy",
     name: "HTTP API proxy function",
-    description:
-      "Calls one reviewed upstream through the restricted HTTP capability.",
+    description: "Calls one reviewed upstream through the restricted HTTP capability.",
     code: `export default async function handler(ctx, input) {
   const response = await ctx.http.request({ method: "GET", url: input.url });
   return { data: response.data };
@@ -94,8 +90,7 @@ export const functionTemplates: FunctionTemplate[] = [
         "Select and review the exact upstream host before enabling this function.",
     },
     documentation: {
-      purpose:
-        "Expose a small read-only upstream operation through both MCP and HTTP.",
+      purpose: "Expose a small read-only upstream operation through both MCP and HTTP.",
       setup: [
         "Replace api.example.com with the reviewed upstream.",
         "Review method, port, response-size and redirect policy.",
@@ -181,11 +176,7 @@ export const functionTemplates: FunctionTemplate[] = [
     secrets: ["WEBHOOK_SIGNING_SECRET"],
     allowedHosts: [],
     bindings: { http: { method: "POST", path: "/webhooks/events" } },
-    ...fixture(
-      "customer-updated",
-      { id: "evt_1", type: "customer.updated" },
-      "http",
-    ),
+    ...fixture("customer-updated", { id: "evt_1", type: "customer.updated" }, "http"),
     availability: {
       status: "requires_configuration",
       enabledByDefault: false,
@@ -220,8 +211,7 @@ export const functionTemplates: FunctionTemplate[] = [
   {
     id: "tenant-authorized",
     name: "Tenant-aware authorized function",
-    description:
-      "Requires normalized tenant context and an explicit permission.",
+    description: "Requires normalized tenant context and an explicit permission.",
     code: `import { requirePermission } from "@mcpops/shared/auth";
 export default async function handler(ctx, input) {
   requirePermission(ctx, "tenant.read");
@@ -289,10 +279,9 @@ export default async function handler(ctx, input) {
   ctx.logger.info("Local search example", { query: input.query });
   return { items: [{ id: "local-example", name: input.query, source: "synthetic-local-example" }] };
 }`,
-    inputSchema: object(
-      { query: { type: "string" }, limit: { type: "number" } },
-      ["query"],
-    ),
+    inputSchema: object({ query: { type: "string" }, limit: { type: "number" } }, [
+      "query",
+    ]),
     outputSchema: object({ items: { type: "array" } }, ["items"]),
     riskLevel: "read",
     permissions: ["search.read"],
@@ -304,8 +293,7 @@ export default async function handler(ctx, input) {
       status: "ready",
       enabledByDefault: true,
       requiredCapabilities: [],
-      message:
-        "Ready as a local learning example; it does not query real data.",
+      message: "Ready as a local learning example; it does not query real data.",
     },
     localExample: true,
     documentation: {
@@ -342,8 +330,7 @@ export default async function handler(ctx, input) {
   {
     id: "confirmed-write",
     name: "Write action requiring confirmation",
-    description:
-      "Audited write-risk function with explicit confirmation metadata.",
+    description: "Audited write-risk function with explicit confirmation metadata.",
     code: `export default async function handler(ctx, input) {
   if (!input.confirmation?.confirmed) throw new Error("Confirmation required");
   await ctx.audit.write({ action: "record.updated", targetType: "record", targetId: input.id, metadata: { reason: input.confirmation.reason } });
@@ -434,8 +421,7 @@ export default async function handler(ctx, input) {
         "Select and review the exact upstream host before enabling this function.",
     },
     documentation: {
-      purpose:
-        "Demonstrate function-scoped cache getOrSet around restricted HTTP.",
+      purpose: "Demonstrate function-scoped cache getOrSet around restricted HTTP.",
       setup: [
         "Replace api.example.com with the reviewed host.",
         "Review network policy and cache TTL.",

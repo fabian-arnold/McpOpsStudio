@@ -199,7 +199,9 @@ function AuditEventRow({ item }: { item: AuditEvent }) {
 
   return (
     <article className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
-      <span className={`grid size-9 shrink-0 place-items-center rounded-full ${presentation.iconClass}`}>
+      <span
+        className={`grid size-9 shrink-0 place-items-center rounded-full ${presentation.iconClass}`}
+      >
         <Icon size={15} />
       </span>
       <div className="min-w-0 flex-1">
@@ -236,7 +238,10 @@ function AuditEventRow({ item }: { item: AuditEvent }) {
 }
 
 function humanize(value: string) {
-  const words = value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
+  const words = value
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return words ? words[0]!.toUpperCase() + words.slice(1) : "Unknown";
 }
 
@@ -284,15 +289,11 @@ function targetDescription(item: AuditEvent) {
       label: `${humanize(item.targetType)} ${version}`,
       detail: "",
     };
-  if (item.targetId)
-    return { label: shortIdentifier(item.targetId), detail: "" };
+  if (item.targetId) return { label: shortIdentifier(item.targetId), detail: "" };
   return { label: humanize(item.targetType), detail: "" };
 }
 
-function firstMetadataString(
-  metadata: Record<string, unknown>,
-  keys: string[],
-) {
+function firstMetadataString(metadata: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const value = metadata[key];
     if (typeof value === "string" && value.trim()) return value;

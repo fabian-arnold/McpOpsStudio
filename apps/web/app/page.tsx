@@ -10,7 +10,6 @@ import {
   Clock3,
   Code2,
   Gauge,
-  Plus,
   ServerCog,
   ShieldAlert,
   TrendingDown,
@@ -35,9 +34,7 @@ import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls"
 const fmt = new Intl.NumberFormat("en", { notation: "compact" });
 function timeAgo(value: string) {
   const mins = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
-  return mins < 60
-    ? `${Math.max(1, mins)}m ago`
-    : `${Math.floor(mins / 60)}h ago`;
+  return mins < 60 ? `${Math.max(1, mins)}m ago` : `${Math.floor(mins / 60)}h ago`;
 }
 function comparison(value: number | undefined, suffix = "%") {
   if (value === undefined) return undefined;
@@ -66,10 +63,7 @@ export default function DashboardPage() {
           title="Operations overview"
           description="Monitor deployed functions and recent platform activity."
         />
-        <LoadError
-          message={error}
-          onRetry={() => setAttempt((value) => value + 1)}
-        />
+        <LoadError message={error} onRetry={() => setAttempt((value) => value + 1)} />
       </AppShell>
     );
   if (!data)
@@ -104,9 +98,7 @@ export default function DashboardPage() {
           : `${data.stats.failedCalls24h} failed calls`,
       icon: ShieldAlert,
       tone: "text-red-500",
-      trend: comparison(
-        data.comparisons?.errorRate?.changePercent ?? undefined,
-      ),
+      trend: comparison(data.comparisons?.errorRate?.changePercent ?? undefined),
     },
     {
       label: "Average latency",
@@ -117,9 +109,7 @@ export default function DashboardPage() {
           : `p95 · ${data.stats.p95LatencyMs}ms`,
       icon: Gauge,
       tone: "text-emerald-500",
-      trend: comparison(
-        data.comparisons?.averageLatencyMs?.changePercent ?? undefined,
-      ),
+      trend: comparison(data.comparisons?.averageLatencyMs?.changePercent ?? undefined),
     },
   ];
   const deployment = data.activeDeployments?.[0];
@@ -198,9 +188,7 @@ export default function DashboardPage() {
               </p>
             </div>
             {data.health ? (
-              <Badge
-                tone={data.health.status === "healthy" ? "success" : "warning"}
-              >
+              <Badge tone={data.health.status === "healthy" ? "success" : "warning"}>
                 <StatusDot status={data.health.status} />
                 {data.health.status}
               </Badge>
@@ -236,12 +224,13 @@ export default function DashboardPage() {
                   })}
                 </span>
                 <span>
-                  {new Date(
-                    buckets[buckets.length - 1]!.startedAt,
-                  ).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {new Date(buckets[buckets.length - 1]!.startedAt).toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}
                 </span>
               </div>
             </div>
@@ -271,9 +260,7 @@ export default function DashboardPage() {
                   {deployment.checksum.slice(0, 12)}
                 </span>
               </div>
-              <h3 className="mt-5 text-sm font-semibold">
-                {deployment.endpoint.name}
-              </h3>
+              <h3 className="mt-5 text-sm font-semibold">{deployment.endpoint.name}</h3>
               <div className="my-4 space-y-3">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Deployed</span>
@@ -351,9 +338,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-3 py-3">
                         <Badge
-                          tone={
-                            item.invocationSource === "mcp" ? "primary" : "info"
-                          }
+                          tone={item.invocationSource === "mcp" ? "primary" : "info"}
                         >
                           {item.invocationSource.toUpperCase()}
                         </Badge>

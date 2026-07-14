@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.{mjs,js}", "eslint.config.mjs"],
+      "project": ["scripts/**/*.{mjs,js}"]
+    },
+    "apps/api": {
+      "entry": ["src/server.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/runtime": {
+      "entry": ["src/server.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/web": {
+      "entry": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "apps/worker": {
+      "entry": ["src/worker.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignore": ["prisma/seed.ts"],
+  "ignoreDependencies": ["eslint-config-next"]
+}
