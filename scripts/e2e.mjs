@@ -226,7 +226,7 @@ assert.equal(
 );
 const bindingMap = await json(`${control}/binding-map`, { headers: { cookie } });
 assert.ok(
-  bindingMap.body.some(
+  bindingMap.body.endpoints.some(
     (endpoint) =>
       endpoint.kind === "mcp" &&
       endpoint.mcpToolBindings.some(
