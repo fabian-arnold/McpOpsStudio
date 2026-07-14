@@ -51,6 +51,22 @@ describe("control-plane mutation contracts", () => {
     ).toBe("search_customers");
   });
 
+  it("accepts an empty input or output schema as an explicit allow-any contract", () => {
+    expect(
+      functionCreateSchema.parse({
+        ...draft,
+        inputSchema: {},
+        outputSchema: {},
+      }),
+    ).toMatchObject({ inputSchema: {}, outputSchema: {} });
+    expect(() =>
+      functionCreateSchema.parse({
+        ...draft,
+        outputSchema: { description: "Missing both type and constraints" },
+      }),
+    ).toThrow(/declare type or be empty/);
+  });
+
   it("accepts only secret IDs and rejects the removed duplicate grant field", () => {
     const secretId = "8ec89d17-8202-4884-8034-6037a22189e4";
     expect(

@@ -12,7 +12,10 @@ export const functionSlugSchema = z
   .regex(/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/);
 export const jsonSchemaSchema = z
   .record(z.unknown())
-  .refine((value) => value.type !== undefined, "Schema must declare type");
+  .refine(
+    (value) => value.type !== undefined || Object.keys(value).length === 0,
+    "Schema must declare type or be empty to allow any value",
+  );
 export const riskLevelSchema = z.enum(["read", "write", "destructive"]);
 export const roleSchema = z.enum([
   "owner",

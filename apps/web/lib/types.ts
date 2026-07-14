@@ -176,6 +176,22 @@ export type HttpBinding = {
   responseMapping?: Record<string, unknown> | null;
   enabled: boolean;
 };
+export type FunctionBindingEndpoint = {
+  id: string;
+  name: string;
+  slug: string;
+  kind: "mcp" | "http";
+};
+export type FunctionMcpBinding = McpBinding & {
+  endpoint: FunctionBindingEndpoint;
+};
+export type FunctionHttpBinding = HttpBinding & {
+  endpoint: FunctionBindingEndpoint;
+};
+export type FunctionDetail = OpsFunction & {
+  mcpBindings: FunctionMcpBinding[];
+  httpBindings: FunctionHttpBinding[];
+};
 export type ProjectLibrary = {
   id: string;
   name: string;

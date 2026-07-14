@@ -99,6 +99,8 @@ import {
 } from "./template-install.js";
 import { buildManifestPlan } from "./manifest-plan.js";
 import { registerReviewedDatabaseRoutes } from "./reviewed-database-routes.js";
+import { normalizeFunctionBindings } from "./function-view.js";
+import { resolveDevelopmentRuntimeEnvironment } from "./deployment-runtime-config.js";
 import {
   bindingMapLayoutSchema,
   bindingMapNodeIds,
@@ -1770,7 +1772,7 @@ app.get("/api/runtime-endpoints/:endpointId", async (request, reply) => {
     },
     securityPosture,
     storageMetrics: { storage: storageMetrics, cache: cacheMetrics },
-    functions: endpoint.functions.map(functionView),
+    functions: endpoint.functions.map((fn) => functionView(fn)),
     mcpBindings: endpoint.mcpToolBindings,
     httpBindings: endpoint.httpRouteBindings,
     deployments: endpoint.deployments.map((deployment) => ({
@@ -2286,7 +2288,7 @@ app.post("/api/functions", async (request, reply) => {
   const result = await projectRepository(session.projectId).projectFunction(
     fn.id,
   );
-  return reply.status(201).send(result ? functionView(result) : fn);
+  return reply.status(201).send(result ? functionView(result, true) : fn);
 });
 app.route({
   method: ["PATCH", "PUT"],
@@ -2393,7 +2395,7 @@ app.route({
       functionId,
     );
     return result
-      ? functionView(result)
+      ? functionView(result, true)
       : reply.status(404).send({
           error: {
             code: "NOT_FOUND",
@@ -2410,7 +2412,7 @@ app.get("/api/functions/:functionId", async (request, reply) => {
     functionId,
   );
   return fn
-    ? functionView(fn)
+    ? functionView(fn, true)
     : reply.status(404).send({
         error: {
           code: "NOT_FOUND",
@@ -4253,8 +4255,11 @@ app.post("/api/deployments", async (request, reply) => {
       const activeConfig = record(endpoint.activeDeployment?.runtimeConfig);
       const activeSnapshot = record(endpoint.activeDeployment?.snapshot);
       const runtimeConfig = deploymentRuntimeConfigSchema.parse({
-        env: record(
-          endpointConfig.env ?? activeConfig.env ?? activeSnapshot.env,
+        env: resolveDevelopmentRuntimeEnvironment(
+          environment.variables,
+          endpointConfig,
+          activeConfig,
+          activeSnapshot,
         ),
         endpointAccessPolicy: record(
           endpointConfig.endpointAccessPolicy ??
@@ -5779,15 +5784,42 @@ function functionView<
       secretName: string;
       secret?: { id: string; name: string } | null;
     }>;
+    mcpToolBindings?: Array<{
+      id: string;
+      functionId: string;
+      toolName: string;
+      title: string;
+      description: string;
+      enabled: boolean;
+      endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
+    }>;
+    httpRouteBindings?: Array<{
+      id: string;
+      functionId: string;
+      method: string;
+      path: string;
+      inputMapping?: unknown;
+      responseMapping?: unknown;
+      enabled: boolean;
+      endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
+    }>;
   },
->(fn: T) {
-  const { grants, ...functionData } = fn;
+>(fn: T, includeBindings = false) {
+  const {
+    grants,
+    mcpToolBindings = [],
+    httpRouteBindings = [],
+    ...functionData
+  } = fn;
   return {
     ...functionData,
     secretGrants: grants.map((grant) => ({
       ...(grant.secret ? { secretId: grant.secret.id } : {}),
       name: grant.secretName,
     })),
+    ...(includeBindings
+      ? normalizeFunctionBindings(mcpToolBindings, httpRouteBindings)
+      : {}),
   };
 }
 
