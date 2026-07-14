@@ -6,9 +6,17 @@ MCP servers and HTTP APIs.
 [Explore the documentation homepage](https://fabian-arnold.github.io/McpOpsStudio/)
 or continue below for the repository quick start.
 
-For a retained self-hosted installation, use the
-[Docker Compose installation guide](docs/installation.md) and pin a tagged
-release. The quick start below builds the current source tree for development.
+For a retained self-hosted installation, use the published Compose file:
+
+```bash
+curl -fLO https://github.com/fabian-arnold/McpOpsStudio/releases/latest/download/compose.yaml
+docker compose up -d --wait
+docker compose logs --no-log-prefix mcpops-config
+```
+
+Open <http://localhost:8080/setup> with the one-time code from the logs. See the
+[Docker Compose installation guide](docs/installation.md) for HTTPS, backups,
+and upgrades. The quick start below builds the current source for development.
 
 It is useful when an application already has an API, but that API is not suitable
 for agents or downstream services as-is. The upstream API may use the wrong

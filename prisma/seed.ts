@@ -214,6 +214,15 @@ async function main(): Promise<void> {
       status: "active",
     },
   });
+  await prisma.installation.upsert({
+    where: { id: "installation" },
+    create: {
+      id: "installation",
+      publicUrl:
+        process.env.PUBLIC_CONTROL_PLANE_URL ?? "http://localhost:8080",
+    },
+    update: {},
+  });
   const environment = await prisma.environment.upsert({
     where: { projectId_slug: { projectId: project.id, slug: "development" } },
     create: {

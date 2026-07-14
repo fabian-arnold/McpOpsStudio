@@ -26,6 +26,26 @@ export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
+export const installationSetupSchema = z
+  .object({
+    setupCode: z.string().min(16).max(256),
+    ownerEmail: z.string().email(),
+    ownerPassword: z.string().min(12).max(256),
+    projectName: z.string().trim().min(2).max(120),
+    projectSlug: slugSchema,
+    publicUrl: z
+      .string()
+      .url()
+      .refine((value) => {
+        const url = new URL(value);
+        const local = ["localhost", "127.0.0.1", "::1"].includes(
+          url.hostname.toLowerCase(),
+        );
+        return url.protocol === "https:" || (local && url.protocol === "http:");
+      }, "Public URL must use HTTPS (HTTP is allowed only for localhost)"),
+    starter: z.enum(["clean", "notes-demo"]),
+  })
+  .strict();
 export const projectCreateSchema = z
   .object({
     name: z.string().trim().min(2).max(120),

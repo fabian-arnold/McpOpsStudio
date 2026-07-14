@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -19,6 +19,13 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  useEffect(() => {
+    api<{ required: boolean }>("/api/setup/status")
+      .then((status) => {
+        if (status.required) router.replace("/setup");
+      })
+      .catch(() => undefined);
+  }, [router]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);

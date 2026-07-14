@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ -n "${MCP_OPS_DB_PASSWORD_FILE:-}" ]; then
+  MCP_OPS_DB_PASSWORD="$(cat "${MCP_OPS_DB_PASSWORD_FILE}")"
+  export MCP_OPS_DB_PASSWORD
+fi
+
 if [ "${POSTGRES_USER}" = "${MCP_OPS_DB_USER}" ]; then
   echo >&2 "MCP_OPS_DB_USER must differ from the PostgreSQL bootstrap user."
   exit 1

@@ -1,166 +1,95 @@
 # Install with Docker Compose
 
-This guide installs a tagged MCP Ops Studio software release from prebuilt
-container images. It is separate from a Project production release inside MCP
-Ops Studio, which promotes an immutable Function snapshot.
+You need Docker Engine or Docker Desktop with Docker Compose v2. The installer
+supports amd64 and arm64 and stores all durable state in named Docker volumes.
 
-## Requirements
+## Install
 
-- A Linux host with Docker Engine 24 or newer and Docker Compose v2
-- An amd64 or arm64 CPU
-- A DNS name and a TLS reverse proxy
-- Persistent local storage for PostgreSQL and Redis volumes
-
-The release stack publishes only the control-plane gateway, on
-`127.0.0.1:8080` by default. PostgreSQL, Redis, and worker ports remain on the
-private Compose network.
-
-::: warning Executor isolation
-The default `local` executor provides trusted-developer child-process isolation.
-For hostile user-authored code, configure the disposable-container provider and
-a reviewed, pre-pulled runner image. See [Security model](./security.md).
-:::
-
-## Download a release
-
-Choose a tag from the GitHub Releases page and download its Compose bundle and
-checksums. Replace `v0.1.0` below with the release being installed.
+Create an empty directory and run:
 
 ```bash
-export MCP_OPS_VERSION=v0.1.0
-curl -fLO "https://github.com/fabian-arnold/McpOpsStudio/releases/download/${MCP_OPS_VERSION}/mcp-ops-studio-${MCP_OPS_VERSION}.tar.gz"
-curl -fLO "https://github.com/fabian-arnold/McpOpsStudio/releases/download/${MCP_OPS_VERSION}/SHA256SUMS"
-sha256sum --check SHA256SUMS
-tar -xzf "mcp-ops-studio-${MCP_OPS_VERSION}.tar.gz"
-cd "mcp-ops-studio-${MCP_OPS_VERSION}"
-cp mcp-ops-studio.env.example .env
+curl -fLO https://github.com/fabian-arnold/McpOpsStudio/releases/latest/download/compose.yaml
+docker compose up -d --wait
+docker compose logs --no-log-prefix mcpops-config
 ```
 
-The bundle contains the release Compose file, environment template,
-least-privilege PostgreSQL initialization hook, and optional container-executor
-override. Keep these files together.
+Open `http://localhost:8080/setup`, enter the setup code shown by the last
+command, and create the owner account and first Project. Choose either an empty
+Project or the optional Note App demo. The demo has MCP and HTTP bindings,
+integrated persistence, and deliberately public test credentials
+`DEMO` / `DEMO`; do not expose it as a real service.
 
-## Configure the installation
+The installer generates database passwords, encryption keys, session secrets,
+and internal service credentials once. The secrets are retained in the
+`mcpops-config` volume, and setup permanently closes after the owner is created.
 
-Edit `.env` and keep its permissions restricted:
+To pin a specific release, replace `latest` in the download URL with
+`download/v1.2.3`:
 
 ```bash
-chmod 600 .env
+curl -fLo compose.yaml https://github.com/fabian-arnold/McpOpsStudio/releases/download/v1.2.3/compose.yaml
 ```
 
-At minimum:
+## Public HTTPS
 
-1. Keep `MCP_OPS_VERSION` pinned to the downloaded tag.
-2. Set both public URLs to the external HTTPS origin.
-3. Generate a different value for every blank password, key, and token.
-4. Set the initial administrator email and password.
+The gateway listens on `127.0.0.1:8080` by default. For a retained installation,
+put an HTTPS reverse proxy or load balancer in front of that address, preserve
+the request host, and proxy the complete origin. Enter that HTTPS origin during
+browser setup. PostgreSQL, Redis, and worker ports remain private.
 
-Generate URL-safe, 32-byte random values with:
+The default local executor is intended for trusted developer-authored code. Use
+the reviewed disposable-container executor configuration before allowing
+hostile code; see the [security model](./security.md).
+
+## Daily operations
 
 ```bash
-openssl rand -hex 32
+# Status and logs
+docker compose ps
+docker compose logs -f control-plane worker
+
+# Scale the private worker pool
+docker compose up -d --wait --scale worker=3
+
+# Stop without deleting data
+docker compose down
 ```
 
-Use independent output for `POSTGRES_ADMIN_PASSWORD`, `POSTGRES_PASSWORD`,
-`MCP_OPS_MASTER_KEY`, `SESSION_SECRET`, `CSRF_SECRET`, `INTERNAL_API_TOKEN`, and
-the two seeded API keys. `MCP_OPS_MASTER_KEY` must continue to encode exactly 32
-bytes for the lifetime of the installation; losing or changing it makes stored
-Secrets unreadable.
-
-The bootstrap PostgreSQL administrator and application role must have different
-names. The supplied defaults are `postgres` and `mcpops`. The application role
-is non-superuser and is the only role used by application services.
-
-## Start and verify
-
-Validate the resolved configuration before changing any containers:
-
-```bash
-docker compose --env-file .env -f docker-compose.release.yml config --quiet
-docker compose --env-file .env -f docker-compose.release.yml pull
-docker compose --env-file .env -f docker-compose.release.yml up -d --wait
-docker compose --env-file .env -f docker-compose.release.yml ps
-```
-
-The one-shot `migrate` service applies committed Prisma migrations and runs the
-idempotent seed before either application role starts. Inspect it and the
-readiness endpoint:
-
-```bash
-docker compose --env-file .env -f docker-compose.release.yml logs migrate
-curl --fail http://127.0.0.1:8080/ready
-```
-
-Sign in through the configured public URL with `SEED_ADMIN_EMAIL` and
-`SEED_ADMIN_PASSWORD`. Rotate seeded endpoint credentials in the control plane
-before connecting clients.
-
-### TLS proxy
-
-Terminate TLS in a host reverse proxy or load balancer and proxy the complete
-origin to `http://127.0.0.1:8080`. Preserve the request host and correlation
-headers, allow MCP request durations, and do not publish worker port 8080.
-
-If TLS terminates on another host, explicitly set `MCP_OPS_BIND_ADDRESS` to the
-private interface address and restrict access with a firewall. Do not expose the
-gateway directly over plain HTTP in production.
-
-### Scale workers
-
-Identical workers can be scaled without publishing their ports:
-
-```bash
-docker compose --env-file .env -f docker-compose.release.yml up -d --wait --scale worker=3
-```
-
-`RUNTIME_CONCURRENCY` applies per replica. `DEPLOYMENT_CONCURRENCY` separately
-limits deployment build jobs per replica.
+Never add `--volumes` to `docker compose down` for a retained installation. It
+deletes the database, queues, and generated encryption keys.
 
 ## Back up
 
-Back up PostgreSQL before every upgrade and regularly in retained environments:
+Back up PostgreSQL and the generated configuration volume together. A database
+backup without the original `MCP_OPS_MASTER_KEY` cannot decrypt stored Secrets.
 
 ```bash
-docker compose --env-file .env -f docker-compose.release.yml exec -T postgres \
-  sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
+docker compose exec -T postgres sh -c \
+  'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
   > mcp-ops-studio.dump
+
+docker run --rm -v mcp-ops-studio_mcpops-config:/source:ro \
+  -v "$PWD":/backup alpine \
+  tar -C /source -czf /backup/mcpops-config.tar.gz .
 ```
 
-Also retain `.env` securely. Database backups without the original
-`MCP_OPS_MASTER_KEY` cannot recover encrypted Secrets. Redis holds queues and
-cache data; PostgreSQL and the master key are the critical durable state.
+The Compose project name defaults to `mcp-ops-studio`; if you override it, use
+the corresponding generated volume name. Test restores on a separate host.
 
-Test restore procedures on a separate installation. Never use `down --volumes`
-for retained data.
+## Upgrade
 
-## Upgrade or roll back the software
-
-Read the target release notes, take a backup, and update only
-`MCP_OPS_VERSION` in `.env`. Then run:
+Download the new release's `compose.yaml` into the same directory, back up, and
+run:
 
 ```bash
-docker compose --env-file .env -f docker-compose.release.yml pull
-docker compose --env-file .env -f docker-compose.release.yml up -d --wait
+docker compose pull
+docker compose up -d --wait
 ```
 
-Compose recreates the versioned application containers and runs migrations
-before starting them. Do not skip release versions unless the release notes say
-that it is supported.
+The one-shot migration service applies committed database migrations before the
+application roles restart. Read release notes before skipping versions. If a
+rollback crosses an incompatible database migration, restore the matching
+database and configuration backups before using the older Compose file.
 
-To roll back application images, restore the pre-upgrade database backup first
-when the release introduced an incompatible migration, set the previous tag,
-and run the same `pull` and `up` commands. Changing only the image tag does not
-reverse database migrations.
-
-Project snapshot rollback is a different operation performed in the MCP Ops
-Studio control plane; see [Runtime and deployments](./runtime-and-deployments.md).
-
-## Stop or remove
-
-Stop containers while retaining data:
-
-```bash
-docker compose --env-file .env -f docker-compose.release.yml down
-```
-
-Adding `--volumes` permanently deletes the bundled PostgreSQL and Redis data.
+Project Function releases and rollbacks are separate control-plane operations;
+see [Runtime and deployments](./runtime-and-deployments.md).

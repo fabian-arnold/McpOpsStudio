@@ -62,22 +62,11 @@ jobs:
           pnpm docs:build
 
       - name: Validate Compose files
-        env:
-          MCP_OPS_VERSION: ${{ github.ref_name }}
-          POSTGRES_ADMIN_PASSWORD: 11111111111111111111111111111111
-          POSTGRES_PASSWORD: 22222222222222222222222222222222
-          SESSION_SECRET: 3333333333333333333333333333333333333333333333333333333333333333
-          CSRF_SECRET: 4444444444444444444444444444444444444444444444444444444444444444
-          INTERNAL_API_TOKEN: 5555555555555555555555555555555555555555555555555555555555555555
-          SEED_ADMIN_EMAIL: release-admin@example.com
-          SEED_ADMIN_PASSWORD: 66666666666666666666666666666666
-          SEED_MCP_API_KEY: 77777777777777777777777777777777
-          SEED_PRODUCTION_MCP_API_KEY: 88888888888888888888888888888888
-          PUBLIC_CONTROL_PLANE_URL: https://mcpops.example.com
-          PUBLIC_RUNTIME_URL: https://mcpops.example.com
+        shell: bash
         run: |
           docker compose -f infra/docker-compose.yml config --quiet
-          docker compose -f infra/docker-compose.release.yml config --quiet
+          sed "s/__MCP_OPS_VERSION__/${GITHUB_REF_NAME}/g" infra/docker-compose.release.yml > "${RUNNER_TEMP}/compose.yaml"
+          docker compose -f "${RUNNER_TEMP}/compose.yaml" config --quiet
 
       - name: Check whitespace errors
         run: git diff --check
@@ -181,27 +170,60 @@ jobs:
       - name: Build Compose installation bundle
         shell: bash
         run: |
-          bundle="mcp-ops-studio-${GITHUB_REF_NAME}"
-          mkdir -p "release/${bundle}/postgres-init"
-          cp infra/docker-compose.release.yml "release/${bundle}/"
-          cp infra/docker-compose.container-executor.yml "release/${bundle}/"
-          cp infra/mcp-ops-studio.env.example "release/${bundle}/"
-          cp infra/postgres-init/00-security.sh "release/${bundle}/postgres-init/"
-          tar -C release -czf "release/${bundle}.tar.gz" "${bundle}"
+          mkdir -p release
+          sed "s/__MCP_OPS_VERSION__/${GITHUB_REF_NAME}/g" infra/docker-compose.release.yml > release/compose.yaml
+          cp infra/docker-compose.container-executor.yml release/compose.container-executor.yaml
           cd release
-          sha256sum "${bundle}.tar.gz" > SHA256SUMS
+          sha256sum compose.yaml compose.container-executor.yaml > SHA256SUMS
 
       - name: Upload Compose installation bundle
         uses: actions/upload-artifact@v4
         with:
           name: compose-release-assets
           path: |
-            release/*.tar.gz
+            release/compose.yaml
+            release/compose.container-executor.yaml
             release/SHA256SUMS
           if-no-files-found: error
 
-  publish:
+  install-smoke:
     needs: [images, compose-bundle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download Compose installer
+        uses: actions/download-artifact@v4
+        with:
+          name: compose-release-assets
+          path: release-assets
+
+      - name: Start clean installation
+        working-directory: release-assets
+        run: docker compose -f compose.yaml up --detach --wait
+
+      - name: Complete browser setup and verify Note App
+        working-directory: release-assets
+        shell: bash
+        run: |
+          setup_code="$(docker compose -f compose.yaml logs --no-color mcpops-config | sed -n 's/.*MCP Ops Studio setup code: //p' | tail -1)"
+          test -n "${setup_code}"
+          MCP_OPS_SETUP_CODE="${setup_code}" node ../scripts/install-smoke.mjs
+
+      - name: Show service logs on failure
+        if: failure()
+        working-directory: release-assets
+        run: docker compose -f compose.yaml logs --no-color
+
+      - name: Stop clean installation
+        if: always()
+        working-directory: release-assets
+        run: docker compose -f compose.yaml down --volumes --remove-orphans
+
+  publish:
+    needs: [install-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -212,10 +234,26 @@ jobs:
           path: release-assets
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ## Install with Docker Compose
+
+            Requirements: Docker Engine or Docker Desktop with Docker Compose v2.
+
+            ```bash
+            mkdir mcp-ops-studio && cd mcp-ops-studio
+            curl -fLO https://github.com/fabian-arnold/McpOpsStudio/releases/download/${{ github.ref_name }}/compose.yaml
+            docker compose up -d --wait
+            docker compose logs --no-log-prefix mcpops-config
+            ```
+
+            Open `http://localhost:8080/setup` and enter the one-time setup code shown in the logs.
+
+            For public installations, configure HTTPS before setup. See the [installation guide](https://fabian-arnold.github.io/McpOpsStudio/installation.html) for HTTPS, backups, upgrades, and stronger executor isolation.
           files: |
-            release-assets/*.tar.gz
+            release-assets/compose.yaml
+            release-assets/compose.container-executor.yaml
             release-assets/SHA256SUMS

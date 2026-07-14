@@ -3,6 +3,7 @@ import {
   authPolicyMutationSchema,
   functionCreateSchema,
   httpBindingSchema,
+  installationSetupSchema,
   networkPolicyUpdateSchema,
 } from "./contracts.js";
 
@@ -16,6 +17,35 @@ const draft = {
 };
 
 describe("control-plane mutation contracts", () => {
+  it("requires HTTPS for remote installation URLs and permits local setup", () => {
+    const setup = {
+      setupCode: "setup-code-at-least-16-characters",
+      ownerEmail: "owner@example.com",
+      ownerPassword: "long-owner-password",
+      projectName: "Operations",
+      projectSlug: "operations",
+      starter: "clean",
+    } as const;
+    expect(
+      installationSetupSchema.parse({
+        ...setup,
+        publicUrl: "http://localhost:8080",
+      }).publicUrl,
+    ).toBe("http://localhost:8080");
+    expect(() =>
+      installationSetupSchema.parse({
+        ...setup,
+        publicUrl: "http://studio.example.com",
+      }),
+    ).toThrow(/HTTPS/);
+    expect(
+      installationSetupSchema.parse({
+        ...setup,
+        publicUrl: "https://studio.example.com",
+      }).publicUrl,
+    ).toBe("https://studio.example.com");
+  });
+
   it("accepts underscore function slugs used by the programming model", () => {
     expect(
       functionCreateSchema.parse({ ...draft, slug: "search_customers" }).slug,

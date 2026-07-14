@@ -108,6 +108,7 @@ import {
   endpointDocumentFormats,
   generateEndpointDocument,
 } from "./endpoint-discovery.js";
+import { registerInstallationRoutes } from "./installation.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -149,6 +150,7 @@ app.addHook("onRequest", async (request, reply) => {
 app.addHook("preHandler", async (request, reply) => {
   if (
     request.url.startsWith("/api/auth/login") ||
+    request.url.startsWith("/api/setup") ||
     request.url.startsWith("/health")
   )
     return;
@@ -260,6 +262,7 @@ app.get("/health", async () => ({
   status: "ok",
   endpoint: "control-plane-api",
 }));
+registerInstallationRoutes(app, deploymentQueue);
 app.post(
   "/api/auth/login",
   { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
@@ -453,6 +456,15 @@ app.post("/api/projects", async (request, reply) => {
   requireRole(session, ["owner", "admin"]);
   const input = parse(projectCreateSchema, request.body);
   const project = await prisma.$transaction(async (tx) => {
+    const installation = await tx.installation.findUnique({
+      where: { id: "installation" },
+      select: { publicUrl: true },
+    });
+    const installationUrl =
+      installation?.publicUrl ??
+      process.env.PUBLIC_RUNTIME_URL ??
+      process.env.RUNTIME_PUBLIC_URL ??
+      "http://localhost:8080";
     const created = await tx.project.create({ data: input });
     await tx.environment.createMany({
       data: [
@@ -461,20 +473,14 @@ app.post("/api/projects", async (request, reply) => {
           name: "Development",
           slug: "development",
           capturePayloads: true,
-          baseUrl:
-            process.env.PUBLIC_RUNTIME_URL ??
-            process.env.RUNTIME_PUBLIC_URL ??
-            "http://localhost:8080",
+          baseUrl: installationUrl,
         },
         {
           projectId: created.id,
           name: "Production",
           slug: "production",
           baseUrl:
-            process.env.PRODUCTION_RUNTIME_PUBLIC_URL ??
-            process.env.PUBLIC_RUNTIME_URL ??
-            process.env.RUNTIME_PUBLIC_URL ??
-            "http://localhost:8080",
+            process.env.PRODUCTION_RUNTIME_PUBLIC_URL ?? installationUrl,
         },
       ],
     });

@@ -10,6 +10,13 @@ const developmentValues = new Map([
 ]);
 
 const requiredProductionUrls = ["PUBLIC_CONTROL_PLANE_URL", "PUBLIC_RUNTIME_URL"];
+const generatedInstallRequired = [
+  "DATABASE_URL",
+  "SESSION_SECRET",
+  "CSRF_SECRET",
+  "INTERNAL_API_TOKEN",
+  "MCP_OPS_SETUP_CODE",
+];
 
 function isLocalUrl(value) {
   try {
@@ -30,6 +37,19 @@ export function productionConfigurationErrors(environment = process.env) {
     errors.push("MCP_OPS_MASTER_KEY must explicitly encode exactly 32 bytes as 64 hexadecimal characters or base64");
   }
   if (environment.NODE_ENV !== "production") return errors;
+
+  if (environment.MCP_OPS_INSTALL_MODE === "browser") {
+    for (const name of generatedInstallRequired) {
+      const value = environment[name];
+      if (!value || value.length < 16)
+        errors.push(`${name} must be supplied by the generated installation configuration`);
+    }
+    if (environment.MCP_OPS_DEMO_MODE === "true")
+      errors.push("MCP_OPS_DEMO_MODE must be disabled in production");
+    if (environment.MOCK_CRM_URL)
+      errors.push("MOCK_CRM_URL is development-only and must not be configured in production");
+    return errors;
+  }
 
   for (const [name, forbiddenFragments] of developmentValues) {
     const value = environment[name];

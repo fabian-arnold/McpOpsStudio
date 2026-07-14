@@ -48,3 +48,16 @@ test("explicit secure production configuration is allowed", () => {
     MCP_OPS_DEMO_MODE: "false",
   }), []);
 });
+
+test("browser setup accepts generated internal configuration without seed values", () => {
+  assert.deepEqual(productionConfigurationErrors({
+    NODE_ENV: "production",
+    MCP_OPS_INSTALL_MODE: "browser",
+    DATABASE_URL: "postgresql://mcpops:generated@postgres/mcp_ops_studio",
+    MCP_OPS_MASTER_KEY: "b".repeat(64),
+    SESSION_SECRET: "c".repeat(64),
+    CSRF_SECRET: "d".repeat(64),
+    INTERNAL_API_TOKEN: "e".repeat(64),
+    MCP_OPS_SETUP_CODE: "generated-one-time-code",
+  }), []);
+});
