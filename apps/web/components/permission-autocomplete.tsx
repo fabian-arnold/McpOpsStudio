@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 
 export function PermissionAutocomplete({
@@ -18,6 +18,7 @@ export function PermissionAutocomplete({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const listboxId = useId();
   const normalized = query.trim();
   const options = useMemo(() => {
     const available = allowWildcard ? ["*", ...suggestions] : suggestions;
@@ -83,10 +84,12 @@ export function PermissionAutocomplete({
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
+          aria-controls={listboxId}
         />
       </div>
       {open && (options.length || normalized) ? (
         <div
+          id={listboxId}
           role="listbox"
           className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-lg border bg-popover p-1 shadow-lg"
         >

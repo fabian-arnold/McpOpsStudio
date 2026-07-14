@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachCurrentFunctionVersions,
   bundleFunction,
   collectRequiredAuthPolicyIds,
   snapshotReferencedAuthPolicies,
@@ -92,6 +93,20 @@ describe("project Function call graph", () => {
         new Set(["one"]),
       ),
     ).toThrow(/cycle detected: one -> two -> one/);
+  });
+});
+
+describe("deployment version pinning", () => {
+  it("uses the Function's current version instead of an abandoned newer version", () => {
+    const [fn] = attachCurrentFunctionVersions(
+      [{ id: "search", version: 2 }],
+      [
+        { id: "v2", functionId: "search", version: 2 },
+        { id: "v7", functionId: "search", version: 7 },
+      ],
+    );
+
+    expect(fn?.versions).toEqual([{ id: "v2", functionId: "search", version: 2 }]);
   });
 });
 

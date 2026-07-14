@@ -53,8 +53,14 @@ jobs:
       - name: Analyze dependencies and architecture
         run: pnpm analyze
 
+      - name: Type-check workspace
+        run: pnpm typecheck
+
       - name: Run unit tests
         run: pnpm test
+
+      - name: Test installation and repository tooling
+        run: pnpm config:test
 
       - name: Build workspace
         run: pnpm -r --workspace-concurrency=4 build

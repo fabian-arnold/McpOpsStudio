@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Command, ShieldCheck } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";

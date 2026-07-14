@@ -12,6 +12,19 @@ import {
 import { prisma } from "@mcpops/db";
 import { finalizeProjectDeployment } from "./project-deployment.js";
 
+export function attachCurrentFunctionVersions<
+  FunctionRow extends { id: string; version: number },
+  VersionRow extends { functionId: string; version: number },
+>(functions: FunctionRow[], versions: VersionRow[]) {
+  const versionsByKey = new Map(
+    versions.map((version) => [`${version.functionId}:${version.version}`, version]),
+  );
+  return functions.map((fn) => {
+    const version = versionsByKey.get(`${fn.id}:${fn.version}`);
+    return { ...fn, versions: version ? [version] : [] };
+  });
+}
+
 type ExtendedDeploymentSnapshot = DeploymentSnapshot & {
   endpointAccessPolicy: {
     mode: "authenticated" | "restricted";
@@ -53,13 +66,14 @@ export async function bundleFunction(
   return {
     code: result.compiledCode,
     ...(result.sourceMap ? { sourceMap: result.sourceMap } : {}),
-    warnings: [],
+    warnings: result.warnings,
   };
 }
 
 export async function buildDeployment(
   deploymentId: string,
   actorId?: string,
+  options: { finalAttempt?: boolean } = {},
 ): Promise<void> {
   const deployment = await prisma.deployment.findUniqueOrThrow({
     where: { id: deploymentId },
@@ -82,6 +96,7 @@ export async function buildDeployment(
   });
   const endpoint = deployment.endpoint;
   let activated = false;
+  let artifactStored = false;
   let failureFunctions: Array<{
     id: string;
     name: string;
@@ -101,11 +116,20 @@ export async function buildDeployment(
       throw new Error("Runtime endpoint contains bindings for the wrong protocol");
     const projectFunctions = await prisma.function.findMany({
       where: { projectId: endpoint.projectId, enabled: true },
-      include: {
-        versions: { orderBy: { version: "desc" }, take: 1 },
-        grants: true,
+      include: { grants: true },
+    });
+    const currentVersions = await prisma.functionVersion.findMany({
+      where: {
+        OR: projectFunctions.map((fn) => ({
+          functionId: fn.id,
+          version: fn.version,
+        })),
       },
     });
+    const versionedProjectFunctions = attachCurrentFunctionVersions(
+      projectFunctions,
+      currentVersions,
+    );
     const entryFunctionIds = new Set([
       ...(endpoint.kind === "mcp" ? endpoint.mcpToolBindings : [])
         .filter((binding) => binding.enabled)
@@ -115,7 +139,7 @@ export async function buildDeployment(
         .map((binding) => binding.functionId),
     ]);
     const { functions: selectedFunctions, calls: functionCalls } =
-      resolveFunctionCallGraph(projectFunctions, entryFunctionIds);
+      resolveFunctionCallGraph(versionedProjectFunctions, entryFunctionIds);
     const requiredFunctionSecrets = [
       ...new Set(
         selectedFunctions.flatMap((fn) => fn.grants.map((grant) => grant.secretName)),
@@ -475,11 +499,16 @@ export async function buildDeployment(
         },
       });
     });
-    activated = true;
-    if (deployment.projectDeploymentId)
+    artifactStored = true;
+    activated = !deployment.projectDeploymentId;
+    if (deployment.projectDeploymentId) {
       await finalizeProjectDeployment(deployment.projectDeploymentId);
+      activated = true;
+    }
   } catch (error) {
     if (activated) throw error;
+    if (artifactStored && deployment.projectDeploymentId && !options.finalAttempt)
+      throw error;
     const message = error instanceof Error ? error.message : "Build failed";
     const failureOperations = [
       prisma.deployment.update({

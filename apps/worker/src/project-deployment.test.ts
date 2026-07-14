@@ -3,7 +3,9 @@ import { projectDeploymentReadiness } from "./project-deployment.js";
 
 describe("project deployment atomic activation", () => {
   it("waits until every endpoint artifact has built", () => {
+    expect(projectDeploymentReadiness([])).toBe("waiting");
     expect(projectDeploymentReadiness(["deploying", "building"])).toBe("waiting");
+    expect(projectDeploymentReadiness(["deploying", "active"])).toBe("waiting");
     expect(projectDeploymentReadiness(["deploying", "deploying"])).toBe("ready");
   });
 

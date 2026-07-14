@@ -11,7 +11,8 @@ const worker = new Worker(
   "deployments",
   async (job) => {
     const data = job.data as { deploymentId: string; actorId?: string };
-    await buildDeployment(data.deploymentId, data.actorId);
+    const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+    await buildDeployment(data.deploymentId, data.actorId, { finalAttempt });
   },
   { connection, concurrency: Number(process.env.DEPLOYMENT_CONCURRENCY ?? 2) },
 );
@@ -38,5 +39,5 @@ const shutdown = async () => {
   await worker.close();
   process.exit(0);
 };
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());

@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { Queue } from "bullmq";
+import { deploymentJobOptions } from "./deployment-queue.js";
 import argon2 from "argon2";
 import { Prisma, prisma } from "@mcpops/db";
 import { encryptSecret, installationSetupSchema } from "@mcpops/shared";
@@ -131,12 +132,7 @@ export function registerInstallationRoutes(
               projectId: created.project.id,
               actorId: created.user.id,
             },
-            {
-              jobId: deploymentId,
-              attempts: 2,
-              removeOnComplete: 100,
-              removeOnFail: 100,
-            },
+            deploymentJobOptions(deploymentId),
           );
 
       const csrfToken = issueSession(reply, {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronRight, Download, RefreshCw, Search } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {
@@ -12,68 +12,34 @@ import {
   PageHeader,
   Skeleton,
 } from "@/components/ui";
-import { api, errorMessage } from "@/lib/api";
 import { downloadText } from "@/lib/download";
-import type { EnvironmentSummary, RuntimeLog } from "@/lib/types";
-
-type LogResult = {
-  items: RuntimeLog[];
-  nextCursor?: string;
-  summary: { count: number; sizeBytes: number; levels: Record<string, number> };
-};
-type Range = "15m" | "1h" | "24h" | "7d" | "all";
+import type { RuntimeLog } from "@/lib/types";
+import {
+  useRuntimeLogs,
+  type LogRange,
+  type LogResult,
+} from "@/features/observability/use-runtime-logs";
 
 export default function LogsPage() {
-  const [items, setItems] = useState<RuntimeLog[]>();
-  const [summary, setSummary] = useState<LogResult["summary"]>();
-  const [environments, setEnvironments] = useState<EnvironmentSummary[]>([]);
-  const [nextCursor, setNextCursor] = useState<string>();
-  const [q, setQ] = useState("");
-  const [level, setLevel] = useState("");
-  const [environmentId, setEnvironmentId] = useState("");
-  const [range, setRange] = useState<Range>("1h");
-  const [live, setLive] = useState(false);
-  const [error, setError] = useState<string>();
-
-  const loadLogs = useCallback(
-    async (cursor?: string) => {
-      try {
-        const params = new URLSearchParams({ limit: "200" });
-        if (q.trim()) params.set("q", q.trim());
-        if (level) params.set("level", level);
-        if (environmentId) params.set("environmentId", environmentId);
-        const from = rangeStart(range);
-        if (from) params.set("from", from.toISOString());
-        if (cursor) params.set("cursor", cursor);
-        const result = await api<LogResult>(`/api/logs?${params}`);
-        setItems((current) =>
-          cursor ? [...(current ?? []), ...result.items] : result.items,
-        );
-        setSummary(result.summary);
-        setNextCursor(result.nextCursor);
-        setError(undefined);
-      } catch (reason) {
-        setError(errorMessage(reason));
-      }
-    },
-    [environmentId, level, q, range],
-  );
-
-  useEffect(() => {
-    api<EnvironmentSummary[]>("/api/environments")
-      .then(setEnvironments)
-      .catch(() => setEnvironments([]));
-  }, []);
-  useEffect(() => {
-    void loadLogs();
-  }, [loadLogs]);
-  useEffect(() => {
-    if (!live) return;
-    const timer = window.setInterval(() => void loadLogs(), 5000);
-    return () => window.clearInterval(timer);
-  }, [live, loadLogs]);
-
-  const exported = useMemo(() => items ?? [], [items]);
+  const {
+    items,
+    summary,
+    environments,
+    nextCursor,
+    q,
+    setQ,
+    level,
+    setLevel,
+    environmentId,
+    setEnvironmentId,
+    range,
+    setRange,
+    live,
+    setLive,
+    error,
+    loadLogs,
+  } = useRuntimeLogs();
+  const exported = items ?? [];
   return (
     <AppShell>
       <PageHeader
@@ -136,7 +102,7 @@ export default function LogsPage() {
             <select
               className="field h-10 w-32"
               value={range}
-              onChange={(event) => setRange(event.target.value as Range)}
+              onChange={(event) => setRange(event.target.value as LogRange)}
             >
               <option value="15m">Last 15 min</option>
               <option value="1h">Last hour</option>
@@ -323,19 +289,6 @@ function LogRow({ item }: { item: RuntimeLog }) {
   );
 }
 
-function rangeStart(range: Range) {
-  const duration =
-    range === "15m"
-      ? 900000
-      : range === "1h"
-        ? 3600000
-        : range === "24h"
-          ? 86400000
-          : range === "7d"
-            ? 604800000
-            : 0;
-  return duration ? new Date(Date.now() - duration) : undefined;
-}
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
   if (value < 1048576) return `${(value / 1024).toFixed(1)} KiB`;

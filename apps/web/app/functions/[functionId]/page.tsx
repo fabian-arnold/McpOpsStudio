@@ -793,7 +793,6 @@ function FunctionWorkbench() {
                     <label className="min-w-52 flex-1">
                       <span className="label">Function name</span>
                       <input
-                        autoFocus
                         className="field"
                         value={draft.name}
                         placeholder="Search customers"

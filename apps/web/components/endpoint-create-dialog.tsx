@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Plus } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
 import type { RuntimeEndpoint } from "@/lib/types";
@@ -106,7 +106,6 @@ export function EndpointCreateDialog({
             minLength={2}
             maxLength={120}
             required
-            autoFocus
           />
         </div>
         <div>

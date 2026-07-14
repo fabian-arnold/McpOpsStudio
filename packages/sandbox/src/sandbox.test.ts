@@ -36,6 +36,21 @@ describe("function bundling", () => {
       }),
     ).rejects.toThrow(/not allowed/);
   });
+  it("checks syntax nodes without rejecting harmless text", async () => {
+    await expect(
+      bundleFunction({
+        code: `// fetch through ctx.http\nexport default async () => ({ note: "process and WebSocket are documentation" })`,
+      }),
+    ).resolves.toMatchObject({ warnings: [] });
+  });
+  it.each([
+    [`export default async () => fetch("https://example.test")`, /ctx\.http/],
+    [`export default async () => import("node:fs")`, /Dynamic imports/],
+    [`export default async () => process.env.HOME`, /Process access/],
+    [`export default async () => new Function("return 1")()`, /Dynamic code/],
+  ])("rejects forbidden runtime syntax", async (code, message) => {
+    await expect(bundleFunction({ code })).rejects.toThrow(message);
+  });
 });
 describe("network policy", () => {
   it("blocks local and RFC1918 addresses", () => {

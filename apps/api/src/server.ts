@@ -1,8 +1,4 @@
-import Fastify, { type FastifyReply } from "fastify";
-import cookie from "@fastify/cookie";
-import cors from "@fastify/cors";
-import helmet from "@fastify/helmet";
-import rateLimit from "@fastify/rate-limit";
+import { type FastifyReply } from "fastify";
 import argon2 from "argon2";
 import { Ajv } from "ajv";
 import { bundleFunction } from "@mcpops/sandbox";
@@ -48,17 +44,14 @@ import {
 } from "@mcpops/shared";
 import {
   clearSession,
-  enforceCsrf,
   issueSession,
   requireRole,
   type PlatformSession,
 } from "./auth.js";
-import { checksum, sessionContext, parse, requestId, sendError } from "./helpers.js";
-import {
-  functionIdentifierWhere,
-  projectRepository,
-  endpointIdentifierWhere,
-} from "./repository.js";
+import { checksum, sessionContext, parse, requestId } from "./helpers.js";
+import { projectRepository } from "./repository.js";
+import { createApiApplication } from "./application.js";
+import { deploymentJobOptions } from "./deployment-queue.js";
 import {
   canonicalEndpointUrls,
   canonicalEnvironmentEndpointUrls,
@@ -100,21 +93,7 @@ import {
   registerObservabilityRoutes,
 } from "./observability-routes.js";
 
-const app = Fastify({
-  logger: { level: process.env.LOG_LEVEL ?? "info" },
-  genReqId: (req) => String(req.headers["x-request-id"] ?? crypto.randomUUID()),
-});
-await app.register(cookie);
-await app.register(helmet, { contentSecurityPolicy: false });
-await app.register(cors, {
-  origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
-  credentials: true,
-});
-await app.register(rateLimit, {
-  max: 300,
-  timeWindow: "1 minute",
-  keyGenerator: (req) => req.ip,
-});
+const app = await createApiApplication({ assertScopedCursor });
 const redisUrl = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
 const deploymentQueue = new Queue("deployments", {
   connection: {
@@ -128,122 +107,8 @@ const cacheInspector = new Redis(redisUrl.toString(), {
   maxRetriesPerRequest: 1,
   enableOfflineQueue: false,
 });
-
-app.setErrorHandler((error, request, reply) => sendError(reply, request, error));
-app.addHook("onRequest", async (request, reply) => {
-  reply.header("x-request-id", requestId(request));
-});
-app.addHook("preHandler", async (request, reply) => {
-  if (
-    request.url.startsWith("/api/auth/login") ||
-    request.url.startsWith("/api/setup") ||
-    request.url.startsWith("/health")
-  )
-    return;
-  if (request.url.startsWith("/api/")) {
-    const session = sessionContext(request);
-    const sessionUser = await prisma.user.findFirst({
-      where: { id: session.userId, active: true },
-      select: {
-        id: true,
-        role: true,
-        active: true,
-        mustChangePassword: true,
-        sessionVersion: true,
-      },
-    });
-    if (
-      !sessionUser ||
-      !sessionUser.active ||
-      sessionUser.sessionVersion !== session.sessionVersion ||
-      sessionUser.role !== session.role
-    ) {
-      clearSession(reply);
-      return reply.status(401).send({
-        error: {
-          code: "UNAUTHENTICATED",
-          message: "Session is no longer valid",
-          requestId: requestId(request),
-        },
-      });
-    }
-    if (
-      sessionUser.mustChangePassword &&
-      !request.url.startsWith("/api/auth/me") &&
-      !request.url.startsWith("/api/auth/logout") &&
-      !request.url.startsWith("/api/account/password")
-    ) {
-      return reply.status(403).send({
-        error: {
-          code: "PASSWORD_CHANGE_REQUIRED",
-          message: "Change the temporary password before continuing",
-          requestId: requestId(request),
-        },
-      });
-    }
-    enforceCsrf(request);
-
-    // Browser routes use stable slugs/names in a few convenient links. Resolve
-    // them before handlers use UUID-backed Prisma columns so invalid UUID text
-    // produces a safe 404 instead of a database conversion error.
-    const params = request.params as {
-      endpointId?: string;
-      functionId?: string;
-    };
-    if (params.endpointId) {
-      const endpoint = await prisma.runtimeEndpoint.findFirst({
-        where: {
-          projectId: session.projectId,
-          ...endpointIdentifierWhere(params.endpointId),
-        },
-        select: { id: true },
-      });
-      if (!endpoint)
-        return reply.status(404).send({
-          error: {
-            code: "NOT_FOUND",
-            message: "Runtime endpoint not found",
-            requestId: requestId(request),
-          },
-        });
-      params.endpointId = endpoint.id;
-
-      if (params.functionId && params.functionId !== "new") {
-        const fn = await prisma.function.findFirst({
-          where: {
-            projectId: session.projectId,
-            ...functionIdentifierWhere(params.functionId),
-          },
-          select: { id: true },
-        });
-        if (!fn)
-          return reply.status(404).send({
-            error: {
-              code: "NOT_FOUND",
-              message: "Function not found",
-              requestId: requestId(request),
-            },
-          });
-        params.functionId = fn.id;
-      }
-    }
-    const cursor = (request.query as { cursor?: unknown }).cursor;
-    if (
-      typeof cursor === "string" &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        cursor,
-      )
-    ) {
-      if (request.url.startsWith("/api/logs"))
-        await assertScopedCursor("runtime_log", session.projectId, cursor);
-      else if (request.url.startsWith("/api/executions"))
-        await assertScopedCursor("execution", session.projectId, cursor);
-      else if (request.url.startsWith("/api/deployments"))
-        await assertScopedCursor("deployment", session.projectId, cursor);
-      else if (request.url.startsWith("/api/audit-events"))
-        await assertScopedCursor("audit", session.projectId, cursor);
-    }
-  }
+app.addHook("onClose", async () => {
+  await Promise.all([deploymentQueue.close(), cacheInspector.quit()]);
 });
 
 app.get("/health", async () => ({
@@ -4270,12 +4135,7 @@ app.post("/api/deployments", async (request, reply) => {
         projectId: session.projectId,
         actorId: session.userId,
       },
-      {
-        jobId: deployment.id,
-        attempts: 2,
-        removeOnComplete: 100,
-        removeOnFail: 100,
-      },
+      deploymentJobOptions(deployment.id),
     );
   return reply.status(202).send({
     ...created.projectDeployment,
@@ -4988,8 +4848,7 @@ app.post("/api/runtime-endpoints/:endpointId/manifest", async (request, reply) =
   };
 });
 
-const port = Number(process.env.PORT ?? 3001);
-await app.listen({ port, host: "0.0.0.0" });
+export { app };
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)

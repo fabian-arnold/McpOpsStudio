@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { build, type Plugin } from "esbuild";
+import { build, formatMessages, type Plugin } from "esbuild";
 import { platformModuleSources } from "@mcpops/platform-modules";
+import { validateSourcePolicy } from "./source-policy.js";
 
 export type ProjectLibrarySource = {
   importPath: string;
@@ -17,26 +18,18 @@ export type BundleResult = {
   sourceMap: string;
   checksum: string;
   imports: string[];
+  warnings: string[];
 };
 
-const forbiddenSyntax: ReadonlyArray<[RegExp, string]> = [
-  [/\brequire\s*\(/, "CommonJS require is not available"],
-  [/\bimport\s*\(/, "Dynamic imports are not available"],
-  [/\bprocess\b/, "Process access is not available"],
-  [/\b(?:eval|Function)\s*\(/, "Dynamic code generation is not available"],
-  [/\b(?:fetch|XMLHttpRequest|WebSocket)\b/, "Use ctx.http for network access"],
-  [/\b(?:Deno|Bun)\b/, "Host runtime access is not available"],
-];
-
 export async function bundleFunction(request: BundleRequest): Promise<BundleResult> {
-  validateSource(request.code, "function");
+  validateSourcePolicy(request.code, "function");
   const libraryMap = new Map(
     (request.projectLibraries ?? []).map((library) => [library.importPath, library]),
   );
   for (const library of libraryMap.values()) {
     if (!library.importPath.startsWith("@mcpops/lib/"))
       throw new Error(`Invalid project library path: ${library.importPath}`);
-    validateSource(library.code, library.importPath);
+    validateSourcePolicy(library.code, library.importPath);
   }
   const imports = new Set<string>();
   const controlledModules: Plugin = {
@@ -87,15 +80,15 @@ export async function bundleFunction(request: BundleRequest): Promise<BundleResu
   const map = result.outputFiles.find((file) => file.path.endsWith(".js.map"));
   if (!js) throw new Error("esbuild did not produce JavaScript output");
   const compiledCode = js.text;
+  const warnings = await formatMessages(result.warnings, {
+    kind: "warning",
+    color: false,
+  });
   return {
     compiledCode,
     sourceMap: map?.text ?? "",
     checksum: createHash("sha256").update(compiledCode).digest("hex"),
     imports: [...imports].sort(),
+    warnings,
   };
-}
-
-function validateSource(code: string, label: string): void {
-  for (const [pattern, message] of forbiddenSyntax)
-    if (pattern.test(code)) throw new Error(`${label}: ${message}`);
 }

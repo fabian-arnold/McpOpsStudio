@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { UserPlus, Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {

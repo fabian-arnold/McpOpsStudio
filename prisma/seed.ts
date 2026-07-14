@@ -826,10 +826,18 @@ async function main(): Promise<void> {
     });
 }
 
-main()
-  .then(() =>
+async function run(): Promise<void> {
+  try {
+    await main();
     console.log(
       "Seeded Acme development project and rollback-capable immutable release snapshots.",
-    ),
-  )
-  .finally(async () => prisma.$disconnect());
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+void run().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

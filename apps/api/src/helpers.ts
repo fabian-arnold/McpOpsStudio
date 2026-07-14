@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { z, ZodError } from "zod";
+import { type z, ZodError } from "zod";
 import { requireSession, type PlatformSession } from "./auth.js";
 
 export const checksum = (input: string) =>
