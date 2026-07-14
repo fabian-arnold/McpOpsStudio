@@ -26,7 +26,15 @@ const endpoint = {
   slug: "endpoint",
   kind: "http",
   project: { id: "project-1", name: "Project", slug: "project" },
-  environment: { id: "environment-1", name: "Development", slug: "development" },
+  environment: {
+    id: "environment-1",
+    name: "Development",
+    slug: "development",
+    logLevel: "debug",
+    logRetentionDays: 7,
+    logRetentionMaxEntries: 50000,
+    logRetentionMaxBytes: 52428800,
+  },
   deployment: { id: "deployment-1", version: 1, checksum: "checksum" },
   snapshot: {
     functions: [],

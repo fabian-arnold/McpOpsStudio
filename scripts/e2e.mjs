@@ -500,6 +500,26 @@ assert.ok(
   mcpExecutions.body.items.some((entry) => entry.invocationSource === "mcp"),
   "MCP execution was persisted",
 );
+const loggedMcpExecution = mcpExecutions.body.items.find(
+  (entry) =>
+    entry.invocationSource === "mcp" &&
+    entry.functionId === searchCustomers.id &&
+    entry.status === "success" &&
+    entry.requestId,
+);
+assert.ok(loggedMcpExecution, "MCP execution exposes a request ID for log correlation");
+const runtimeLogs = await json(
+  `${control}/logs?requestId=${encodeURIComponent(loggedMcpExecution.requestId)}`,
+  { headers: { cookie } },
+);
+assert.ok(
+  runtimeLogs.body.items.some(
+    (entry) =>
+      entry.requestId === loggedMcpExecution.requestId &&
+      entry.message === "Searching customers",
+  ),
+  "redacted structured Function logs were persisted and are queryable by request ID",
+);
 const httpExecutions = await json(`${control}/executions?endpointId=${httpEndpoint.id}`, {
   headers: { cookie },
 });

@@ -75,6 +75,10 @@ export function registerInstallationRoutes(
               name: "Development",
               slug: "development",
               capturePayloads: true,
+              logLevel: "debug",
+              logRetentionDays: 7,
+              logRetentionMaxEntries: 50000,
+              logRetentionMaxBytes: 52428800,
               baseUrl: publicUrl,
             },
           });
@@ -83,6 +87,10 @@ export function registerInstallationRoutes(
               projectId: project.id,
               name: "Production",
               slug: "production",
+              logLevel: "info",
+              logRetentionDays: 30,
+              logRetentionMaxEntries: 200000,
+              logRetentionMaxBytes: 262144000,
               baseUrl: publicUrl,
             },
           });

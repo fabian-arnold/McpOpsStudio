@@ -32,6 +32,7 @@ import {
   Network,
   Rocket,
   Scale,
+  ScrollText,
   Users,
   X,
 } from "lucide-react";
@@ -65,6 +66,7 @@ const projectNav: NavItem[] = [
   { href: "/auth-policies", label: "Authentication", icon: KeyRound },
   { href: "/secrets", label: "Secrets", icon: LockKeyhole },
   { href: "/executions", label: "Executions", icon: Activity },
+  { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/deployments", label: "Deployments", icon: Boxes },
   {
     href: "/project-settings",

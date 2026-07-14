@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Bug, FolderCog, Trash2 } from "lucide-react";
+import { Bug, FolderCog, ScrollText, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {
   Badge,
@@ -22,6 +22,16 @@ type ProjectSettings = {
   description: string;
   status: string;
   captureDevelopmentPayloads: boolean;
+  logging: {
+    development: LogSettings;
+    production: LogSettings;
+  };
+};
+type LogSettings = {
+  level: "debug" | "info" | "warn" | "error" | "off";
+  retentionDays: number;
+  retentionMaxEntries: number;
+  retentionMaxBytes: number;
 };
 
 export default function ProjectSettingsPage() {
@@ -57,6 +67,7 @@ export default function ProjectSettingsPage() {
           slug: draft.slug.trim(),
           description: draft.description.trim(),
           captureDevelopmentPayloads: draft.captureDevelopmentPayloads,
+          logging: draft.logging,
         }),
       });
       toast({
@@ -154,6 +165,21 @@ export default function ProjectSettingsPage() {
 
         <section className="panel p-5">
           <div className="flex items-start gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><ScrollText size={16} /></span>
+            <div>
+              <h2 className="text-sm font-semibold">Runtime logging</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Set the project-wide minimum level and Graylog-style retention limits independently for each environment.</p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-4 xl:grid-cols-2">
+            <LoggingEnvironmentSettings label="Development" value={draft.logging.development} disabled={!canManage} onChange={(value) => setDraft({ ...draft, logging: { ...draft.logging, development: value } })} />
+            <LoggingEnvironmentSettings label="Production" value={draft.logging.production} disabled={!canManage} onChange={(value) => setDraft({ ...draft, logging: { ...draft.logging, production: value } })} />
+          </div>
+          <p className="mt-4 rounded-lg border bg-muted/30 p-3 text-[11px] leading-5 text-muted-foreground">The oldest entries are removed when any limit is exceeded. Log metadata is redacted and bounded before storage; changing these settings never weakens Secret redaction.</p>
+        </section>
+
+        <section className="panel p-5">
+          <div className="flex items-start gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Bug size={16} />
             </span>
@@ -223,6 +249,20 @@ export default function ProjectSettingsPage() {
 
       {canManage && <DeleteProject project={settings} />}
     </AppShell>
+  );
+}
+
+function LoggingEnvironmentSettings({ label, value, disabled, onChange }: { label: string; value: LogSettings; disabled: boolean; onChange: (value: LogSettings) => void }) {
+  return (
+    <div className="rounded-xl border p-4">
+      <div className="mb-4 flex items-center justify-between"><h3 className="text-xs font-semibold">{label}</h3><Badge tone={value.level === "off" ? "neutral" : value.level === "debug" ? "warning" : "primary"}>{value.level}</Badge></div>
+      <label><span className="label">Minimum level</span><select className="field" value={value.level} disabled={disabled} onChange={(event) => onChange({ ...value, level: event.target.value as LogSettings["level"] })}>{["debug", "info", "warn", "error", "off"].map((level) => <option key={level} value={level}>{level === "off" ? "Off — store no Function logs" : `${level} and above`}</option>)}</select></label>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <label><span className="label">Max age</span><input className="field" type="number" min={1} max={3650} value={value.retentionDays} disabled={disabled} onChange={(event) => onChange({ ...value, retentionDays: Number(event.target.value) })} /><span className="mt-1 block text-[9px] text-muted-foreground">days</span></label>
+        <label><span className="label">Max count</span><input className="field" type="number" min={100} max={10000000} step={100} value={value.retentionMaxEntries} disabled={disabled} onChange={(event) => onChange({ ...value, retentionMaxEntries: Number(event.target.value) })} /><span className="mt-1 block text-[9px] text-muted-foreground">entries</span></label>
+        <label><span className="label">Max size</span><input className="field" type="number" min={1} max={1907} value={Math.round(value.retentionMaxBytes / 1048576)} disabled={disabled} onChange={(event) => onChange({ ...value, retentionMaxBytes: Number(event.target.value) * 1048576 })} /><span className="mt-1 block text-[9px] text-muted-foreground">MiB</span></label>
+      </div>
+    </div>
   );
 }
 

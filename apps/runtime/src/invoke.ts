@@ -30,6 +30,7 @@ import {
   getEncryptedSecretById,
   saveAudit,
   saveExecution,
+  saveRuntimeLogs,
   storageDelete,
   storageDeleteMany,
   storageGet,
@@ -109,6 +110,7 @@ export type RuntimeLogEvent = {
   metadata?: unknown;
   requestId: string;
   executionId: string;
+  correlationId?: string;
   projectId: string;
   environmentId: string;
   endpointId: string;
@@ -226,6 +228,7 @@ export class RuntimeInvoker {
         output,
         undefined,
         secretValues,
+        logs,
       );
       this.metrics.record(executionStatus, durationMs);
       return {
@@ -255,6 +258,7 @@ export class RuntimeInvoker {
         undefined,
         recordedError,
         secretValues,
+        logs,
       );
       this.metrics.record(executionStatus, durationMs);
       return { ok: false, error: safe, durationMs, executionId, logs };
@@ -458,6 +462,7 @@ export class RuntimeInvoker {
     output: unknown,
     error: unknown,
     secrets: readonly string[],
+    logs: readonly RuntimeLogEvent[],
   ): Promise<void> {
     const capturePayloads = shouldCapturePayloads(
       request.endpoint.environment,
@@ -500,6 +505,9 @@ export class RuntimeInvoker {
         ? { parentExecutionId: request.parentExecutionId }
         : {}),
       rootExecutionId: request.rootExecutionId ?? executionId,
+    });
+    await saveRuntimeLogs(request.endpoint, logs).catch(() => {
+      process.stderr.write("Runtime log persistence failed.\n");
     });
     if (status === "denied" || status === "success")
       await saveAudit({
@@ -571,14 +579,15 @@ class InvocationLogger implements SafeLogger {
     this.write("error", message, metadata);
   }
   private write(
-    level: string,
+    level: RuntimeLogEvent["level"],
     message: string,
     metadata?: Record<string, unknown>,
   ): void {
+    if (!shouldWriteLog(this.request.endpoint.environment.logLevel, level)) return;
     const event = buildRuntimeLogEvent(
       this.request,
       this.executionId,
-      level as RuntimeLogEvent["level"],
+      level,
       message,
       metadata,
       this.secrets,
@@ -586,6 +595,13 @@ class InvocationLogger implements SafeLogger {
     this.events.push(event);
     process.stdout.write(JSON.stringify(event) + "\n");
   }
+}
+export function shouldWriteLog(
+  configured: LoadedEndpoint["environment"]["logLevel"],
+  level: RuntimeLogEvent["level"],
+): boolean {
+  const rank = { debug: 10, info: 20, warn: 30, error: 40, off: 50 } as const;
+  return rank[level] >= rank[configured];
 }
 export function buildRuntimeLogEvent(
   request: InvokeRequest,
@@ -604,6 +620,7 @@ export function buildRuntimeLogEvent(
       : { metadata: redactSensitive(metadata, secrets) }),
     requestId: request.requestId,
     executionId,
+    ...(request.correlationId ? { correlationId: request.correlationId } : {}),
     projectId: request.endpoint.project.id,
     environmentId: request.endpoint.environment.id,
     endpointId: request.endpoint.id,

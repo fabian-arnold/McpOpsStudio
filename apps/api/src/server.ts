@@ -87,6 +87,7 @@ import {
   csv,
   deploymentListQuerySchema,
   executionListQuerySchema,
+  runtimeLogListQuerySchema,
 } from "./listing.js";
 import {
   inferFailedFunction,
@@ -250,7 +251,9 @@ app.addHook("preHandler", async (request, reply) => {
         cursor,
       )
     ) {
-      if (request.url.startsWith("/api/executions"))
+      if (request.url.startsWith("/api/logs"))
+        await assertScopedCursor("runtime_log", session.projectId, cursor);
+      else if (request.url.startsWith("/api/executions"))
         await assertScopedCursor("execution", session.projectId, cursor);
       else if (request.url.startsWith("/api/deployments"))
         await assertScopedCursor("deployment", session.projectId, cursor);
@@ -475,6 +478,10 @@ app.post("/api/projects", async (request, reply) => {
           name: "Development",
           slug: "development",
           capturePayloads: true,
+          logLevel: "debug",
+          logRetentionDays: 7,
+          logRetentionMaxEntries: 50000,
+          logRetentionMaxBytes: 52428800,
           baseUrl: installationUrl,
         },
         {
@@ -483,6 +490,10 @@ app.post("/api/projects", async (request, reply) => {
           slug: "production",
           baseUrl:
             process.env.PRODUCTION_RUNTIME_PUBLIC_URL ?? installationUrl,
+          logLevel: "info",
+          logRetentionDays: 30,
+          logRetentionMaxEntries: 200000,
+          logRetentionMaxBytes: 262144000,
         },
       ],
     });
@@ -513,9 +524,8 @@ app.get("/api/project-settings", async (request, reply) => {
       status: true,
       updatedAt: true,
       environments: {
-        where: { slug: "development" },
-        select: { id: true, capturePayloads: true },
-        take: 1,
+        where: { slug: { in: ["development", "production"] } },
+        select: { id: true, slug: true, capturePayloads: true, logLevel: true, logRetentionDays: true, logRetentionMaxEntries: true, logRetentionMaxBytes: true },
       },
     },
   });
@@ -535,14 +545,56 @@ app.get("/api/project-settings", async (request, reply) => {
     status: project.status,
     updatedAt: project.updatedAt,
     captureDevelopmentPayloads:
-      project.environments[0]?.capturePayloads ?? false,
+      project.environments.find((environment) => environment.slug === "development")?.capturePayloads ?? false,
+    logging: {
+      development: environmentLogSettings(project.environments, "development", {
+        level: "debug",
+        retentionDays: 7,
+        retentionMaxEntries: 50_000,
+        retentionMaxBytes: 50 * 1024 * 1024,
+      }),
+      production: environmentLogSettings(project.environments, "production", {
+        level: "info",
+        retentionDays: 30,
+        retentionMaxEntries: 200_000,
+        retentionMaxBytes: 250 * 1024 * 1024,
+      }),
+    },
   };
 });
+
+function environmentLogSettings(
+  environments: Array<{
+    slug: string;
+    logLevel: string;
+    logRetentionDays: number;
+    logRetentionMaxEntries: number;
+    logRetentionMaxBytes: number;
+  }>,
+  slug: "development" | "production",
+  fallback: {
+    level: "debug" | "info";
+    retentionDays: number;
+    retentionMaxEntries: number;
+    retentionMaxBytes: number;
+  },
+) {
+  const environment = environments.find((candidate) => candidate.slug === slug);
+  return environment
+    ? {
+        level: environment.logLevel,
+        retentionDays: environment.logRetentionDays,
+        retentionMaxEntries: environment.logRetentionMaxEntries,
+        retentionMaxBytes: environment.logRetentionMaxBytes,
+      }
+    : fallback;
+}
+
 app.patch("/api/project-settings", async (request, reply) => {
   const session = sessionContext(request);
   requireRole(session, ["owner", "admin"]);
   const input = parse(projectSettingsUpdateSchema, request.body);
-  const { captureDevelopmentPayloads, ...projectInput } = input;
+  const { captureDevelopmentPayloads, logging, ...projectInput } = input;
   const development =
     captureDevelopmentPayloads === undefined
       ? null
@@ -568,6 +620,17 @@ app.patch("/api/project-settings", async (request, reply) => {
         where: { id: development.id },
         data: { capturePayloads: captureDevelopmentPayloads },
       });
+    for (const [slug, settings] of Object.entries(logging ?? {}))
+      if (settings)
+        await tx.environment.updateMany({
+          where: { projectId: session.projectId, slug },
+          data: {
+            logLevel: settings.level,
+            logRetentionDays: settings.retentionDays,
+            logRetentionMaxEntries: settings.retentionMaxEntries,
+            logRetentionMaxBytes: settings.retentionMaxBytes,
+          },
+        });
     await tx.auditEvent.create({
       data: {
         projectId: session.projectId,
@@ -4779,6 +4842,87 @@ app.get("/api/deployments", async (request, reply) => {
     summary: summarizeDeployments(summaryRows, activeSnapshots),
   };
 });
+app.get("/api/logs", async (request, reply) => {
+  const session = sessionContext(request);
+  const query = parse(runtimeLogListQuerySchema, request.query);
+  const where = {
+    projectId: session.projectId,
+    ...(query.environmentId ? { environmentId: query.environmentId } : {}),
+    ...(query.endpointId ? { endpointId: query.endpointId } : {}),
+    ...(query.functionId ? { functionId: query.functionId } : {}),
+    ...(query.level ? { level: query.level } : {}),
+    ...(query.requestId ? { requestId: query.requestId } : {}),
+    ...(query.correlationId ? { correlationId: query.correlationId } : {}),
+    ...(query.q
+      ? {
+          OR: [
+            { message: { contains: query.q, mode: "insensitive" as const } },
+            { requestId: { contains: query.q, mode: "insensitive" as const } },
+            { correlationId: { contains: query.q, mode: "insensitive" as const } },
+            { function: { name: { contains: query.q, mode: "insensitive" as const } } },
+            { function: { slug: { contains: query.q, mode: "insensitive" as const } } },
+            { endpoint: { name: { contains: query.q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+    ...dateWhere(query.from, query.to),
+  };
+  const [rows, grouped] = await Promise.all([
+    prisma.runtimeLog.findMany({
+      where,
+      include: {
+        environment: { select: { id: true, name: true, slug: true } },
+        endpoint: { select: { id: true, name: true, slug: true, kind: true } },
+        function: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: query.limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    }),
+    prisma.runtimeLog.groupBy({
+      by: ["level"],
+      where,
+      _count: { _all: true },
+      _sum: { sizeBytes: true },
+    }),
+  ]);
+  const hasMore = rows.length > query.limit;
+  const page = rows.slice(0, query.limit);
+  const items = redactSensitive(page.map((row) => ({
+    id: row.id,
+    timestamp: row.createdAt,
+    level: row.level,
+    message: row.message,
+    metadata: row.metadata,
+    sizeBytes: row.sizeBytes,
+    requestId: row.requestId,
+    correlationId: row.correlationId,
+    executionId: row.executionId,
+    deploymentId: row.deploymentId,
+    environment: row.environment,
+    endpoint: row.endpoint,
+    function: row.function,
+  })));
+  if (query.format === "csv")
+    return replyCsv(
+      reply,
+      csv(items as Array<Record<string, unknown>>, [
+        "timestamp", "level", "message", "metadata", "requestId",
+        "correlationId", "executionId", "environment", "endpoint", "function",
+      ]),
+      `logs-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  return {
+    items,
+    nextCursor: hasMore ? page.at(-1)?.id : undefined,
+    summary: {
+      count: grouped.reduce((total, row) => total + row._count._all, 0),
+      sizeBytes: grouped.reduce((total, row) => total + (row._sum.sizeBytes ?? 0), 0),
+      levels: Object.fromEntries(grouped.map((row) => [row.level, row._count._all])),
+    },
+  };
+});
+
 app.get("/api/executions", async (request, reply) => {
   const session = sessionContext(request);
   const query = parse(executionListQuerySchema, request.query);
@@ -5749,12 +5893,17 @@ function replyCsv(reply: FastifyReply, content: string, filename: string) {
 }
 
 async function assertScopedCursor(
-  kind: "execution" | "deployment" | "audit",
+  kind: "execution" | "deployment" | "audit" | "runtime_log",
   projectId: string,
   id: string,
 ): Promise<void> {
   const found =
-    kind === "execution"
+    kind === "runtime_log"
+      ? await prisma.runtimeLog.findFirst({
+          where: { id, projectId },
+          select: { id: true },
+        })
+      : kind === "execution"
       ? await prisma.functionExecution.findFirst({
           where: { id, projectId },
           select: { id: true },

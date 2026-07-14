@@ -57,12 +57,23 @@ export const projectCreateSchema = z
   })
   .strict();
 export const projectUpdateSchema = projectCreateSchema.partial().strict();
+export const runtimeLogLevelSchema = z.enum(["debug", "info", "warn", "error", "off"]);
+export const runtimeLogSettingsSchema = z.object({
+  level: runtimeLogLevelSchema,
+  retentionDays: z.number().int().min(1).max(3650),
+  retentionMaxEntries: z.number().int().min(100).max(10_000_000),
+  retentionMaxBytes: z.number().int().min(1_048_576).max(2_000_000_000),
+}).strict();
 export const projectSettingsUpdateSchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     slug: slugSchema.optional(),
     description: z.string().trim().max(2000).optional(),
     captureDevelopmentPayloads: z.boolean().optional(),
+    logging: z.object({
+      development: runtimeLogSettingsSchema.optional(),
+      production: runtimeLogSettingsSchema.optional(),
+    }).strict().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {

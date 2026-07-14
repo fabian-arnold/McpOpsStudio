@@ -196,6 +196,10 @@ export type LoadedEndpoint = {
     name: string;
     slug: string;
     capturePayloads?: boolean;
+    logLevel: "debug" | "info" | "warn" | "error" | "off";
+    logRetentionDays: number;
+    logRetentionMaxEntries: number;
+    logRetentionMaxBytes: number;
   };
   deployment: { id: string; version: number; checksum: string };
   snapshot: DeploymentSnapshot;

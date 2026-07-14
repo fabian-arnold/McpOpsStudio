@@ -234,6 +234,21 @@ export type Execution = {
   output?: unknown;
   error?: unknown;
 };
+export type RuntimeLog = {
+  id: string;
+  timestamp: string;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  metadata?: Record<string, unknown>;
+  sizeBytes: number;
+  requestId: string;
+  correlationId?: string;
+  executionId: string;
+  deploymentId: string;
+  environment: { id: string; name: string; slug: string };
+  endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
+  function: { id: string; name: string; slug: string };
+};
 export type AuditEvent = {
   id: string;
   createdAt: string;

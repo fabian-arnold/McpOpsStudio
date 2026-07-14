@@ -21,6 +21,18 @@ export const executionListQuerySchema = z.object({
   format: z.enum(["json", "csv"]).default("json"),
 }).strict().superRefine(validDateRange);
 
+export const runtimeLogListQuerySchema = z.object({
+  ...page,
+  environmentId: z.string().uuid().optional(),
+  endpointId: z.string().uuid().optional(),
+  functionId: z.string().uuid().optional(),
+  level: z.enum(["debug", "info", "warn", "error"]).optional(),
+  requestId: z.string().max(256).optional(),
+  correlationId: z.string().max(256).optional(),
+  q: z.string().trim().max(512).optional(),
+  format: z.enum(["json", "csv"]).default("json"),
+}).strict().superRefine(validDateRange);
+
 export const deploymentListQuerySchema = z.object({
   ...page,
   environmentId: z.string().uuid().optional(),

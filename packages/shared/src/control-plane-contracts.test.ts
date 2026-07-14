@@ -5,6 +5,7 @@ import {
   httpBindingSchema,
   installationSetupSchema,
   networkPolicyUpdateSchema,
+  projectSettingsUpdateSchema,
 } from "./contracts.js";
 
 const draft = {
@@ -65,6 +66,29 @@ describe("control-plane mutation contracts", () => {
         outputSchema: { description: "Missing both type and constraints" },
       }),
     ).toThrow(/declare type or be empty/);
+  });
+
+  it("validates project logging levels and bounded retention", () => {
+    expect(projectSettingsUpdateSchema.parse({
+      logging: {
+        development: {
+          level: "debug",
+          retentionDays: 7,
+          retentionMaxEntries: 50000,
+          retentionMaxBytes: 52428800,
+        },
+      },
+    }).logging?.development?.level).toBe("debug");
+    expect(() => projectSettingsUpdateSchema.parse({
+      logging: {
+        production: {
+          level: "trace",
+          retentionDays: 0,
+          retentionMaxEntries: 1,
+          retentionMaxBytes: 1,
+        },
+      },
+    })).toThrow();
   });
 
   it("accepts only secret IDs and rejects the removed duplicate grant field", () => {
