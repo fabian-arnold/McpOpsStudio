@@ -11,11 +11,9 @@ const manifestNetworkSchema = z
     allowedHosts: z.array(z.string()).default([]),
     allowedMethods: z
       .array(z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]))
-      .min(1)
       .default(["GET"]),
     allowedPorts: z
       .array(z.number().int().min(1).max(65_535))
-      .min(1)
       .default([443]),
     maxResponseBytes: z
       .number()
@@ -27,6 +25,18 @@ const manifestNetworkSchema = z
   })
   .strict()
   .superRefine((policy, context) => {
+    if (policy.allowedHosts.length > 0 && policy.allowedMethods.length === 0)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["allowedMethods"],
+        message: "At least one method is required when hosts are allowed",
+      });
+    if (policy.allowedHosts.length > 0 && policy.allowedPorts.length === 0)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["allowedPorts"],
+        message: "At least one port is required when hosts are allowed",
+      });
     for (const host of policy.allowPrivateHosts)
       if (host.startsWith("*.") || !policy.allowedHosts.includes(host))
         context.addIssue({

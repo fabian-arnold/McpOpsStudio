@@ -95,6 +95,30 @@ describe("control-plane mutation contracts", () => {
       }).allowPrivateHosts,
     ).toEqual(["10.0.0.1"]);
   });
+  it("allows a deny-all outbound network policy", () => {
+    expect(
+      networkPolicyUpdateSchema.parse({
+        allowedHosts: [],
+        allowedMethods: [],
+        allowedPorts: [],
+        maxResponseBytes: 1_048_576,
+        allowPrivateHosts: [],
+      }),
+    ).toMatchObject({
+      allowedHosts: [],
+      allowedMethods: [],
+      allowedPorts: [],
+    });
+    expect(() =>
+      networkPolicyUpdateSchema.parse({
+        allowedHosts: ["api.example.com"],
+        allowedMethods: [],
+        allowedPorts: [],
+        maxResponseBytes: 1_048_576,
+        allowPrivateHosts: [],
+      }),
+    ).toThrow(/method is required/);
+  });
   it("validates operational cache and HTTP response mapping contracts", () => {
     expect(
       functionCreateSchema.parse({

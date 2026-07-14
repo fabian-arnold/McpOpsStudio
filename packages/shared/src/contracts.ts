@@ -388,11 +388,9 @@ export const networkPolicyUpdateSchema = z
       .transform((hosts) => [...new Set(hosts)]),
     allowedMethods: z
       .array(z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]))
-      .min(1)
       .transform((methods) => [...new Set(methods)]),
     allowedPorts: z
       .array(z.number().int().min(1).max(65_535))
-      .min(1)
       .max(50)
       .transform((ports) => [...new Set(ports)]),
     maxResponseBytes: z.number().int().min(1_024).max(10_485_760),
@@ -400,6 +398,18 @@ export const networkPolicyUpdateSchema = z
   })
   .strict()
   .superRefine((policy, context) => {
+    if (policy.allowedHosts.length > 0 && policy.allowedMethods.length === 0)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["allowedMethods"],
+        message: "At least one method is required when hosts are allowed",
+      });
+    if (policy.allowedHosts.length > 0 && policy.allowedPorts.length === 0)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["allowedPorts"],
+        message: "At least one port is required when hosts are allowed",
+      });
     const hardBlocked = new Set([
       "169.254.169.254",
       "100.100.100.200",
