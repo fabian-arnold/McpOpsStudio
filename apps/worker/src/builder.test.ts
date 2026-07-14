@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { bundleFunction, attachCurrentFunctionVersions } from "./function-bundler.js";
 import {
-  attachCurrentFunctionVersions,
-  bundleFunction,
-  collectRequiredAuthPolicyIds,
-  snapshotReferencedAuthPolicies,
   snapshotReviewedQueries,
-  validateAuthPolicyConfig,
-  validateAuthSecretReferences,
   validateCachePolicy,
   validateResponseMappingDefinition,
   validateRuntimeEnvironment,
-} from "./builder.js";
+} from "./builder-validation.js";
+import {
+  collectRequiredAuthPolicyIds,
+  snapshotReferencedAuthPolicies,
+  validateAuthPolicyConfig,
+  validateAuthSecretReferences,
+} from "./auth-policy-validation.js";
 import { resolveFunctionCallGraph } from "@mcpops/shared";
 
 describe("project Function call graph", () => {

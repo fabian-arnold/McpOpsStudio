@@ -1,4 +1,3 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import {
   createRemoteJWKSet,
@@ -15,12 +14,22 @@ import {
 } from "@mcpops/shared";
 import { SafeRuntimeError, type CallerIdentity } from "@mcpops/runtime-sdk";
 import type { AuthPolicy, LoadedEndpoint, EndpointAccessPolicy } from "./domain.js";
+import {
+  assertWebhookEndpoint,
+  verifyWebhookRequest,
+  type ReplayStore,
+} from "./webhook-auth.js";
 import { getEncryptedSecret } from "./repository.js";
+import { verifyBasicAuthorization, verifyStaticCredential } from "./static-auth.js";
+
+export {
+  assertWebhookEndpoint,
+  verifyWebhookRequest,
+  type ReplayStore,
+} from "./webhook-auth.js";
+export { verifyBasicAuthorization, verifyStaticCredential } from "./static-auth.js";
 
 const remoteJwks = new Map<string, JWTVerifyGetKey>();
-export interface ReplayStore {
-  claim(key: string, ttlSeconds: number): Promise<boolean>;
-}
 export type AuthenticationOptions = {
   endpoint: "mcp" | "http";
   rawBody?: Buffer;
@@ -234,24 +243,8 @@ async function policySecret(
     });
   }
 }
-export function verifyStaticCredential(left: string, right: string): boolean {
-  const a = createHash("sha256").update(left).digest();
-  const b = createHash("sha256").update(right).digest();
-  return timingSafeEqual(a, b);
-}
-export function verifyBasicAuthorization(
-  value: string,
-  username: string,
-  password: string,
-): boolean {
-  if (!username || username.includes(":")) return false;
-  const expected = `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
-  return verifyStaticCredential(value, expected);
-}
-
 type JwtConfig = ReturnType<typeof jwtPolicyConfigSchema.parse>;
 type EntraConfig = ReturnType<typeof entraPolicyConfigSchema.parse>;
-type WebhookConfig = ReturnType<typeof webhookSignaturePolicyConfigSchema.parse>;
 export async function verifyJwtAccessToken(
   token: string,
   config: JwtConfig,
@@ -319,61 +312,6 @@ export async function verifyEntraAccessToken(
     if (error instanceof SafeRuntimeError) throw error;
     throw tokenError(error, requestId);
   }
-}
-export async function verifyWebhookRequest(input: {
-  headers: Record<string, unknown>;
-  rawBody: Buffer;
-  config: WebhookConfig;
-  secret: string;
-  policyId: string;
-  replayStore: ReplayStore;
-  requestId: string;
-  now: Date;
-}): Promise<CallerIdentity> {
-  const timestampValue = singleHeader(input.headers, input.config.timestampHeader);
-  const signatureValue = singleHeader(input.headers, input.config.header);
-  if (!timestampValue || !signatureValue || !/^\d{10}$/.test(timestampValue))
-    unauthenticated(input.requestId);
-  const timestamp = Number(timestampValue);
-  if (
-    Math.abs(Math.floor(input.now.getTime() / 1000) - timestamp) >
-    input.config.toleranceSeconds
-  )
-    unauthenticated(input.requestId);
-  if (!signatureValue.startsWith(input.config.signaturePrefix))
-    unauthenticated(input.requestId);
-  const providedHex = signatureValue.slice(input.config.signaturePrefix.length);
-  if (!/^[a-f0-9]{64}$/i.test(providedHex)) unauthenticated(input.requestId);
-  const canonical = Buffer.concat([
-    Buffer.from(timestampValue + ".", "utf8"),
-    input.rawBody,
-  ]);
-  const expected = createHmac("sha256", input.secret).update(canonical).digest();
-  const provided = Buffer.from(providedHex, "hex");
-  if (provided.length !== expected.length || !timingSafeEqual(provided, expected))
-    unauthenticated(input.requestId);
-  const replayKey = `mcpops:webhook-replay:${createHash("sha256").update(`${input.policyId}:${timestampValue}:${providedHex.toLowerCase()}`).digest("hex")}`;
-  // Two tolerance windows cover tokens timestamped at the maximum accepted future skew.
-  let claimed: boolean;
-  try {
-    claimed = await input.replayStore.claim(
-      replayKey,
-      input.config.toleranceSeconds * 2,
-    );
-  } catch {
-    throw new SafeRuntimeError({
-      code: "CONFIGURATION_ERROR",
-      message: "Webhook replay protection is temporarily unavailable.",
-      requestId: input.requestId,
-      retryable: true,
-    });
-  }
-  if (!claimed) unauthenticated(input.requestId);
-  return {
-    subject: `webhook:${input.policyId}`,
-    permissions: input.config.permissions,
-    claims: { authenticationPolicyId: input.policyId, signedAt: timestamp },
-  };
 }
 export function authorizeEndpointAccess(
   caller: CallerIdentity,
@@ -550,23 +488,6 @@ function assertFeatureEnabled(
   if (!runtimeAuthFeatureEnabled(process.env, name))
     configuration(
       `${label} runtime authentication is disabled by configuration.`,
-      requestId,
-    );
-}
-function singleHeader(
-  headers: Record<string, unknown>,
-  name: string,
-): string | undefined {
-  const value = headers[name.toLowerCase()];
-  return typeof value === "string" ? value : undefined;
-}
-export function assertWebhookEndpoint(
-  endpoint: "mcp" | "http",
-  requestId: string,
-): void {
-  if (endpoint !== "http")
-    configuration(
-      "Webhook signature policies can only authenticate HTTP route bindings.",
       requestId,
     );
 }

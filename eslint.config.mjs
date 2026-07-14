@@ -132,7 +132,6 @@ export default tseslint.config(
       "import-x/first": "off",
       "sonarjs/cognitive-complexity": "off",
       "max-lines-per-function": "off",
-      "max-lines": ["error", { max: 800, skipBlankLines: true, skipComments: true }],
       complexity: "off",
       "max-params": "off",
     },
@@ -144,33 +143,21 @@ export default tseslint.config(
     },
   },
   {
-    files: ["apps/runtime/src/invoke.ts"],
+    files: ["apps/runtime/src/{invoke,invocation-adapters}.ts"],
     rules: {
       "no-control-regex": "off",
     },
   },
   {
-    // These ceilings make the remaining structural debt visible and prevent it
-    // from growing while domain modules replace each hotspot.
-    files: ["apps/api/src/server.ts"],
-    rules: {
-      "max-lines": ["error", 5650],
-      "max-lines-per-function": ["error", 250],
-      complexity: ["error", 40],
-      "sonarjs/cognitive-complexity": ["error", 40],
-      "max-params": ["error", 8],
-    },
-  },
-  {
     files: [
-      "apps/runtime/src/{server,invoke}.ts",
-      "apps/worker/src/builder.ts",
-      "apps/web/app/functions/**/page.tsx",
-      "apps/web/components/{binding-map,reviewed-database,runtime-endpoint-detail,shell}.tsx",
+      "apps/api/src/{routes-*,reviewed-database-routes,api-operation-helpers}.ts",
+      "apps/runtime/src/{server,server-utils,internal-routes,invoke,invocation-adapters,storage-repository}.ts",
+      "apps/worker/src/{builder,builder-validation,auth-policy-validation}.ts",
+      "apps/web/features/functions/*.{ts,tsx}",
+      "apps/web/components/{binding-map,reviewed-database,reviewed-database-queries,runtime-endpoint-detail,runtime-endpoint-authentication,shell,shell-sidebar}.tsx",
     ],
     rules: {
-      "max-lines": ["error", 1800],
-      "max-lines-per-function": ["error", 1200],
+      "max-lines-per-function": ["error", 500],
       complexity: ["error", 70],
       "sonarjs/cognitive-complexity": ["error", 55],
       "max-params": ["error", 8],
@@ -178,17 +165,15 @@ export default tseslint.config(
   },
   {
     files: [
-      "apps/api/src/{endpoint-discovery,installation,reviewed-database-routes}.ts",
+      "apps/api/src/{endpoint-discovery,installation}.ts",
       "apps/runtime/src/{auth,repository}.ts",
       "apps/web/app/{audit,deployments,endpoints,executions,libraries,login,logs,overview,project-settings,setup,templates}/**/*.tsx",
       "apps/web/app/page.tsx",
       "apps/web/components/{binding-editor-dialog,notification-center,runtime-endpoints-page,schema-input-tools,typescript-editor}.tsx",
       "packages/sandbox/src/network.ts",
-      "packages/shared/src/contracts.ts",
       "prisma/seed.ts",
     ],
     rules: {
-      "max-lines": ["error", 1000],
       "max-lines-per-function": ["error", 700],
       complexity: ["error", 50],
       "sonarjs/cognitive-complexity": ["error", 50],
@@ -196,7 +181,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["scripts/e2e.mjs"],
+    files: ["prisma/seed.ts", "scripts/e2e.mjs"],
     rules: { "max-lines": ["error", 900] },
+  },
+  {
+    files: ["apps/**/*.{js,mjs,cjs,ts,tsx}", "packages/**/*.{js,mjs,cjs,ts,tsx}"],
+    rules: { "max-lines": ["error", { max: 500 }] },
   },
 );
