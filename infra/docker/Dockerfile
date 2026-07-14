@@ -5,7 +5,7 @@ RUN corepack enable
 WORKDIR /workspace
 
 FROM base AS dependencies
-COPY package.json pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 # Copy dependency manifests before source so ordinary edits retain the pnpm
 # install layer. Prisma's schema is needed by @prisma/client postinstall.
 COPY apps/web/package.json ./apps/web/package.json
@@ -18,7 +18,7 @@ COPY packages/runtime-sdk/package.json ./packages/runtime-sdk/package.json
 COPY packages/platform-modules/package.json ./packages/platform-modules/package.json
 COPY packages/sandbox/package.json ./packages/sandbox/package.json
 COPY prisma/schema.prisma ./prisma/schema.prisma
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile
 COPY apps ./apps
 COPY packages ./packages
 COPY prisma ./prisma
