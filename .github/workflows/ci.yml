@@ -99,15 +99,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Start Compose stack
-        run: docker compose -f infra/docker-compose.yml up --build --detach --wait --scale worker=2
+        run: docker compose --profile demo -f infra/docker-compose.yml up --build --detach --wait --scale worker=2
 
       - name: Run vertical-slice integration test
         run: pnpm test:e2e
 
       - name: Show service logs on failure
         if: failure()
-        run: docker compose -f infra/docker-compose.yml logs --no-color
+        run: docker compose --profile demo -f infra/docker-compose.yml logs --no-color
 
       - name: Stop Compose stack
         if: always()
-        run: docker compose -f infra/docker-compose.yml down --volumes --remove-orphans
+        run: docker compose --profile demo -f infra/docker-compose.yml down --volumes --remove-orphans

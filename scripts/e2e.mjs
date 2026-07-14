@@ -419,6 +419,11 @@ const productionCall = await json(
   },
 );
 assert.equal(
+  productionCall.body.result.isError,
+  false,
+  `production tools/call succeeds: ${JSON.stringify(productionCall.body.result.structuredContent)}`,
+);
+assert.equal(
   productionCall.body.result.structuredContent.release,
   "v2",
   "production executes the released Function version",
