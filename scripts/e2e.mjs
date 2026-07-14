@@ -271,7 +271,6 @@ assert.equal(
 const savedOnlyFunction = await ensureFunction({
   name: "e2e_saved_only",
   slug: "e2e_saved_only",
-  title: "E2E saved-only Function",
   description: "Tests an immutable saved development version before deployment",
   code: 'export default async function handler(_ctx, input) { return { savedDevelopment: true, value: input.value }; }',
   inputSchema: {
@@ -626,7 +625,6 @@ async function ensureFunction(spec) {
 const composedLeaf = await ensureFunction({
   name: "e2e_double_value",
   slug: "e2e_double_value",
-  title: "E2E double value",
   description: "Stable E2E internal-call leaf fixture",
   code: "export default async function handler(_ctx, input) { return { value: input.value * 2 }; }",
   inputSchema: {
@@ -651,7 +649,6 @@ const composedLeaf = await ensureFunction({
 const composedEntry = await ensureFunction({
   name: "e2e_composed_value",
   slug: "e2e_composed_value",
-  title: "E2E composed value",
   description: "Stable E2E internal-call entry fixture",
   code: 'export default async function handler(ctx, input) { return ctx.functions.call("e2e_double_value", input); }',
   inputSchema: {
