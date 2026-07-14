@@ -79,16 +79,30 @@ for (const endpoint of endpoints.body.filter(
   );
 
 const currentSecrets = await json(`${control}/secrets`, { headers: { cookie } });
-if (!currentSecrets.body.some((secret) => secret.name === "E2E_BASIC_PASSWORD"))
-  await json(`${control}/secrets`, {
-    method: "POST",
-    headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
-    body: JSON.stringify({
-      environmentId: httpEndpoint.environment.id,
-      name: "E2E_BASIC_PASSWORD",
-      value: "e2e-basic-password",
-    }),
-  });
+const environments = await json(`${control}/environments`, {
+  headers: { cookie },
+});
+for (const environment of environments.body)
+  if (
+    !currentSecrets.body.some(
+      (secret) =>
+        secret.environmentId === environment.id &&
+        secret.name === "E2E_BASIC_PASSWORD",
+    )
+  )
+    await json(`${control}/secrets`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "x-csrf-token": csrf,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        environmentId: environment.id,
+        name: "E2E_BASIC_PASSWORD",
+        value: "e2e-basic-password",
+      }),
+    });
 let basicPolicy = availablePolicies.body.find(
   (policy) => policy.name === "E2E Basic authentication",
 );
