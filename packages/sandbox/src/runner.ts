@@ -105,9 +105,13 @@ function createContext(
     });
   const storage = (tenant?: string) => ({
     get: (key: string) => rpc("storage.get", key, tenant),
+    list: (pattern: string, options?: unknown) =>
+      rpc("storage.list", pattern, options, tenant),
     set: (key: string, value: unknown, options?: unknown) =>
       rpc("storage.set", key, value, options, tenant),
     delete: (key: string) => rpc("storage.delete", key, tenant),
+    deleteMany: (pattern: string, options?: unknown) =>
+      rpc("storage.deleteMany", pattern, options, tenant),
     forTenant: (id: string) => storage(id),
   });
   const cache = (tenant?: string) => ({

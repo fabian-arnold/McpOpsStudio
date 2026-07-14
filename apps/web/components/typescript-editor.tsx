@@ -27,6 +27,44 @@ type JsonSchema = {
 type TextModel = { getLineContent(lineNumber: number): string };
 type EditorPosition = { lineNumber: number; column: number };
 
+const storageCompletions = [
+  {
+    label: "get",
+    detail: "get<T = unknown>(key: string): Promise<T | null>",
+    documentation: "Read a value from Function-scoped persistent storage.",
+  },
+  {
+    label: "list",
+    detail:
+      "list(pattern: string, options?: { limit?: number }): Promise<Array<{ key: string; value: unknown }>>",
+    documentation:
+      "List matching values with one optional * wildcard, for example note:*.",
+  },
+  {
+    label: "set",
+    detail:
+      "set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>",
+    documentation: "Store a JSON value in Function-scoped persistent storage.",
+  },
+  {
+    label: "delete",
+    detail: "delete(key: string): Promise<void>",
+    documentation: "Delete a value from Function-scoped persistent storage.",
+  },
+  {
+    label: "deleteMany",
+    detail:
+      "deleteMany(pattern: string, options?: { limit?: number }): Promise<number>",
+    documentation:
+      "Delete matching values with one optional * wildcard and return the deleted count.",
+  },
+  {
+    label: "forTenant",
+    detail: "forTenant(tenantId: string): ScopedStorage",
+    documentation: "Create a storage view scoped to an explicit tenant.",
+  },
+] as const;
+
 const runtimeTypes = `
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type RuntimeContext = {
@@ -42,7 +80,7 @@ type RuntimeContext = {
   secrets: { get(name: string): string };
   logger: { debug(message: string, metadata?: unknown): void; info(message: string, metadata?: unknown): void; warn(message: string, metadata?: unknown): void; error(message: string, metadata?: unknown): void };
   http: { request<T = unknown>(request: { method: string; url: string; headers?: Record<string, string>; query?: Record<string, unknown>; body?: unknown }): Promise<{ data: T; status?: number; headers?: Record<string, string> }> };
-  storage: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; delete(key: string): Promise<void>; forTenant(tenantId: string): RuntimeContext["storage"] };
+  storage: { get<T = unknown>(key: string): Promise<T | null>; list<T = unknown>(pattern: string, options?: { limit?: number }): Promise<Array<{ key: string; value: T }>>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; delete(key: string): Promise<void>; deleteMany(pattern: string, options?: { limit?: number }): Promise<number>; forTenant(tenantId: string): RuntimeContext["storage"] };
   cache: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; getOrSet<T>(key: string, factory: () => Promise<T>, options: { ttlSeconds: number }): Promise<T> };
   functions: { call<Name extends keyof ProjectFunctionMap>(name: Name, input: ProjectFunctionMap[Name]["input"]): Promise<ProjectFunctionMap[Name]["output"]> };
   audit: { write(event: { action: string; targetType: string; targetId?: string; metadata?: Record<string, unknown> }): Promise<void> };
@@ -233,6 +271,16 @@ export function TypeScriptEditor({
                   insertText: name,
                   range,
                   detail: "RuntimeContext",
+                })),
+              };
+            }
+            if (runtimeContext && /\bctx\.storage\.$/.test(prefix)) {
+              return {
+                suggestions: storageCompletions.map((completion) => ({
+                  ...completion,
+                  kind: monaco.languages.CompletionItemKind.Method,
+                  insertText: completion.label,
+                  range,
                 })),
               };
             }

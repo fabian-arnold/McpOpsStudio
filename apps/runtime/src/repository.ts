@@ -8,6 +8,7 @@ type Delegate = {
   create(args: unknown): Promise<unknown>;
   upsert?(args: unknown): Promise<unknown>;
   delete?(args: unknown): Promise<unknown>;
+  deleteMany?(args: unknown): Promise<unknown>;
 };
 type RuntimePrisma = {
   runtimeEndpoint: Delegate;
@@ -306,6 +307,29 @@ export async function storageGet(
   })) as { value: unknown } | null;
   return row?.value ?? null;
 }
+export async function storageList(
+  endpoint: LoadedEndpoint,
+  functionId: string,
+  tenantScope: string,
+  pattern: string,
+  limit: number,
+): Promise<Array<{ key: string; value: unknown }>> {
+  const namespace = await ensureStorageNamespace(endpoint);
+  if (!client.storageEntry.findMany)
+    throw new Error("Storage adapter is unavailable");
+  return (await client.storageEntry.findMany({
+    where: {
+      namespaceId: namespace.id,
+      functionId,
+      tenantScope,
+      ...storagePatternFilter(pattern),
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    select: { key: true, value: true },
+    orderBy: { key: "asc" },
+    take: limit,
+  })) as Array<{ key: string; value: unknown }>;
+}
 export async function storageSet(
   endpoint: LoadedEndpoint,
   functionId: string,
@@ -353,6 +377,50 @@ export async function storageDelete(
   })) as { id: string } | null;
   if (found && client.storageEntry.delete)
     await client.storageEntry.delete({ where: { id: found.id } });
+}
+export async function storageDeleteMany(
+  endpoint: LoadedEndpoint,
+  functionId: string,
+  tenantScope: string,
+  pattern: string,
+  limit: number,
+): Promise<number> {
+  const namespace = await ensureStorageNamespace(endpoint);
+  if (!client.storageEntry.findMany || !client.storageEntry.deleteMany)
+    throw new Error("Storage adapter is unavailable");
+  const rows = (await client.storageEntry.findMany({
+    where: {
+      namespaceId: namespace.id,
+      functionId,
+      tenantScope,
+      ...storagePatternFilter(pattern),
+    },
+    select: { id: true },
+    orderBy: { key: "asc" },
+    take: limit,
+  })) as Array<{ id: string }>;
+  if (rows.length === 0) return 0;
+  const result = (await client.storageEntry.deleteMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+  })) as { count: number };
+  return result.count;
+}
+
+export function storagePatternFilter(pattern: string): {
+  key?: string | { startsWith?: string; endsWith?: string };
+} {
+  const wildcard = pattern.indexOf("*");
+  if (wildcard < 0) return { key: pattern };
+  const startsWith = pattern.slice(0, wildcard);
+  const endsWith = pattern.slice(wildcard + 1);
+  return startsWith || endsWith
+    ? {
+        key: {
+          ...(startsWith ? { startsWith } : {}),
+          ...(endsWith ? { endsWith } : {}),
+        },
+      }
+    : {};
 }
 async function ensureStorageNamespace(
   endpoint: LoadedEndpoint,

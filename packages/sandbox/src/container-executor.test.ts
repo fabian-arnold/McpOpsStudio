@@ -134,8 +134,14 @@ function context(controller: AbortController): RuntimeContext {
     async get() {
       return null;
     },
+    async list() {
+      return [];
+    },
     async set() {},
     async delete() {},
+    async deleteMany() {
+      return 0;
+    },
     forTenant() {
       return this;
     },

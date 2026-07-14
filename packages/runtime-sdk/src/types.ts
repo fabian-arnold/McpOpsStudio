@@ -37,12 +37,17 @@ export interface RestrictedHttpClient {
 }
 export interface ScopedStorage {
   get(key: string): Promise<unknown>;
+  list(
+    pattern: string,
+    options?: { limit?: number },
+  ): Promise<Array<{ key: string; value: unknown }>>;
   set(
     key: string,
     value: unknown,
     options?: { ttlSeconds?: number },
   ): Promise<void>;
   delete(key: string): Promise<void>;
+  deleteMany(pattern: string, options?: { limit?: number }): Promise<number>;
   forTenant(tenantId: string): ScopedStorage;
 }
 export interface ScopedCache {

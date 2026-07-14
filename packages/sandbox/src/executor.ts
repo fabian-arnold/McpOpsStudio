@@ -230,6 +230,11 @@ export async function dispatchCapability(
       );
     case "storage.get":
       return storageFor(context, args[1]).get(String(args[0]));
+    case "storage.list":
+      return storageFor(context, args[2]).list(
+        String(args[0]),
+        args[1] as { limit?: number } | undefined,
+      );
     case "storage.set":
       return storageFor(context, args[3]).set(
         String(args[0]),
@@ -238,6 +243,11 @@ export async function dispatchCapability(
       );
     case "storage.delete":
       return storageFor(context, args[1]).delete(String(args[0]));
+    case "storage.deleteMany":
+      return storageFor(context, args[2]).deleteMany(
+        String(args[0]),
+        args[1] as { limit?: number } | undefined,
+      );
     case "cache.get":
       return cacheFor(context, args[1]).get(String(args[0]));
     case "cache.set":

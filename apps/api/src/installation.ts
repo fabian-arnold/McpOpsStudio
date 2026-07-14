@@ -422,7 +422,7 @@ const noteFunctions = [
       { found: { type: "boolean" }, note: { anyOf: [noteSchema, { type: "null" }] } },
       ["found", "note"],
     ),
-    code: `export default async function handler(ctx, input) {
+    code: `export default async function handler(ctx: RuntimeContext, input: FunctionInput) {
   const key = "note:" + input.id;
   if (input.action === "save") {
     const note = { id: input.id, title: input.title ?? "", body: input.body ?? "", updatedAt: new Date().toISOString() };
@@ -448,7 +448,7 @@ const noteFunctions = [
       ["id", "title", "body"],
     ),
     outputSchema: noteSchema,
-    code: `export default async function handler(ctx, input) {
+    code: `export default async function handler(ctx: RuntimeContext, input: FunctionInput) {
   const result = await ctx.functions.call("note_store", { action: "save", id: input.id, title: input.title, body: input.body });
   return result.note;
 }`,
@@ -467,7 +467,7 @@ const noteFunctions = [
       { found: { type: "boolean" }, note: { anyOf: [noteSchema, { type: "null" }] } },
       ["found", "note"],
     ),
-    code: `export default async function handler(ctx, input) {
+    code: `export default async function handler(ctx: RuntimeContext, input: FunctionInput) {
   return ctx.functions.call("note_store", { action: "get", id: input.id });
 }`,
   },

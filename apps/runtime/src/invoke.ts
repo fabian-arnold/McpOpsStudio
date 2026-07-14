@@ -31,7 +31,9 @@ import {
   saveAudit,
   saveExecution,
   storageDelete,
+  storageDeleteMany,
   storageGet,
+  storageList,
   storageSet,
 } from "./repository.js";
 import type { RuntimeMetrics } from "./metrics.js";
@@ -626,6 +628,18 @@ class DatabaseStorage implements ScopedStorage {
       safeKey(key),
     );
   }
+  list(
+    pattern: string,
+    options?: { limit?: number },
+  ): Promise<Array<{ key: string; value: unknown }>> {
+    return storageList(
+      this.endpoint,
+      this.functionId,
+      this.tenantScope,
+      safeStoragePattern(pattern),
+      safeStorageLimit(options?.limit),
+    );
+  }
   set(
     key: string,
     value: unknown,
@@ -646,6 +660,18 @@ class DatabaseStorage implements ScopedStorage {
       this.functionId,
       this.tenantScope,
       safeKey(key),
+    );
+  }
+  deleteMany(
+    pattern: string,
+    options?: { limit?: number },
+  ): Promise<number> {
+    return storageDeleteMany(
+      this.endpoint,
+      this.functionId,
+      this.tenantScope,
+      safeStoragePattern(pattern),
+      safeStorageLimit(options?.limit),
     );
   }
   forTenant(tenantId: string): ScopedStorage {
@@ -790,6 +816,21 @@ function linkAbortSignal(
 function safeKey(value: string): string {
   if (!value || value.length > 512 || /[\u0000-\u001f]/.test(value))
     throw new Error("Invalid storage key");
+  return value;
+}
+function safeStoragePattern(value: string): string {
+  if (
+    !value ||
+    value.length > 512 ||
+    /[\u0000-\u001f]/.test(value) ||
+    (value.match(/\*/g)?.length ?? 0) > 1
+  )
+    throw new Error("Invalid storage pattern");
+  return value;
+}
+function safeStorageLimit(value = 100): number {
+  if (!Number.isInteger(value) || value < 1 || value > 1_000)
+    throw new Error("Storage limit must be an integer between 1 and 1000");
   return value;
 }
 function safeTenant(value: string): string {

@@ -87,8 +87,14 @@ describe("child-process execution", () => {
       async get() {
         return null;
       },
+      async list() {
+        return [{ key: "note:1", value: { title: "First" } }];
+      },
       async set() {},
       async delete() {},
+      async deleteMany() {
+        return 1;
+      },
       forTenant() {
         return this;
       },
@@ -140,14 +146,19 @@ describe("child-process execution", () => {
       abortSignal: controller.signal,
     };
     const result = await new LocalChildProcessExecutor().execute({
-      compiledCode: `export default async function (ctx, input) { return { value: input.value + 1, internal: await ctx.functions.call("lookup", input) }; }`,
+      compiledCode: `export default async function (ctx, input) { return { value: input.value + 1, internal: await ctx.functions.call("lookup", input), listed: await ctx.storage.list("note:*"), deleted: await ctx.storage.deleteMany("note:*") }; }`,
       input: { value: 1 },
       context,
       timeoutMs: 3_000,
     });
     expect(result).toMatchObject({
       status: "success",
-      output: { value: 2, internal: { slug: "lookup", input: { value: 1 } } },
+      output: {
+        value: 2,
+        internal: { slug: "lookup", input: { value: 1 } },
+        listed: [{ key: "note:1", value: { title: "First" } }],
+        deleted: 1,
+      },
     });
   });
   it("proxies reviewed query IDs and parameters without exposing a database client", async () => {
@@ -157,8 +168,14 @@ describe("child-process execution", () => {
       async get() {
         return null;
       },
+      async list() {
+        return [];
+      },
       async set() {},
       async delete() {},
+      async deleteMany() {
+        return 0;
+      },
       forTenant() {
         return this;
       },
@@ -233,8 +250,14 @@ describe("child-process execution", () => {
       async get() {
         return null;
       },
+      async list() {
+        return [];
+      },
       async set() {},
       async delete() {},
+      async deleteMany() {
+        return 0;
+      },
       forTenant() {
         return this;
       },

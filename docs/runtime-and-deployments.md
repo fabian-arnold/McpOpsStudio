@@ -164,3 +164,14 @@ The executor exposes only capability objects on `RuntimeContext`:
 - Abort signal
 
 The child communicates privileged operations back to the parent process over IPC. Do not pass raw clients, master keys, database URLs or unrestricted environment variables into the child.
+
+Storage keys support one `*` wildcard through bounded bulk operations:
+
+```ts
+const notes = await ctx.storage.list("note:*", { limit: 100 });
+const deleted = await ctx.storage.deleteMany("note:*", { limit: 100 });
+```
+
+`get` and `delete` continue to address one exact key. Wildcard operations are
+scoped to the current Function, environment, and tenant. Their default limit is
+100 and the maximum per call is 1,000.
