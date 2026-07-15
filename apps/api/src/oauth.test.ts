@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   allowedScopesForRole,
+  configuredPublicOrigin,
   hashToken,
   parseScopes,
   validPublicOrigin,
@@ -23,6 +24,20 @@ describe("platform MCP OAuth safety", () => {
     expect(validPublicOrigin("http://127.0.0.1:8080")).toBe(true);
     expect(validPublicOrigin("http://[::1]:8080")).toBe(true);
     expect(validPublicOrigin("http://studio.example.com")).toBe(false);
+  });
+
+  it("prefers the browser-configured installation origin", () => {
+    const previous = process.env.PUBLIC_CONTROL_PLANE_URL;
+    process.env.PUBLIC_CONTROL_PLANE_URL = "http://localhost:8080";
+    try {
+      expect(configuredPublicOrigin("https://mcp-studio.example.com/setup")).toBe(
+        "https://mcp-studio.example.com",
+      );
+      expect(configuredPublicOrigin()).toBe("http://localhost:8080");
+    } finally {
+      if (previous === undefined) delete process.env.PUBLIC_CONTROL_PLANE_URL;
+      else process.env.PUBLIC_CONTROL_PLANE_URL = previous;
+    }
   });
 
   it("limits capabilities by installation-wide role", () => {

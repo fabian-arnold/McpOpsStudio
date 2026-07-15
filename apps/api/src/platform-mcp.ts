@@ -18,7 +18,12 @@ import {
   projectLibrarySchema,
 } from "@mcpops/shared";
 import { checksum } from "./helpers.js";
-import { hashToken, platformResource, type PlatformScope } from "./oauth.js";
+import {
+  hashToken,
+  platformResource,
+  publicOrigin,
+  type PlatformScope,
+} from "./oauth.js";
 import { controlPlaneState } from "./resources.js";
 import { projectIdentifierWhere, projectRepository } from "./repository.js";
 import { applyUnifiedPatch } from "./source-patch.js";
@@ -253,9 +258,11 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
     method: ["POST", "GET", "DELETE"],
     url: "/platform/mcp",
     handler: async (request, reply) => {
-      const identity = await authenticateMcp(request, reply);
+      const origin = await publicOrigin();
+      const resource = platformResource(origin);
+      const identity = await authenticateMcp(request, reply, resource);
       if (!identity) return;
-      if (!validOrigin(request))
+      if (!validOrigin(request, origin))
         return reply.status(403).send({ error: "Invalid Origin" });
       const sessionId = stringHeader(request, "mcp-session-id");
       if (request.method === "GET")
@@ -346,6 +353,7 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
 async function authenticateMcp(
   request: FastifyRequest,
   reply: FastifyReply,
+  resource: string,
 ): Promise<McpIdentity | undefined> {
   const authorization = stringHeader(request, "authorization");
   const token = authorization?.startsWith("Bearer ")
@@ -354,7 +362,7 @@ async function authenticateMcp(
   if (!token) {
     reply.header(
       "www-authenticate",
-      `Bearer resource_metadata="${platformResource().replace("/platform/mcp", "/.well-known/oauth-protected-resource/platform/mcp")}", scope="mcpops:read"`,
+      `Bearer resource_metadata="${resource.replace("/platform/mcp", "/.well-known/oauth-protected-resource/platform/mcp")}", scope="mcpops:read"`,
     );
     reply.status(401).send({ error: "invalid_token" });
     return;
@@ -367,7 +375,7 @@ async function authenticateMcp(
     !grant ||
     grant.revokedAt ||
     grant.accessExpiresAt <= new Date() ||
-    grant.resource !== platformResource() ||
+    grant.resource !== resource ||
     !grant.user.active
   ) {
     reply.status(401).send({ error: "invalid_token" });
@@ -591,9 +599,9 @@ function stringHeader(request: FastifyRequest, name: string) {
   const value = request.headers[name];
   return Array.isArray(value) ? value[0] : value;
 }
-function validOrigin(request: FastifyRequest) {
+function validOrigin(request: FastifyRequest, expectedOrigin: string) {
   const origin = stringHeader(request, "origin");
-  return !origin || origin === new URL(platformResource()).origin;
+  return !origin || origin === expectedOrigin;
 }
 function rpcResult(rpc: Rpc, result: unknown) {
   return { jsonrpc: "2.0", id: rpc.id ?? null, result };

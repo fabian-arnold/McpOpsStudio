@@ -20,13 +20,21 @@ export type OAuthRequestState = {
 export const hashToken = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 export const opaqueToken = () => randomBytes(32).toString("base64url");
-export const publicOrigin = () =>
+export const configuredPublicOrigin = (installationPublicUrl?: string) =>
   new URL(
-    process.env.PUBLIC_CONTROL_PLANE_URL ??
+    installationPublicUrl ??
+      process.env.PUBLIC_CONTROL_PLANE_URL ??
       process.env.PUBLIC_RUNTIME_URL ??
       "http://localhost:8080",
   ).origin;
-export const platformResource = () => `${publicOrigin()}/platform/mcp`;
+export async function publicOrigin(): Promise<string> {
+  const installation = await prisma.installation.findUnique({
+    where: { id: "installation" },
+    select: { publicUrl: true },
+  });
+  return configuredPublicOrigin(installation?.publicUrl);
+}
+export const platformResource = (origin: string) => `${origin}/platform/mcp`;
 
 export function allowedScopesForRole(role: string): PlatformScope[] {
   if (["owner", "admin", "developer"].includes(role)) return [...platformScopes];

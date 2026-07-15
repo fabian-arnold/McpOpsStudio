@@ -40,31 +40,40 @@ const registrationSchema = z.object({
 });
 
 export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
-  if (process.env.NODE_ENV === "production" && !validPublicOrigin(publicOrigin()))
+  if (process.env.NODE_ENV === "production" && !validPublicOrigin(await publicOrigin()))
     throw new Error("PUBLIC_CONTROL_PLANE_URL must use HTTPS for platform MCP OAuth");
-  app.get("/.well-known/oauth-protected-resource/platform/mcp", async () => ({
-    resource: platformResource(),
-    authorization_servers: [publicOrigin()],
-    scopes_supported: platformScopes,
-    resource_name: "MCP Ops Studio Platform",
-  }));
-  app.get("/.well-known/oauth-protected-resource", async () => ({
-    resource: platformResource(),
-    authorization_servers: [publicOrigin()],
-    scopes_supported: platformScopes,
-  }));
-  app.get("/.well-known/oauth-authorization-server", async () => ({
-    issuer: publicOrigin(),
-    authorization_endpoint: `${publicOrigin()}/oauth/authorize`,
-    token_endpoint: `${publicOrigin()}/oauth/token`,
-    registration_endpoint: `${publicOrigin()}/oauth/register`,
-    response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    code_challenge_methods_supported: ["S256"],
-    token_endpoint_auth_methods_supported: ["none"],
-    scopes_supported: platformScopes,
-    client_id_metadata_document_supported: true,
-  }));
+  app.get("/.well-known/oauth-protected-resource/platform/mcp", async () => {
+    const origin = await publicOrigin();
+    return {
+      resource: platformResource(origin),
+      authorization_servers: [origin],
+      scopes_supported: platformScopes,
+      resource_name: "MCP Ops Studio Platform",
+    };
+  });
+  app.get("/.well-known/oauth-protected-resource", async () => {
+    const origin = await publicOrigin();
+    return {
+      resource: platformResource(origin),
+      authorization_servers: [origin],
+      scopes_supported: platformScopes,
+    };
+  });
+  app.get("/.well-known/oauth-authorization-server", async () => {
+    const origin = await publicOrigin();
+    return {
+      issuer: origin,
+      authorization_endpoint: `${origin}/oauth/authorize`,
+      token_endpoint: `${origin}/oauth/token`,
+      registration_endpoint: `${origin}/oauth/register`,
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+      scopes_supported: platformScopes,
+      client_id_metadata_document_supported: true,
+    };
+  });
 
   app.post("/oauth/register", async (request, reply) => {
     const body = parse(registrationSchema, request.body);
@@ -94,7 +103,8 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/oauth/authorize", async (request, reply) => {
     const query = parse(authorizeSchema, request.query);
-    if (query.resource !== platformResource())
+    const origin = await publicOrigin();
+    if (query.resource !== platformResource(origin))
       throw oauthError(
         "invalid_target",
         "The resource must be the platform MCP endpoint",
