@@ -121,11 +121,20 @@ export async function queueDevelopmentDeployment(session: PlatformSession) {
             activeSnapshot.endpointAccessPolicy,
         ),
         network: endpoint.networkPolicy
-          ? { allowPrivateHosts: stringList(endpoint.networkPolicy.allowPrivateHosts) }
+          ? {
+              allowPrivateHosts: stringList(endpoint.networkPolicy.allowPrivateHosts),
+              allowInsecureTlsHosts: stringList(
+                endpoint.networkPolicy.allowInsecureTlsHosts,
+              ),
+            }
           : {
               allowPrivateHosts: stringList(
                 record(activeConfig.network).allowPrivateHosts ??
                   record(activeSnapshot.networkPolicy).allowPrivateHosts,
+              ),
+              allowInsecureTlsHosts: stringList(
+                record(activeConfig.network).allowInsecureTlsHosts ??
+                  record(activeSnapshot.networkPolicy).allowInsecureTlsHosts,
               ),
             },
       });

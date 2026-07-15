@@ -12,6 +12,7 @@ import {
   snapshotReviewedQueries,
   validateCachePolicy,
   validateEndpointAccessPolicy,
+  validateInsecureTlsHosts,
   validatePrivateHosts,
   validateResponseMappingDefinition,
   validateRuntimeEnvironment,
@@ -312,9 +313,6 @@ export async function buildDeployment(
     const endpointAccessPolicy = validateEndpointAccessPolicy(
       runtimeConfig.endpointAccessPolicy,
     );
-    const configuredPrivateHosts = endpoint.networkPolicy
-      ? (endpoint.networkPolicy.allowPrivateHosts as string[])
-      : [];
     const snapshot: ExtendedDeploymentSnapshot = {
       schemaVersion: 1,
       createdAt: new Date().toISOString(),
@@ -380,7 +378,11 @@ export async function buildDeployment(
               allowedPorts: endpoint.networkPolicy.allowedPorts as number[],
               maxResponseBytes: endpoint.networkPolicy.maxResponseBytes,
               allowPrivateHosts: validatePrivateHosts(
-                configuredPrivateHosts,
+                endpoint.networkPolicy.allowPrivateHosts as string[],
+                endpoint.networkPolicy.allowedHosts as string[],
+              ),
+              allowInsecureTlsHosts: validateInsecureTlsHosts(
+                endpoint.networkPolicy.allowInsecureTlsHosts as string[],
                 endpoint.networkPolicy.allowedHosts as string[],
               ),
             },

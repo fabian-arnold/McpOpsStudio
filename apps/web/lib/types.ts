@@ -298,6 +298,7 @@ export type RuntimeEndpointDetail = RuntimeEndpoint & {
     allowedMethods: string[];
     allowedPorts?: number[];
     allowPrivateHosts?: string[];
+    allowInsecureTlsHosts?: string[];
     maxResponseBytes?: number;
   };
   telemetry?: {

@@ -19,6 +19,7 @@ export type ExtendedDeploymentSnapshot = DeploymentSnapshot & {
   };
   networkPolicy?: NonNullable<DeploymentSnapshot["networkPolicy"]> & {
     allowPrivateHosts: string[];
+    allowInsecureTlsHosts: string[];
   };
 };
 export function asRecord(value: unknown): Record<string, unknown> {
@@ -137,6 +138,18 @@ export function validatePrivateHosts(
     )
       throw new Error(
         `Private host '${host}' must be a safe exact network-policy allowed host`,
+      );
+  return [...new Set(hosts)];
+}
+
+export function validateInsecureTlsHosts(
+  hosts: string[],
+  allowedHosts: string[],
+): string[] {
+  for (const host of hosts)
+    if (!/^[a-z0-9.-]+$/i.test(host) || !allowedHosts.includes(host))
+      throw new Error(
+        `Insecure TLS host '${host}' must be an exact network-policy allowed host`,
       );
   return [...new Set(hosts)];
 }

@@ -26,6 +26,7 @@ export type HttpRequest = {
   query?: Record<string, string | number | boolean | null | undefined>;
   body?: unknown;
   timeoutMs?: number;
+  tls?: { rejectUnauthorized: boolean };
 };
 export type HttpResponse = {
   status: number;

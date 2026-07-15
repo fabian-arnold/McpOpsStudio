@@ -49,6 +49,7 @@ const endpoint = {
       allowedPorts: [443],
       maxResponseBytes: 1_048_576,
       allowPrivateHosts: [],
+      allowInsecureTlsHosts: [],
     },
     env: {},
     libraries: [],

@@ -15,6 +15,7 @@ const manifestNetworkSchema = z
     allowedPorts: z.array(z.number().int().min(1).max(65_535)).default([443]),
     maxResponseBytes: z.number().int().min(1_024).max(10_485_760).default(1_048_576),
     allowPrivateHosts: z.array(z.string()).default([]),
+    allowInsecureTlsHosts: z.array(z.string()).default([]),
   })
   .strict()
   .superRefine((policy, context) => {
@@ -36,6 +37,13 @@ const manifestNetworkSchema = z
           code: z.ZodIssueCode.custom,
           path: ["allowPrivateHosts"],
           message: `Private host '${host}' must be an exact allowed host`,
+        });
+    for (const host of policy.allowInsecureTlsHosts)
+      if (host.startsWith("*.") || !policy.allowedHosts.includes(host))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["allowInsecureTlsHosts"],
+          message: `Insecure TLS host '${host}' must be an exact allowed host`,
         });
   });
 

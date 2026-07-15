@@ -30,6 +30,7 @@ Use the MCP Ops Studio platform tools to configure and operate the selected proj
 4. Create and rotate Secret values only with \`secret_set_value\`. Never repeat Secret values in chat, source, logs, execution input, or summaries.
 5. Before enabling a binding or deploying an endpoint, assign an authentication policy and verify endpoint access and Function permissions.
 6. Keep outbound network policies minimal: allow only the required hosts, methods, and ports. Do not enable private-network access unless the user explicitly requires and approves it.
+   Disable TLS certificate verification only when the request requires it and the exact host is explicitly approved by the endpoint's \`allowInsecureTlsHosts\` policy. Prefer a trusted CA.
 7. Validate or test the affected Function, then deploy the complete immutable Development snapshot. Inspect deployment status and failures before reporting success.
 8. Ask for explicit confirmation before deleting resources, rotating an in-use Secret, releasing to Production, or rolling back.
 9. Never claim a mutation or deployment succeeded when a tool returned an error, was cancelled, or has not completed.

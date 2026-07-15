@@ -122,6 +122,8 @@ export type DeploymentSnapshot = {
     allowedMethods: string[];
     allowedPorts: number[];
     maxResponseBytes: number;
+    allowPrivateHosts?: string[];
+    allowInsecureTlsHosts?: string[];
   };
 };
 

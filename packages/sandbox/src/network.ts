@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import { lookup } from "node:dns/promises";
+import { Agent, fetch as undiciFetch } from "undici";
 import {
   SafeRuntimeError,
   type HttpRequest,
@@ -13,6 +14,7 @@ export type NetworkPolicy = {
   allowedPorts: number[];
   maxResponseBytes: number;
   allowPrivateHosts?: string[];
+  allowInsecureTlsHosts?: string[];
 };
 const metadataHosts = new Set([
   "169.254.169.254",
@@ -151,7 +153,9 @@ export class PolicyHttpClient implements RestrictedHttpClient {
     const timeout = AbortSignal.timeout(Math.min(request.timeoutMs ?? 15_000, 30_000));
     const signal = this.signal ? AbortSignal.any([this.signal, timeout]) : timeout;
     for (let redirects = 0; redirects <= 3; redirects += 1) {
+      let dispatcher: Agent | undefined;
       try {
+        dispatcher = insecureTlsDispatcher(request, url, this.policy, this.requestId);
         const init: RequestInit = {
           method,
           redirect: "manual",
@@ -159,7 +163,12 @@ export class PolicyHttpClient implements RestrictedHttpClient {
           ...(request.headers ? { headers: request.headers } : {}),
           ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
         };
-        const response = await fetch(url, init);
+        const response = dispatcher
+          ? await undiciFetch(url, {
+              ...init,
+              dispatcher,
+            } as Parameters<typeof undiciFetch>[1])
+          : await fetch(url, init);
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           const location = response.headers.get("location");
           if (!location || redirects === 3)
@@ -178,7 +187,7 @@ export class PolicyHttpClient implements RestrictedHttpClient {
         const declaredSize = Number(response.headers.get("content-length") ?? 0);
         if (declaredSize > this.policy.maxResponseBytes) throw tooLarge(this.requestId);
         const bytes = await readLimited(
-          response,
+          response as unknown as Response,
           this.policy.maxResponseBytes,
           this.requestId,
         );
@@ -208,6 +217,8 @@ export class PolicyHttpClient implements RestrictedHttpClient {
         if (signal.aborted)
           throw connectionError(url, "timeout", error, this.requestId);
         throw connectionError(url, connectionPhase(error), error, this.requestId);
+      } finally {
+        await dispatcher?.close();
       }
     }
     throw new SafeRuntimeError({
@@ -216,6 +227,29 @@ export class PolicyHttpClient implements RestrictedHttpClient {
       requestId: this.requestId,
     });
   }
+}
+
+function insecureTlsDispatcher(
+  request: HttpRequest,
+  url: URL,
+  policy: NetworkPolicy,
+  requestId: string,
+): Agent | undefined {
+  if (request.tls?.rejectUnauthorized !== false) return undefined;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (url.protocol !== "https:")
+    throw new SafeRuntimeError({
+      code: "VALIDATION_ERROR",
+      message: "TLS settings can only be used with HTTPS URLs.",
+      requestId,
+    });
+  if (!(policy.allowInsecureTlsHosts ?? []).includes(host))
+    throw new SafeRuntimeError({
+      code: "FORBIDDEN",
+      message: "TLS verification cannot be disabled for this outbound host.",
+      requestId,
+    });
+  return new Agent({ connect: { rejectUnauthorized: false } });
 }
 
 function connectionError(

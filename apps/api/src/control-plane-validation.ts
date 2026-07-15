@@ -66,6 +66,7 @@ function literalPrivateHost(host: string): boolean {
 export function networkPolicyWarnings(
   allowedHosts: string[],
   allowPrivateHosts: string[],
+  allowInsecureTlsHosts: string[] = [],
 ) {
   return allowedHosts.flatMap((host) => {
     if (host.startsWith("*."))
@@ -76,15 +77,22 @@ export function networkPolicyWarnings(
           message: "Wildcard hosts expand the outbound trust boundary.",
         },
       ];
+    const warnings = [];
     if (allowPrivateHosts.includes(host))
-      return [
-        {
-          host,
-          code: "PRIVATE_HOST_ALLOWED",
-          message:
-            "This host may resolve privately and is explicitly allowed in the next deployment snapshot.",
-        },
-      ];
+      warnings.push({
+        host,
+        code: "PRIVATE_HOST_ALLOWED",
+        message:
+          "This host may resolve privately and is explicitly allowed in the next deployment snapshot.",
+      });
+    if (allowInsecureTlsHosts.includes(host))
+      warnings.push({
+        host,
+        code: "INSECURE_TLS_ALLOWED",
+        message:
+          "Functions may explicitly disable certificate verification for this exact host.",
+      });
+    if (warnings.length) return warnings;
     if (literalPrivateHost(host))
       return [
         {

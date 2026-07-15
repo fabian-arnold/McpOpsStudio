@@ -79,7 +79,7 @@ type RuntimeContext = {
   env: Record<string, string>;
   secrets: { get(name: string): string };
   logger: { debug(message: string, metadata?: unknown): void; info(message: string, metadata?: unknown): void; warn(message: string, metadata?: unknown): void; error(message: string, metadata?: unknown): void };
-  http: { request<T = unknown>(request: { method: string; url: string; headers?: Record<string, string>; query?: Record<string, unknown>; body?: unknown }): Promise<{ data: T; status?: number; headers?: Record<string, string> }> };
+  http: { request<T = unknown>(request: { method: string; url: string; headers?: Record<string, string>; query?: Record<string, unknown>; body?: unknown; timeoutMs?: number; tls?: { rejectUnauthorized: boolean } }): Promise<{ data: T; status?: number; headers?: Record<string, string> }> };
   storage: { get<T = unknown>(key: string): Promise<T | null>; list<T = unknown>(pattern: string, options?: { limit?: number }): Promise<Array<{ key: string; value: T }>>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; delete(key: string): Promise<void>; deleteMany(pattern: string, options?: { limit?: number }): Promise<number>; forTenant(tenantId: string): RuntimeContext["storage"] };
   cache: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; getOrSet<T>(key: string, factory: () => Promise<T>, options: { ttlSeconds: number }): Promise<T> };
   functions: { call<Name extends keyof ProjectFunctionMap>(name: Name, input: ProjectFunctionMap[Name]["input"]): Promise<ProjectFunctionMap[Name]["output"]> };

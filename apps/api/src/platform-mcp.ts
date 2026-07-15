@@ -372,7 +372,7 @@ export const platformTools = [
   ),
   tool(
     "network_policy_edit",
-    "Configure validated outbound hosts, methods, ports, private-host exceptions, and response size.",
+    "Configure validated outbound hosts, methods, ports, private-host and insecure-TLS exceptions, and response size.",
     {
       endpoint: stringField("Endpoint ID or slug"),
       policy: objectField("Complete network policy"),

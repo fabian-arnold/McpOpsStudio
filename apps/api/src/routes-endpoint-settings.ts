@@ -210,6 +210,7 @@ export async function registerEndpointSettingsRoutes(
     const input = {
       ...parsed,
       allowPrivateHosts: parsed.allowPrivateHosts ?? [],
+      allowInsecureTlsHosts: parsed.allowInsecureTlsHosts ?? [],
     };
     const policy = await prisma.networkPolicy.upsert({
       where: { endpointId },
@@ -227,10 +228,12 @@ export async function registerEndpointSettingsRoutes(
         allowedMethods: input.allowedMethods,
         allowedPorts: input.allowedPorts,
         allowPrivateHosts: input.allowPrivateHosts,
+        allowInsecureTlsHosts: input.allowInsecureTlsHosts,
         maxResponseBytes: input.maxResponseBytes,
         warningCodes: networkPolicyWarnings(
           input.allowedHosts,
           input.allowPrivateHosts,
+          input.allowInsecureTlsHosts,
         ).map((warning) => warning.code),
       },
     );

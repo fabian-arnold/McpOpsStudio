@@ -138,6 +138,26 @@ describe("control-plane mutation contracts", () => {
       }).allowPrivateHosts,
     ).toEqual(["10.0.0.1"]);
   });
+  it("requires insecure TLS exceptions to be exact allowlisted hosts", () => {
+    expect(() =>
+      networkPolicyUpdateSchema.parse({
+        allowedHosts: ["*.example.com"],
+        allowedMethods: ["POST"],
+        allowedPorts: [443],
+        maxResponseBytes: 1024,
+        allowInsecureTlsHosts: ["*.example.com"],
+      }),
+    ).toThrow(/exact allowed host/);
+    expect(
+      networkPolicyUpdateSchema.parse({
+        allowedHosts: ["sap.example.com"],
+        allowedMethods: ["POST"],
+        allowedPorts: [443],
+        maxResponseBytes: 1024,
+        allowInsecureTlsHosts: ["sap.example.com"],
+      }).allowInsecureTlsHosts,
+    ).toEqual(["sap.example.com"]);
+  });
   it("allows a deny-all outbound network policy", () => {
     expect(
       networkPolicyUpdateSchema.parse({

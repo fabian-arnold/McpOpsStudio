@@ -147,6 +147,7 @@ export const deploymentSnapshotSchema = z
         allowedPorts: z.array(z.number().int()).default([443]),
         maxResponseBytes: z.number().int().positive().default(1_048_576),
         allowPrivateHosts: z.array(z.string()).default([]),
+        allowInsecureTlsHosts: z.array(z.string()).default([]),
       })
       .default({}),
     env: z

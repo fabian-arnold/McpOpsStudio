@@ -5,6 +5,34 @@ import { Badge, Button, EmptyState } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import type { RuntimeEndpointDetail } from "@/lib/types";
 
+function InsecureTlsHostsField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="md:col-span-2">
+      <label className="label" htmlFor="network-insecure-tls-hosts">
+        Hosts allowed to disable TLS verification · one per line
+      </label>
+      <textarea
+        className="field min-h-24 font-mono"
+        id="network-insecure-tls-hosts"
+        placeholder="Use only for legacy internal services with untrusted certificates"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+        Exact hosts only. The Function must also explicitly request
+        <code> tls.rejectUnauthorized: false</code>. Prefer installing a trusted CA
+        whenever possible.
+      </p>
+    </div>
+  );
+}
+
 export function NetworkPolicy({
   endpoint,
   onChanged,
@@ -15,6 +43,7 @@ export function NetworkPolicy({
   const policy = endpoint.networkPolicy as RuntimeEndpointDetail["networkPolicy"] & {
     allowedPorts?: number[];
     allowPrivateHosts?: string[];
+    allowInsecureTlsHosts?: string[];
     maxResponseBytes?: number;
   };
   const [hosts, setHosts] = useState((policy.allowedHosts ?? []).join("\n"));
@@ -22,6 +51,9 @@ export function NetworkPolicy({
   const [ports, setPorts] = useState((policy.allowedPorts ?? [443]).join(", "));
   const [privateHosts, setPrivateHosts] = useState(
     (policy.allowPrivateHosts ?? []).join("\n"),
+  );
+  const [insecureTlsHosts, setInsecureTlsHosts] = useState(
+    (policy.allowInsecureTlsHosts ?? []).join("\n"),
   );
   const [maxResponseBytes, setMaxResponseBytes] = useState(
     policy.maxResponseBytes ?? 1048576,
@@ -45,6 +77,7 @@ export function NetworkPolicy({
             .map((value) => Number(value.trim()))
             .filter((value) => Number.isInteger(value)),
           allowPrivateHosts: privateHosts.split(/\s+/).filter(Boolean),
+          allowInsecureTlsHosts: insecureTlsHosts.split(/\s+/).filter(Boolean),
           maxResponseBytes,
         }),
       });
@@ -130,6 +163,10 @@ export function NetworkPolicy({
             blocked even when listed.
           </p>
         </div>
+        <InsecureTlsHostsField
+          value={insecureTlsHosts}
+          onChange={setInsecureTlsHosts}
+        />
       </div>
       {message && <p className="mt-3 text-xs text-muted-foreground">{message}</p>}
       <Button className="mt-4" loading={busy} onClick={() => void save()}>

@@ -40,6 +40,7 @@ export const networkPolicyUpdateSchema = z
       .transform((ports) => [...new Set(ports)]),
     maxResponseBytes: z.number().int().min(1_024).max(10_485_760),
     allowPrivateHosts: z.array(networkHostSchema).max(50).default([]),
+    allowInsecureTlsHosts: z.array(networkHostSchema).max(50).default([]),
   })
   .strict()
   .superRefine((policy, context) => {
@@ -75,6 +76,13 @@ export const networkPolicyUpdateSchema = z
           message: `Metadata host '${host}' can never be allowed`,
         });
     }
+    for (const host of policy.allowInsecureTlsHosts ?? [])
+      if (host.startsWith("*.") || !policy.allowedHosts.includes(host))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["allowInsecureTlsHosts"],
+          message: `Insecure TLS host '${host}' must be an exact allowed host`,
+        });
   });
 export const cachePurgeSchema = z.object({ confirmEndpointSlug: slugSchema }).strict();
 export const testInvocationSchema = z.object({
@@ -131,8 +139,9 @@ export const deploymentRuntimeConfigSchema = z
     network: z
       .object({
         allowPrivateHosts: z.array(z.string().regex(/^[a-z0-9.-]+$/i)).default([]),
+        allowInsecureTlsHosts: z.array(z.string().regex(/^[a-z0-9.-]+$/i)).default([]),
       })
-      .default({ allowPrivateHosts: [] }),
+      .default({ allowPrivateHosts: [], allowInsecureTlsHosts: [] }),
   })
   .strict();
 export const deploymentCreateSchema = deploymentRuntimeConfigSchema.partial();

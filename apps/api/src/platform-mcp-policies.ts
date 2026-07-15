@@ -320,10 +320,12 @@ async function editNetworkPolicy(
           allowedMethods: input.policy.allowedMethods,
           allowedPorts: input.policy.allowedPorts,
           allowPrivateHosts: input.policy.allowPrivateHosts,
+          allowInsecureTlsHosts: input.policy.allowInsecureTlsHosts,
           maxResponseBytes: input.policy.maxResponseBytes,
           warningCodes: networkPolicyWarnings(
             input.policy.allowedHosts,
             input.policy.allowPrivateHosts,
+            input.policy.allowInsecureTlsHosts,
           ).map((warning) => warning.code),
           source: "platform_mcp",
         },

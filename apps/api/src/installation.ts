@@ -287,6 +287,7 @@ async function createNotesDemo(
         allowedMethods: [],
         allowedPorts: [],
         allowPrivateHosts: [],
+        allowInsecureTlsHosts: [],
       },
     });
   }
@@ -351,7 +352,7 @@ async function createNotesDemo(
             mode: "authenticated",
             allowedSubjects: [],
           },
-          network: { allowPrivateHosts: [] },
+          network: { allowPrivateHosts: [], allowInsecureTlsHosts: [] },
           timeoutMs: 30_000,
           maxConcurrentRequests: 20,
           requestedBy: ids.userId,

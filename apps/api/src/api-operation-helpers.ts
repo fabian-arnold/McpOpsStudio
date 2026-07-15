@@ -100,6 +100,7 @@ export function networkPolicyView(
     allowedMethods: unknown;
     allowedPorts: unknown;
     allowPrivateHosts: unknown;
+    allowInsecureTlsHosts: unknown;
     maxResponseBytes: number;
     updatedAt?: Date;
   } | null,
@@ -110,17 +111,23 @@ export function networkPolicyView(
     ? policy.allowedPorts.filter((port): port is number => typeof port === "number")
     : [];
   const allowPrivateHosts = stringList(policy?.allowPrivateHosts);
+  const allowInsecureTlsHosts = stringList(policy?.allowInsecureTlsHosts);
   const exactPolicy = {
     allowedHosts,
     allowedMethods,
     allowedPorts,
     maxResponseBytes: policy?.maxResponseBytes ?? 1_048_576,
     allowPrivateHosts,
+    allowInsecureTlsHosts,
   };
   return {
     id: policy?.id,
     ...exactPolicy,
-    warnings: networkPolicyWarnings(allowedHosts, allowPrivateHosts),
+    warnings: networkPolicyWarnings(
+      allowedHosts,
+      allowPrivateHosts,
+      allowInsecureTlsHosts,
+    ),
     nextSnapshotPolicy: exactPolicy,
     updatedAt: policy?.updatedAt,
     configured: Boolean(policy),
