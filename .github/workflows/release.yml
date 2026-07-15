@@ -111,15 +111,18 @@ jobs:
 
       - name: Build cached Compose images
         run: |
-          docker buildx bake --allow=fs.read=.. -f infra/docker-compose.yml \
+          docker buildx bake -f infra/docker-compose.yml \
+            --set control-plane.context=. \
             --set control-plane.tags=mcp-ops-studio-control-plane \
             --set control-plane.cache-from=type=gha,scope=ci-control-plane \
             --set control-plane.cache-to=type=gha,mode=max,scope=ci-control-plane \
             --set control-plane.output=type=docker \
+            --set worker.context=. \
             --set worker.tags=mcp-ops-studio-worker \
             --set worker.cache-from=type=gha,scope=ci-worker \
             --set worker.cache-to=type=gha,mode=max,scope=ci-worker \
             --set worker.output=type=docker \
+            --set migrate.context=. \
             --set migrate.tags=mcp-ops-studio-migrate \
             --set migrate.cache-from=type=gha,scope=ci-migrate \
             --set migrate.cache-to=type=gha,mode=max,scope=ci-migrate \
