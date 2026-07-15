@@ -6,6 +6,10 @@ vi.mock("./resources.js", () => ({
     get: vi.fn(),
     set: vi.fn(),
   },
+  scheduleQueue: {
+    add: vi.fn(),
+    getJobSchedulers: vi.fn(),
+  },
 }));
 
 describe("platform MCP module", () => {
@@ -37,6 +41,13 @@ describe("platform MCP module", () => {
         "deployments_list",
         "deployment_get",
         "deployment_logs",
+        "cron_bindings_list",
+        "cron_binding_get",
+        "cron_binding_create",
+        "cron_binding_edit",
+        "cron_binding_delete",
+        "cron_binding_run",
+        "cron_binding_runs",
       ]),
     );
     expect(names).toHaveLength(new Set(names).size);
@@ -48,5 +59,12 @@ describe("platform MCP module", () => {
         changes: { timeoutMs: 30_000 },
       }),
     ).toMatchObject({ changes: { timeoutMs: 30_000 }, dryRun: true });
+    const functionTest = module.platformTools.find(
+      (tool) => tool.name === "function_test",
+    );
+    expect(functionTest?.inputSchema.properties).toMatchObject({
+      cronBindingId: { type: "string" },
+      source: { enum: ["mcp", "http", "cron", "test"] },
+    });
   }, 15_000);
 });

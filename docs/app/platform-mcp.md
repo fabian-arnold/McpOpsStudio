@@ -19,6 +19,15 @@ Durable tools default to `dryRun: true`; repeat a successful preview with
 apply it. Public runtime traffic remains pinned to immutable snapshots until a
 development Project deployment completes.
 
+Cron bindings are available through `cron_bindings_list`, `cron_binding_get`,
+`cron_binding_create`, `cron_binding_edit`, `cron_binding_delete`,
+`cron_binding_run`, and `cron_binding_runs`. Create, edit, and delete operations
+change draft configuration and require a Project deployment before scheduler state
+changes. Manual runs use only the active immutable schedule artifact. The
+`function_test` tool accepts `source: "cron"` with `cronBindingId` to simulate the
+binding's empty input, service identity, permissions, network policy, and trigger
+metadata against saved development Function code.
+
 Endpoint discovery returns final environment URLs and describes the credential
 scheme or header that callers must supply. It never includes credential or Secret
 values.

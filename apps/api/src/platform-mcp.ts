@@ -46,6 +46,12 @@ import {
   callObservabilityTool,
   observabilityToolNames,
 } from "./platform-mcp-observability.js";
+import { callCronTool, cronToolNames, cronTools } from "./platform-mcp-cron.js";
+import {
+  callStorageTool,
+  storageToolNames,
+  storageTools,
+} from "./platform-mcp-storage.js";
 
 type McpIdentity = {
   grantId: string;
@@ -193,8 +199,9 @@ export const platformTools = [
     {
       function: stringField("Function ID, slug, or name"),
       endpointId: optionalString("Development endpoint ID"),
+      cronBindingId: optionalString("Cron binding ID for cron simulation"),
       input: anyField("Invocation input"),
-      source: enumField(["mcp", "http", "test"]),
+      source: enumField(["mcp", "http", "cron", "test"]),
       caller: optionalObject("Test caller subject, permissions, and claims"),
       dryRun: booleanField("Do not invoke user code", true),
     },
@@ -446,6 +453,8 @@ export const platformTools = [
     },
     false,
   ),
+  ...cronTools,
+  ...storageTools,
 ];
 
 export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<void> {
@@ -639,6 +648,9 @@ async function callTool(
   if (policyToolNames.has(name)) return callPolicyTool(name, projectId, identity, args);
   if (observabilityToolNames.has(name))
     return callObservabilityTool(name, projectId, args);
+  if (cronToolNames.has(name)) return callCronTool(name, projectId, identity, args);
+  if (storageToolNames.has(name))
+    return callStorageTool(name, projectId, identity, args);
 
   if (name === "project_get") {
     const environments = await prisma.environment.findMany({
@@ -1112,6 +1124,29 @@ async function testFunction(
 ) {
   requireRole(identity, ["owner", "admin", "developer", "operator"]);
   const fn = await findFunction(projectId, z.string().parse(args.function));
+  const source = z.enum(["mcp", "http", "cron", "test"]).parse(args.source ?? "test");
+  const cronBinding =
+    source === "cron" && typeof args.cronBindingId === "string"
+      ? await prisma.cronBinding.findFirst({
+          where: {
+            id: args.cronBindingId,
+            projectId,
+            functionId: fn.id,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            name: true,
+            serviceSubject: true,
+            permissionGrants: true,
+          },
+        })
+      : null;
+  if (source === "cron" && !cronBinding)
+    throw toolError(
+      "INVALID_CRON_BINDING",
+      "Select a cron binding owned by this Function for cron simulation.",
+    );
   const validation = await validateFunction(projectId, {
     ...functionDraft(fn),
     secretGrantIds: [],
@@ -1128,7 +1163,17 @@ async function testFunction(
           wouldInvoke: {
             functionId: fn.id,
             endpointId: args.endpointId,
-            source: args.source ?? "test",
+            cronBindingId: args.cronBindingId,
+            source,
+            input: cronBinding ? {} : args.input,
+            ...(cronBinding
+              ? {
+                  serviceCaller: {
+                    subject: cronBinding.serviceSubject,
+                    permissions: cronBinding.permissionGrants,
+                  },
+                }
+              : {}),
           },
         },
         dryRun
@@ -1155,8 +1200,9 @@ async function testFunction(
     fn.id,
     {
       endpointId: args.endpointId,
+      cronBindingId: args.cronBindingId,
       input: args.input,
-      source: args.source ?? "test",
+      source,
       caller: args.caller,
     },
   );
