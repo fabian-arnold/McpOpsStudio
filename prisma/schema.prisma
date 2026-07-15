@@ -123,6 +123,8 @@ model Project {
   auditEvents              AuditEvent[]
   databaseConnections      DatabaseConnection[]
   reviewedQueryDefinitions ReviewedQueryDefinition[]
+  dataCollections          DataCollection[]
+  collectionRecords        CollectionRecord[]
   projectDeployments       ProjectDeployment[]
 
   @@map("projects")
@@ -237,6 +239,7 @@ model Environment {
   auditEvents               AuditEvent[]
   databaseConnections       DatabaseConnection[]
   reviewedQueryDefinitions  ReviewedQueryDefinition[]
+  collectionRecords         CollectionRecord[]
   projectDeployments        ProjectDeployment[]       @relation("EnvironmentProjectDeployments")
   runtimeLogs               RuntimeLog[]
   activeProjectDeployment   ProjectDeployment?        @relation("ActiveProjectDeployment", fields: [activeProjectDeploymentId], references: [id], onDelete: SetNull)
@@ -305,6 +308,7 @@ model Function {
   executions          FunctionExecution[]
   auditEvents         AuditEvent[]
   functionQueryGrants FunctionQueryGrant[]
+  collectionGrants    FunctionCollectionGrant[]
 
   @@unique([projectId, slug])
   @@index([projectId])
@@ -595,6 +599,78 @@ model StorageEntry {
   @@map("storage_entries")
 }
 
+model DataCollection {
+  id          String                    @id @default(uuid()) @db.Uuid
+  projectId   String                    @db.Uuid
+  name        String
+  slug        String
+  description String                    @default("")
+  enabled     Boolean                   @default(true)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  project     Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions    DataCollectionVersion[]
+  grants      FunctionCollectionGrant[]
+  records     CollectionRecord[]
+
+  @@unique([projectId, slug])
+  @@index([projectId, enabled])
+  @@map("data_collections")
+}
+
+model DataCollectionVersion {
+  id           String             @id @default(uuid()) @db.Uuid
+  collectionId String             @db.Uuid
+  version      Int
+  schema       Json
+  indexes      Json               @default("[]")
+  checksum     String
+  createdAt    DateTime           @default(now())
+  collection   DataCollection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  records      CollectionRecord[]
+
+  @@unique([collectionId, version])
+  @@index([collectionId, createdAt])
+  @@map("data_collection_versions")
+}
+
+model FunctionCollectionGrant {
+  id           String         @id @default(uuid()) @db.Uuid
+  functionId   String         @db.Uuid
+  collectionId String         @db.Uuid
+  permissions  String[]
+  enabled      Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  function     Function       @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  collection   DataCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([functionId, collectionId])
+  @@index([collectionId, enabled])
+  @@map("function_collection_grants")
+}
+
+model CollectionRecord {
+  id              String                @id @default(uuid()) @db.Uuid
+  projectId       String                @db.Uuid
+  environmentId   String                @db.Uuid
+  collectionId    String                @db.Uuid
+  schemaVersionId String                @db.Uuid
+  tenantScope     String
+  data            Json
+  revision        Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment     Environment           @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  collection      DataCollection        @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  schemaVersion   DataCollectionVersion @relation(fields: [schemaVersionId], references: [id], onDelete: Restrict)
+
+  @@index([collectionId, environmentId, tenantScope, createdAt, id])
+  @@index([projectId, environmentId])
+  @@index([data], type: Gin)
+  @@map("collection_records")
+}
 model Deployment {
   id                  String              @id @default(uuid()) @db.Uuid
   endpointId          String              @db.Uuid

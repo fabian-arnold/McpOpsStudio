@@ -257,6 +257,42 @@ export async function dispatchCapability(
       );
     case "db.query":
       return context.db.query(args[0] as Parameters<RuntimeContext["db"]["query"]>[0]);
+    case "collections.create":
+      return context.collections
+        .collection(String(args[0]))
+        .create(args[1] as Record<string, unknown>);
+    case "collections.get":
+      return context.collections
+        .collection(String(args[0]))
+        .get(String(args[1]), args[2] as { select?: string[] } | undefined);
+    case "collections.query":
+      return context.collections
+        .collection(String(args[0]))
+        .query(
+          args[1] as Parameters<
+            ReturnType<RuntimeContext["collections"]["collection"]>["query"]
+          >[0],
+        );
+    case "collections.count":
+      return context.collections
+        .collection(String(args[0]))
+        .count(
+          args[1] as Parameters<
+            ReturnType<RuntimeContext["collections"]["collection"]>["count"]
+          >[0],
+        );
+    case "collections.update":
+      return context.collections
+        .collection(String(args[0]))
+        .update(
+          String(args[1]),
+          args[2] as Record<string, unknown>,
+          args[3] as { revision: number },
+        );
+    case "collections.delete":
+      return context.collections
+        .collection(String(args[0]))
+        .delete(String(args[1]), args[2] as { revision: number });
     case "functions.call":
       return context.functions.call(String(args[0]), args[1]);
     default:
@@ -277,6 +313,7 @@ export function serializeContext(context: RuntimeContext): Record<string, unknow
   for (const name of grants) grantedSecrets[name] = context.secrets.get(name);
   return {
     invocation: context.invocation,
+    trigger: context.trigger,
     project: context.project,
     environment: context.environment,
     endpoint: context.endpoint,

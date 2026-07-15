@@ -119,6 +119,11 @@ describe("child-process execution", () => {
     };
     const context: RuntimeContext = {
       invocation: { source: "test", requestId: "request-1" },
+      trigger: {
+        type: "endpoint",
+        source: "test",
+        endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
+      },
       project: { id: "o", slug: "o", name: "Org" },
       environment: { id: "e", slug: "dev", name: "Development" },
       endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
@@ -147,6 +152,11 @@ describe("child-process execution", () => {
       },
       functions: {
         call: async (slug, input) => ({ slug, input }),
+      },
+      collections: {
+        collection() {
+          throw new Error("not granted");
+        },
       },
       abortSignal: controller.signal,
     };
@@ -200,6 +210,11 @@ describe("child-process execution", () => {
     };
     const context: RuntimeContext = {
       invocation: { source: "test", requestId: "query-1" },
+      trigger: {
+        type: "endpoint",
+        source: "test",
+        endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
+      },
       project: { id: "o", slug: "o", name: "Org" },
       environment: { id: "e", slug: "dev", name: "Dev" },
       endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
@@ -228,6 +243,11 @@ describe("child-process execution", () => {
         },
       },
       functions: { call: async () => null },
+      collections: {
+        collection() {
+          throw new Error("not granted");
+        },
+      },
       abortSignal: controller.signal,
     };
     const result = await new LocalChildProcessExecutor().execute({
@@ -282,6 +302,11 @@ describe("child-process execution", () => {
     };
     const context: RuntimeContext = {
       invocation: { source: "test", requestId: "cancel-1" },
+      trigger: {
+        type: "endpoint",
+        source: "test",
+        endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
+      },
       project: { id: "o", slug: "o", name: "Org" },
       environment: { id: "e", slug: "dev", name: "Dev" },
       endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
@@ -316,6 +341,11 @@ describe("child-process execution", () => {
         },
       },
       functions: { call: async () => null },
+      collections: {
+        collection() {
+          throw new Error("not granted");
+        },
+      },
       abortSignal: controller.signal,
     };
     setTimeout(() => controller.abort(), 100);

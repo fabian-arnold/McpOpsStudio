@@ -76,6 +76,43 @@ export interface ReviewedDatabase {
 export interface ProjectFunctions {
   call(slug: string, input: unknown): Promise<unknown>;
 }
+export type CollectionRecord<T = Record<string, unknown>> = {
+  id: string;
+  data: T;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type CollectionWhere =
+  | { field: string; op: string; value?: unknown }
+  | { and: CollectionWhere[] }
+  | { or: CollectionWhere[] }
+  | { not: CollectionWhere };
+export type CollectionQuery = {
+  where?: CollectionWhere;
+  orderBy?: Array<{ field: string; direction?: "asc" | "desc" }>;
+  select?: string[];
+  limit?: number;
+  cursor?: string;
+};
+export interface ScopedCollection<T = Record<string, unknown>> {
+  create(data: T): Promise<CollectionRecord<T>>;
+  get(id: string, options?: { select?: string[] }): Promise<CollectionRecord<T> | null>;
+  query(query?: CollectionQuery): Promise<{
+    items: Array<CollectionRecord<Partial<T>>>;
+    nextCursor?: string;
+  }>;
+  count(options?: { where?: CollectionWhere }): Promise<number>;
+  update(
+    id: string,
+    data: T,
+    options: { revision: number },
+  ): Promise<CollectionRecord<T>>;
+  delete(id: string, options: { revision: number }): Promise<void>;
+}
+export interface ProjectCollections {
+  collection<T = Record<string, unknown>>(slug: string): ScopedCollection<T>;
+}
 export type RuntimeContext = {
   invocation: {
     source: InvocationSource;
@@ -103,6 +140,7 @@ export type RuntimeContext = {
   cache: ScopedCache;
   audit: AuditWriter;
   db: ReviewedDatabase;
+  collections: ProjectCollections;
   functions: ProjectFunctions;
   abortSignal: AbortSignal;
 };

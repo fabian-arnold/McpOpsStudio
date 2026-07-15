@@ -154,6 +154,16 @@ function createContext(
       return value;
     },
   });
+  const collection = (slug: string) => ({
+    create: (data: unknown) => rpc("collections.create", slug, data),
+    get: (id: string, options?: unknown) => rpc("collections.get", slug, id, options),
+    query: (query?: unknown) => rpc("collections.query", slug, query),
+    count: (options?: unknown) => rpc("collections.count", slug, options),
+    update: (id: string, data: unknown, options: unknown) =>
+      rpc("collections.update", slug, id, data, options),
+    delete: (id: string, options: unknown) =>
+      rpc("collections.delete", slug, id, options),
+  });
   const secretMap = Object.freeze({ ...serialized.secrets });
   return Object.freeze({
     ...serialized,
@@ -184,6 +194,7 @@ function createContext(
     cache: Object.freeze(cache()),
     audit: Object.freeze({ write: (event: unknown) => rpc("audit.write", event) }),
     db: Object.freeze({ query: (request: unknown) => rpc("db.query", request) }),
+    collections: Object.freeze({ collection }),
     abortSignal,
   });
 }

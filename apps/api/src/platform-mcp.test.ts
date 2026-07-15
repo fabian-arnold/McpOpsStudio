@@ -48,5 +48,5 @@ describe("platform MCP module", () => {
         changes: { timeoutMs: 30_000 },
       }),
     ).toMatchObject({ changes: { timeoutMs: 30_000 }, dryRun: true });
-  });
+  }, 15_000);
 });

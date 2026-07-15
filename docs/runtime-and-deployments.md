@@ -163,6 +163,7 @@ The executor exposes only capability objects on `RuntimeContext`:
 - Typed project Function calls
 - Abort signal
 
+- Explicitly granted typed PostgreSQL collections
 The child communicates privileged operations back to the parent process over IPC. Do not pass raw clients, master keys, database URLs or unrestricted environment variables into the child.
 
 Storage keys support one `*` wildcard through bounded bulk operations:
@@ -175,3 +176,8 @@ const deleted = await ctx.storage.deleteMany("note:*", { limit: 100 });
 `get` and `delete` continue to address one exact key. Wildcard operations are
 scoped to the current Function, environment, and tenant. Their default limit is
 100 and the maximum per call is 1,000.
+
+Typed collections are separate from key/value storage. Their immutable schema
+versions and Function grants are pinned in deployment snapshots, while records
+remain mutable and are always scoped by Project, environment, and tenant. Rich
+filters, multi-field ordering, counts, and cursor pagination execute in PostgreSQL.

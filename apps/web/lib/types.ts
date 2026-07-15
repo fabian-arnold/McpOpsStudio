@@ -390,6 +390,54 @@ export type EnvironmentSummary = {
   baseUrl?: string;
 };
 
+export type DataCollection = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  recordCount: number | null;
+  latestVersion: {
+    id: string;
+    version: number;
+    schema: Record<string, unknown>;
+    indexes: Array<{
+      name: string;
+      kind: "btree" | "gin";
+      fields: string[];
+      unique: boolean;
+    }>;
+    checksum: string;
+    createdAt: string;
+  } | null;
+  grants: Array<{
+    id: string;
+    functionId: string;
+    permissions: string[];
+    enabled: boolean;
+    function: { id: string; name: string; slug: string };
+  }>;
+};
+
+export type DataCollectionRecord = {
+  id: string;
+  data: Record<string, unknown>;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CacheInspectionItem = {
+  keyToken: string;
+  functionId: string;
+  tenantId: string | null;
+  key: string;
+  ttlMs: number | null;
+  sizeBytes: number;
+};
+
 export type DeploymentSummary = {
   activeSnapshots: number;
   sevenDayDeployments: number;

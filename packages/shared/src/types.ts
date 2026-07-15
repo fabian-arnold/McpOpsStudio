@@ -85,6 +85,22 @@ export type SnapshotReviewedQuery = {
   maxRows: number;
   maxBytes: number;
 };
+export type SnapshotCollectionGrant = {
+  grantId: string;
+  functionId: string;
+  collectionId: string;
+  slug: string;
+  schemaVersionId: string;
+  schemaVersion: number;
+  schema: JsonSchema;
+  indexes: Array<{
+    name: string;
+    kind: "btree" | "gin";
+    fields: string[];
+    unique: boolean;
+  }>;
+  permissions: Array<"read" | "write" | "delete">;
+};
 
 export type DeploymentSnapshot = {
   schemaVersion: 1;
@@ -115,6 +131,7 @@ export type DeploymentSnapshot = {
   }>;
   capabilities: { reviewedDatabaseQueries: { enabled: boolean } };
   reviewedQueries: SnapshotReviewedQuery[];
+  collections: SnapshotCollectionGrant[];
   defaultAuthPolicyId?: string;
   env: Record<string, string>;
   networkPolicy?: {

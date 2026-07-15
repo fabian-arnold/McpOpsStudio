@@ -153,6 +153,11 @@ function context(controller: AbortController): RuntimeContext {
   };
   return {
     invocation: { source: "test", requestId: "container-test" },
+    trigger: {
+      type: "endpoint",
+      source: "test",
+      endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
+    },
     project: { id: "o", slug: "o", name: "Org" },
     environment: { id: "e", slug: "dev", name: "Dev" },
     endpoint: { kind: "mcp", id: "s", slug: "svc", name: "Service" },
@@ -180,6 +185,11 @@ function context(controller: AbortController): RuntimeContext {
       },
     },
     functions: { call: async () => null },
+    collections: {
+      collection() {
+        throw new Error("not granted");
+      },
+    },
     abortSignal: controller.signal,
   };
 }

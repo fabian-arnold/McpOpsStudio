@@ -24,6 +24,7 @@ import {
   snapshotReferencedAuthPolicies,
   validateAuthSecretReferences,
 } from "./auth-policy-validation.js";
+import { ensureCollectionIndexes } from "./collection-indexes.js";
 
 export async function buildDeployment(
   deploymentId: string,
@@ -240,6 +241,50 @@ export async function buildDeployment(
           reviewedQueryRows,
         )
       : [];
+    const collectionGrantRows = await prisma.functionCollectionGrant.findMany({
+      where: {
+        enabled: true,
+        functionId: { in: selectedFunctions.map((fn) => fn.id) },
+      },
+      include: {
+        collection: {
+          include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+        },
+      },
+    });
+    const collections = collectionGrantRows.map((grant) => {
+      const definition = grant.collection;
+      const version = definition.versions[0];
+      if (
+        !definition.enabled ||
+        definition.projectId !== endpoint.projectId ||
+        !version
+      )
+        throw new Error("Collection grant references an unavailable collection");
+      const permissions = grant.permissions.filter(
+        (permission): permission is "read" | "write" | "delete" =>
+          permission === "read" || permission === "write" || permission === "delete",
+      );
+      if (permissions.length === 0 || permissions.length !== grant.permissions.length)
+        throw new Error(`Collection ${definition.slug} has invalid permissions`);
+      return {
+        grantId: grant.id,
+        functionId: grant.functionId,
+        collectionId: definition.id,
+        slug: definition.slug,
+        schemaVersionId: version.id,
+        schemaVersion: version.version,
+        schema: version.schema as Record<string, unknown>,
+        indexes: version.indexes as Array<{
+          name: string;
+          kind: "btree" | "gin";
+          fields: string[];
+          unique: boolean;
+        }>,
+        permissions,
+      };
+    });
+    await ensureCollectionIndexes(collections);
     const functions = [];
     for (const fn of selectedFunctions) {
       const version = fn.versions[0];
@@ -368,6 +413,7 @@ export async function buildDeployment(
         reviewedDatabaseQueries: { enabled: reviewedQueryFeatureEnabled },
       },
       reviewedQueries,
+      collections,
       endpointAccessPolicy,
       env,
       ...(endpoint.networkPolicy

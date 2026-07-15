@@ -55,6 +55,7 @@ const endpoint = {
     libraries: [],
     capabilities: { reviewedDatabaseQueries: { enabled: false } },
     reviewedQueries: [],
+    collections: [],
   },
 } satisfies LoadedEndpoint;
 

@@ -48,6 +48,7 @@ import {
   SnapshotReviewedDatabase,
   type ReviewedQueryAdapter,
 } from "./reviewed-database.js";
+import { SnapshotCollections } from "./collections.js";
 
 export {
   buildRuntimeLogEvent,
@@ -361,6 +362,13 @@ export class RuntimeInvoker {
         logger,
         audit,
       }),
+      collections: new SnapshotCollections(
+        request.endpoint,
+        request.fn.functionId,
+        request.tenantId,
+        request.requestId,
+        secrets.values(),
+      ),
       functions: {
         call: async (slug: string, input: unknown): Promise<unknown> => {
           const depth = request.internalDepth ?? 0;

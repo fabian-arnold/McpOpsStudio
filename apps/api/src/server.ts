@@ -25,6 +25,7 @@ import { registerManifestsRoutes } from "./routes-manifests.js";
 import { registerOAuthRoutes } from "./routes-oauth.js";
 import { registerPlatformMcpRoutes } from "./platform-mcp.js";
 
+import { registerStorageRoutes } from "./routes-storage.js";
 await connectApiResources();
 const app = await createApiApplication({ assertScopedCursor });
 app.addHook("onClose", async () => {
@@ -54,4 +55,5 @@ await registerDeploymentReleaseRoutes(app);
 await registerDeploymentHistoryRoutes(app);
 await registerManifestsRoutes(app);
 
+await registerStorageRoutes(app);
 export { app };

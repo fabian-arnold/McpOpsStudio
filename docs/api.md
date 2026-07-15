@@ -139,6 +139,27 @@ Execution list filters include endpoint, function, status, request ID, tenant an
 
 ## Adding endpoints
 
+### Typed storage and cache inspection
+
+```text
+GET    /api/data-collections
+POST   /api/data-collections
+POST   /api/data-collections/:collectionId/versions
+PUT    /api/data-collections/:collectionId/grants
+DELETE /api/data-collections/:collectionId/grants/:grantId
+POST   /api/data-collections/:collectionId/records/query
+POST   /api/data-collections/:collectionId/records
+PUT    /api/data-collections/:collectionId/records/:recordId
+DELETE /api/data-collections/:collectionId/records/:recordId
+
+GET    /api/storage/cache
+POST   /api/storage/cache/reveal
+DELETE /api/storage/cache/key
+```
+
+Record requests require an environment and tenant scope. Cache enumeration is
+cursor-based and bounded; reveals are audited and always redact known secrets.
+
 New public endpoints must:
 
 1. Authenticate the platform session.

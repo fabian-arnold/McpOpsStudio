@@ -121,6 +121,33 @@ export const reviewedQuerySnapshotSchema = z
       });
     }
   });
+export const collectionGrantSnapshotSchema = z
+  .object({
+    grantId: z.string().min(1),
+    functionId: z.string().min(1),
+    collectionId: z.string().min(1),
+    slug: z.string().regex(/^[a-z][a-z0-9_]*$/),
+    schemaVersionId: z.string().min(1),
+    schemaVersion: z.number().int().positive(),
+    schema: jsonSchema.refine(
+      (schema) => schema.type === "object",
+      "Collection schema must have type object",
+    ),
+    indexes: z
+      .array(
+        z
+          .object({
+            name: z.string(),
+            kind: z.enum(["btree", "gin"]),
+            fields: z.array(z.string()).min(1),
+            unique: z.boolean(),
+          })
+          .strict(),
+      )
+      .default([]),
+    permissions: z.array(z.enum(["read", "write", "delete"])).min(1),
+  })
+  .strict();
 export const deploymentSnapshotSchema = z
   .object({
     functions: z.array(snapshotFunctionSchema),
@@ -164,6 +191,7 @@ export const deploymentSnapshotSchema = z
       .passthrough()
       .default({ reviewedDatabaseQueries: { enabled: false } }),
     reviewedQueries: z.array(reviewedQuerySnapshotSchema).default([]),
+    collections: z.array(collectionGrantSnapshotSchema).default([]),
   })
   .superRefine((snapshot, context) => {
     const grants = new Set<string>();
@@ -186,6 +214,7 @@ export type HttpBinding = z.infer<typeof httpBindingSchema>;
 export type AuthPolicy = z.infer<typeof authPolicySchema>;
 export type EndpointAccessPolicy = z.infer<typeof endpointAccessPolicySchema>;
 export type ReviewedQuerySnapshot = z.infer<typeof reviewedQuerySnapshotSchema>;
+export type CollectionGrantSnapshot = z.infer<typeof collectionGrantSnapshotSchema>;
 
 export type LoadedEndpoint = {
   id: string;

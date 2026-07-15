@@ -82,6 +82,7 @@ type RuntimeContext = {
   http: { request<T = unknown>(request: { method: string; url: string; headers?: Record<string, string>; query?: Record<string, unknown>; body?: unknown; timeoutMs?: number; tls?: { rejectUnauthorized: boolean } }): Promise<{ data: T; status?: number; headers?: Record<string, string> }> };
   storage: { get<T = unknown>(key: string): Promise<T | null>; list<T = unknown>(pattern: string, options?: { limit?: number }): Promise<Array<{ key: string; value: T }>>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; delete(key: string): Promise<void>; deleteMany(pattern: string, options?: { limit?: number }): Promise<number>; forTenant(tenantId: string): RuntimeContext["storage"] };
   cache: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: JsonValue, options?: { ttlSeconds?: number }): Promise<void>; getOrSet<T>(key: string, factory: () => Promise<T>, options: { ttlSeconds: number }): Promise<T> };
+  collections: { collection<T extends Record<string, unknown> = Record<string, unknown>>(slug: string): { create(data: T): Promise<{ id: string; data: T; revision: number; createdAt: string; updatedAt: string }>; get(id: string, options?: { select?: string[] }): Promise<{ id: string; data: T; revision: number; createdAt: string; updatedAt: string } | null>; query(query?: { where?: unknown; orderBy?: Array<{ field: string; direction?: "asc" | "desc" }>; select?: string[]; limit?: number; cursor?: string }): Promise<{ items: Array<{ id: string; data: Partial<T>; revision: number; createdAt: string; updatedAt: string }>; nextCursor?: string }>; count(options?: { where?: unknown }): Promise<number>; update(id: string, data: T, options: { revision: number }): Promise<{ id: string; data: T; revision: number; createdAt: string; updatedAt: string }>; delete(id: string, options: { revision: number }): Promise<void> } };
   functions: { call<Name extends keyof ProjectFunctionMap>(name: Name, input: ProjectFunctionMap[Name]["input"]): Promise<ProjectFunctionMap[Name]["output"]> };
   audit: { write(event: { action: string; targetType: string; targetId?: string; metadata?: Record<string, unknown> }): Promise<void> };
   db: { query(input: { connection: string; queryId: string; params: Record<string, unknown> }): Promise<unknown> };
@@ -256,6 +257,7 @@ export function TypeScriptEditor({
                   "http",
                   "storage",
                   "cache",
+                  "collections",
                   "functions",
                   "audit",
                   "db",
