@@ -31,7 +31,16 @@ export async function createApiApplication(
       String(request.headers["x-request-id"] ?? crypto.randomUUID()),
   });
   await registerPlatformPlugins(app);
-  app.setErrorHandler((error, request, reply) => sendError(reply, request, error));
+  app.setErrorHandler((error, request, reply) => {
+    if (request.url.startsWith("/oauth/")) {
+      const value = error as { code?: string; statusCode?: number; message?: string };
+      return reply.status(value.statusCode ?? 400).send({
+        error: value.code ?? "invalid_request",
+        error_description: value.message ?? "OAuth request failed",
+      });
+    }
+    return sendError(reply, request, error);
+  });
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", requestId(request));
   });
@@ -48,6 +57,17 @@ export async function createApiApplication(
 
 async function registerPlatformPlugins(app: FastifyInstance): Promise<void> {
   await app.register(cookie);
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => {
+      try {
+        done(null, Object.fromEntries(new URLSearchParams(String(body))));
+      } catch (error) {
+        done(error as Error, undefined);
+      }
+    },
+  );
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, {
     origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",

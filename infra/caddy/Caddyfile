@@ -10,6 +10,11 @@
 		reverse_proxy 127.0.0.1:3001
 	}
 
+	@platform_control path /platform/mcp /.well-known/oauth-protected-resource* /.well-known/oauth-authorization-server /oauth/authorize /oauth/token /oauth/register
+	handle @platform_control {
+		reverse_proxy 127.0.0.1:3001
+	}
+
 	handle /mcp/* {
 		reverse_proxy {
 			header_up x-internal-token {$INTERNAL_API_TOKEN}

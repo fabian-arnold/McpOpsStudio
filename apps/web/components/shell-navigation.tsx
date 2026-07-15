@@ -43,6 +43,7 @@ export const projectNav: NavItem[] = [
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/deployments", label: "Deployments", icon: Boxes },
+  { href: "/mcp-access", label: "IDE access", icon: TerminalSquare },
   {
     href: "/project-settings",
     label: "Project settings",

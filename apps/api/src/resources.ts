@@ -14,7 +14,16 @@ export const cacheInspector = new Redis(redisUrl.toString(), {
   maxRetriesPerRequest: 1,
   enableOfflineQueue: false,
 });
+export const controlPlaneState = new Redis(redisUrl.toString(), {
+  lazyConnect: true,
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false,
+});
 
 export async function closeApiResources(): Promise<void> {
-  await Promise.all([deploymentQueue.close(), cacheInspector.quit()]);
+  await Promise.all([
+    deploymentQueue.close(),
+    cacheInspector.quit(),
+    controlPlaneState.quit(),
+  ]);
 }

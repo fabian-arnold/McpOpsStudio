@@ -22,6 +22,8 @@ import { registerDeploymentCreateRoutes } from "./routes-deployment-create.js";
 import { registerDeploymentReleaseRoutes } from "./routes-deployment-release.js";
 import { registerDeploymentHistoryRoutes } from "./routes-deployment-history.js";
 import { registerManifestsRoutes } from "./routes-manifests.js";
+import { registerOAuthRoutes } from "./routes-oauth.js";
+import { registerPlatformMcpRoutes } from "./platform-mcp.js";
 
 const app = await createApiApplication({ assertScopedCursor });
 app.addHook("onClose", async () => {
@@ -29,6 +31,8 @@ app.addHook("onClose", async () => {
 });
 
 await registerAuthRoutes(app);
+await registerOAuthRoutes(app);
+await registerPlatformMcpRoutes(app);
 await registerProjectsRoutes(app);
 await registerProjectSettingsRoutes(app);
 await registerProjectAdminRoutes(app);

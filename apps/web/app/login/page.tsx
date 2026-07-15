@@ -32,7 +32,11 @@ export default function LoginPage() {
           body: JSON.stringify({ email, password }),
         },
       );
-      router.push(session.user.mustChangePassword ? "/change-password" : "/");
+      const requestedReturn = new URLSearchParams(window.location.search).get("returnTo");
+      const returnTo = requestedReturn?.startsWith("/oauth/authorize?")
+        ? requestedReturn
+        : "/";
+      router.push(session.user.mustChangePassword ? "/change-password" : returnTo);
       router.refresh();
     } catch (err) {
       setError(errorMessage(err));

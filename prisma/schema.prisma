@@ -141,8 +141,64 @@ model User {
   sessions              Session[]
   functionVersions      FunctionVersion[]      @relation("FunctionVersionCreator")
   reviewedQueryVersions ReviewedQueryVersion[]
+  oauthAuthorizationCodes OAuthAuthorizationCode[]
+  oauthGrants             OAuthGrant[]
 
   @@map("users")
+}
+
+model OAuthClient {
+  id             String                   @id
+  name           String
+  redirectUris   Json
+  metadataUri    String?
+  registration   String                   @default("dynamic")
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  authorizationCodes OAuthAuthorizationCode[]
+  grants         OAuthGrant[]
+
+  @@map("oauth_clients")
+}
+
+model OAuthAuthorizationCode {
+  id            String      @id @default(uuid()) @db.Uuid
+  codeHash      String      @unique
+  clientId      String
+  userId        String      @db.Uuid
+  redirectUri   String
+  scopes        String[]
+  resource      String
+  codeChallenge String
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, expiresAt])
+  @@map("oauth_authorization_codes")
+}
+
+model OAuthGrant {
+  id               String      @id @default(uuid()) @db.Uuid
+  clientId         String
+  userId           String      @db.Uuid
+  accessTokenHash  String      @unique
+  refreshTokenHash String?     @unique
+  scopes           String[]
+  resource         String
+  accessExpiresAt  DateTime
+  refreshExpiresAt DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  client           OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([clientId, revokedAt])
+  @@map("oauth_grants")
 }
 
 model Session {
