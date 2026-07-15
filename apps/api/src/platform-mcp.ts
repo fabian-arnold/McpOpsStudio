@@ -20,11 +20,7 @@ import {
 import { checksum } from "./helpers.js";
 import { hashToken, platformResource, type PlatformScope } from "./oauth.js";
 import { controlPlaneState } from "./resources.js";
-import {
-  projectRepository,
-  endpointIdentifierWhere,
-  functionIdentifierWhere,
-} from "./repository.js";
+import { projectRepository } from "./repository.js";
 import { applyUnifiedPatch } from "./source-patch.js";
 import { currentEndpointManifest } from "./api-view-helpers.js";
 import { canonicalEnvironmentEndpointUrls } from "./analytics.js";
@@ -54,6 +50,23 @@ type Rpc = {
   method: string;
   params?: unknown;
 };
+type ProjectFunction = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof projectRepository>["projectFunction"]>>
+>;
+type ProjectEndpoint = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof projectRepository>["endpoint"]>>
+>;
+type EndpointSummaryInput = Pick<
+  ProjectEndpoint,
+  | "id"
+  | "name"
+  | "slug"
+  | "kind"
+  | "status"
+  | "environment"
+  | "activeDeploymentId"
+  | "updatedAt"
+>;
 
 const editSchema = z
   .object({
@@ -72,6 +85,20 @@ const editSchema = z
     (value) => Boolean(value.patch) !== Boolean(value.source),
     "Provide exactly one of patch or source",
   );
+
+const requiredToolFields: Record<string, string[]> = {
+  project_select: ["project"],
+  function_get: ["function"],
+  function_create: ["draft"],
+  function_edit: ["function", "expectedVersion", "expectedChecksum"],
+  function_validate: ["function"],
+  function_test: ["function", "input"],
+  library_get: ["library"],
+  endpoint_get: ["endpoint"],
+  binding_create: ["endpoint", "binding"],
+  binding_edit: ["endpoint", "bindingId", "changes"],
+  endpoint_discover: ["endpoint"],
+};
 
 const tools = [
   tool(
@@ -531,19 +558,6 @@ function tool(
     },
   };
 }
-const requiredToolFields: Record<string, string[]> = {
-  project_select: ["project"],
-  function_get: ["function"],
-  function_create: ["draft"],
-  function_edit: ["function", "expectedVersion", "expectedChecksum"],
-  function_validate: ["function"],
-  function_test: ["function", "input"],
-  library_get: ["library"],
-  endpoint_get: ["endpoint"],
-  binding_create: ["endpoint", "binding"],
-  binding_edit: ["endpoint", "bindingId", "changes"],
-  endpoint_discover: ["endpoint"],
-};
 function stringField(description: string) {
   return { type: "string", description };
 }
@@ -642,7 +656,7 @@ async function findLibrary(projectId: string, identifier: string) {
   if (!library) throw toolError("NOT_FOUND", "Project library not found", 404);
   return library;
 }
-function functionDraft(fn: any) {
+function functionDraft(fn: ProjectFunction) {
   return {
     name: fn.name,
     slug: fn.slug,
@@ -657,7 +671,7 @@ function functionDraft(fn: any) {
     cachePolicy: fn.cachePolicy,
   };
 }
-function safeFunction(fn: any, includeCode = false) {
+function safeFunction(fn: ProjectFunction, includeCode = false) {
   return {
     id: fn.id,
     name: fn.name,
@@ -1013,7 +1027,7 @@ async function editLibrary(
   };
 }
 
-function endpointSummary(endpoint: any) {
+function endpointSummary(endpoint: EndpointSummaryInput) {
   return {
     id: endpoint.id,
     name: endpoint.name,

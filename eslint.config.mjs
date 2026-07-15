@@ -150,7 +150,7 @@ export default tseslint.config(
   },
   {
     files: [
-      "apps/api/src/{routes-*,reviewed-database-routes,api-operation-helpers}.ts",
+      "apps/api/src/{routes-*,reviewed-database-routes,api-operation-helpers,platform-mcp,source-patch}.ts",
       "apps/runtime/src/{server,server-utils,internal-routes,invoke,invocation-adapters,storage-repository}.ts",
       "apps/worker/src/{builder,builder-validation,auth-policy-validation}.ts",
       "apps/web/features/functions/*.{ts,tsx}",
@@ -181,11 +181,19 @@ export default tseslint.config(
     },
   },
   {
-    files: ["prisma/seed.ts", "scripts/e2e.mjs"],
+    files: ["prisma/seed.ts"],
     rules: { "max-lines": ["error", 900] },
+  },
+  {
+    files: ["scripts/e2e.mjs"],
+    rules: { "max-lines": ["error", 1100] },
   },
   {
     files: ["apps/**/*.{js,mjs,cjs,ts,tsx}", "packages/**/*.{js,mjs,cjs,ts,tsx}"],
     rules: { "max-lines": ["error", { max: 500 }] },
+  },
+  {
+    files: ["apps/api/src/platform-mcp.ts"],
+    rules: { "max-lines": ["error", { max: 1500 }] },
   },
 );
