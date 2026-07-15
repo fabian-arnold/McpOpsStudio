@@ -135,7 +135,7 @@ const platformInitialize = await json(`${runtime}/platform/mcp`, {
 const platformSessionId = platformInitialize.response.headers.get("mcp-session-id");
 assert.ok(platformSessionId, "platform MCP initialization creates an isolated session");
 async function platformTool(id, name, args = {}) {
-  return json(`${runtime}/platform/mcp`, {
+  const response = await json(`${runtime}/platform/mcp`, {
     method: "POST",
     headers: { ...platformHeaders, "mcp-session-id": platformSessionId },
     body: JSON.stringify({
@@ -145,6 +145,11 @@ async function platformTool(id, name, args = {}) {
       params: { name, arguments: args },
     }),
   });
+  if (response.body.result?.isError)
+    throw new Error(
+      `Platform MCP tool ${name} failed: ${JSON.stringify(response.body.result.structuredContent)}`,
+    );
+  return response;
 }
 const platformProjects = await platformTool(2, "projects_list");
 assert.ok(

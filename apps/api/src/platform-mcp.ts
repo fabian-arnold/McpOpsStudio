@@ -20,7 +20,7 @@ import {
 import { checksum } from "./helpers.js";
 import { hashToken, platformResource, type PlatformScope } from "./oauth.js";
 import { controlPlaneState } from "./resources.js";
-import { projectRepository } from "./repository.js";
+import { projectIdentifierWhere, projectRepository } from "./repository.js";
 import { applyUnifiedPatch } from "./source-patch.js";
 import { currentEndpointManifest } from "./api-view-helpers.js";
 import { canonicalEnvironmentEndpointUrls } from "./analytics.js";
@@ -410,7 +410,7 @@ async function callTool(
   if (name === "project_select") {
     const identifier = z.string().min(1).parse(args.project);
     const project = await prisma.project.findFirst({
-      where: { status: "active", OR: [{ id: identifier }, { slug: identifier }] },
+      where: { status: "active", ...projectIdentifierWhere(identifier) },
       select: { id: true, name: true, slug: true },
     });
     if (!project) throw toolError("NOT_FOUND", "Active project not found");

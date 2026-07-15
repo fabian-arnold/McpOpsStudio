@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-  functionIdentifierWhere,
   endpointIdentifierWhere,
   endpointListWhere,
+  functionIdentifierWhere,
+  projectIdentifierWhere,
 } from "./repository.js";
 
 describe("route identifier filters", () => {
   it("uses UUID fields only for valid UUID values", () => {
     const id = "6a23b764-da5f-4849-b5f3-9dc6a6a711d4";
+    expect(projectIdentifierWhere(id)).toEqual({ id });
     expect(endpointIdentifierWhere(id)).toEqual({ id });
     expect(functionIdentifierWhere(id)).toEqual({ id });
   });
 
   it("maps friendly identifiers without passing them to UUID columns", () => {
+    expect(projectIdentifierWhere("acme")).toEqual({ slug: "acme" });
     expect(endpointIdentifierWhere("customer-operations")).toEqual({
       slug: "customer-operations",
     });
