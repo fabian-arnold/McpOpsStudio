@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Power, Search, ServerCog } from "lucide-react";
+import { ArrowRight, Power, Search, ServerCog, TerminalSquare } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import {
   Badge,
@@ -21,26 +21,29 @@ import { EndpointCreateDialog } from "@/components/endpoint-create-dialog";
 import { roleAllows, useCurrentUser } from "@/lib/session";
 import { EnvironmentEndpointUrls } from "@/components/environment-endpoint-urls";
 
-export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
-  const label = kind === "mcp" ? "MCP Endpoints" : "HTTP APIs";
-  const singular = kind === "mcp" ? "MCP Endpoint" : "HTTP API";
-  const basePath = kind === "mcp" ? "/mcp-endpoints" : "/http-apis";
+export function RuntimeEndpointsPage({ kind }: { kind?: "mcp" | "http" }) {
+  const label =
+    kind === "mcp" ? "MCP Endpoints" : kind === "http" ? "HTTP APIs" : "Endpoints";
+  const singular =
+    kind === "mcp" ? "MCP Endpoint" : kind === "http" ? "HTTP API" : "endpoint";
+  const basePath = "/endpoints";
   const [endpoints, setEndpoints] = useState<RuntimeEndpoint[]>();
   const [loadError, setLoadError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState("");
   const [environmentId, setEnvironmentId] = useState("");
+  const [kindFilter, setKindFilter] = useState<"" | "mcp" | "http">(kind ?? "");
   const [environments, setEnvironments] = useState<EnvironmentSummary[]>([]);
   const user = useCurrentUser();
   const load = useCallback(() => {
     setEndpoints(undefined);
     setLoadError(undefined);
     api<RuntimeEndpoint[]>(
-      `/api/runtime-endpoints?kind=${kind}${environmentId ? `&environmentId=${encodeURIComponent(environmentId)}` : ""}`,
+      `/api/runtime-endpoints?${kindFilter ? `kind=${kindFilter}&` : ""}${environmentId ? `environmentId=${encodeURIComponent(environmentId)}` : ""}`,
     )
       .then(setEndpoints)
       .catch((error) => setLoadError(errorMessage(error)));
-  }, [environmentId, kind]);
+  }, [environmentId, kindFilter]);
   useEffect(load, [attempt, load]);
   useEffect(() => {
     api<EnvironmentSummary[]>("/api/environments")
@@ -64,13 +67,26 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
         description={
           kind === "mcp"
             ? "Assign project Functions as tools; Project deployments version every MCP endpoint together."
-            : "Assign project Functions to routes; Project deployments version every HTTP API together."
+            : kind === "http"
+              ? "Assign project Functions to routes; Project deployments version every HTTP API together."
+              : "Define MCP Endpoints and HTTP APIs, bind project Functions, and retrieve client metadata from one place."
         }
         actions={
-          <EndpointCreateDialog
-            kind={kind}
-            onCreated={() => setAttempt((value) => value + 1)}
-          />
+          <div className="flex flex-wrap gap-2">
+            {kind !== "http" && (
+              <EndpointCreateDialog
+                kind="mcp"
+                onCreated={() => setAttempt((value) => value + 1)}
+              />
+            )}
+            {kind !== "mcp" && (
+              <EndpointCreateDialog
+                kind="http"
+                variant={kind ? "primary" : "secondary"}
+                onCreated={() => setAttempt((value) => value + 1)}
+              />
+            )}
+          </div>
         }
       />
       {loadError ? (
@@ -94,6 +110,25 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
+            {!kind && (
+              <>
+                <label className="sr-only" htmlFor="endpoint-kind-filter">
+                  Filter by endpoint kind
+                </label>
+                <select
+                  id="endpoint-kind-filter"
+                  className="field h-9 w-full py-1 text-xs sm:w-40"
+                  value={kindFilter}
+                  onChange={(event) =>
+                    setKindFilter(event.target.value as "" | "mcp" | "http")
+                  }
+                >
+                  <option value="">All endpoint types</option>
+                  <option value="mcp">MCP Endpoints</option>
+                  <option value="http">HTTP APIs</option>
+                </select>
+              </>
+            )}
             <label className="sr-only" htmlFor="environment-filter">
               Filter by environment
             </label>
@@ -119,97 +154,105 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
             </div>
           ) : filtered?.length ? (
             <div className="grid gap-4 lg:grid-cols-2">
-              {filtered.map((endpoint) => (
-                <article
-                  key={endpoint.id}
-                  className="panel group overflow-hidden transition hover:border-primary/30"
-                >
-                  <div className="p-5">
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <ServerCog size={19} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`${basePath}/${endpoint.id}`}
-                            className="truncate text-sm font-semibold hover:text-primary"
-                          >
-                            {endpoint.name}
-                          </Link>
-                          <Badge
-                            tone={
-                              endpoint.status === "deployed"
-                                ? "success"
-                                : endpoint.status === "failed"
-                                  ? "danger"
-                                  : "neutral"
-                            }
-                          >
-                            <StatusDot status={endpoint.status} />
-                            {endpoint.status}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                          {endpoint.description}
-                        </p>
-                      </div>
-                      <DisableEndpointAction
-                        endpoint={endpoint}
-                        canDisable={roleAllows(user?.role, [
-                          "owner",
-                          "admin",
-                          "operator",
-                        ])}
-                        onDisabled={() => setAttempt((value) => value + 1)}
-                      />
-                    </div>
-                    <div className="mt-5 grid grid-cols-2 divide-x rounded-lg border bg-muted/20 py-3 text-center">
-                      <div>
-                        <strong className="block text-sm">
-                          {endpoint.functionCount}
-                        </strong>
-                        <span className="text-[10px] text-muted-foreground">
-                          Functions
-                        </span>
-                      </div>
-                      <div>
-                        <strong className="block text-sm">
-                          {kind === "mcp"
-                            ? endpoint.mcpToolCount
-                            : endpoint.httpRouteCount}
-                        </strong>
-                        <span className="text-[10px] text-muted-foreground">
-                          {kind === "mcp" ? "MCP tools" : "HTTP routes"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <EnvironmentEndpointUrls
-                        kind={kind}
-                        urls={endpoint.environmentEndpoints}
-                        fallback={endpoint.endpoints}
-                      />
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground">
-                          {endpoint.environment.name} · {endpoint.authMode}
-                        </span>
-                        <span>
-                          {endpoint.activeDeployment
-                            ? `v${endpoint.activeDeployment.version} · ${new Date(endpoint.updatedAt).toLocaleDateString()}`
-                            : "Not deployed"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <Link
-                    href={`${basePath}/${endpoint.id}`}
-                    className="flex items-center justify-between border-t bg-muted/15 px-5 py-3 text-xs font-medium text-muted-foreground transition group-hover:text-primary"
+              {filtered.map((endpoint) => {
+                const endpointKind = endpoint.kind;
+                const EndpointIcon =
+                  endpointKind === "mcp" ? TerminalSquare : ServerCog;
+                const endpointLabel =
+                  endpointKind === "mcp" ? "MCP Endpoint" : "HTTP API";
+                return (
+                  <article
+                    key={endpoint.id}
+                    className="panel group overflow-hidden transition hover:border-primary/30"
                   >
-                    Open {singular} <ArrowRight size={14} />
-                  </Link>
-                </article>
-              ))}
+                    <div className="p-5">
+                      <div className="flex items-start gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                          <EndpointIcon size={19} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`${basePath}/${endpoint.id}`}
+                              className="truncate text-sm font-semibold hover:text-primary"
+                            >
+                              {endpoint.name}
+                            </Link>
+                            <Badge
+                              tone={
+                                endpoint.status === "deployed"
+                                  ? "success"
+                                  : endpoint.status === "failed"
+                                    ? "danger"
+                                    : "neutral"
+                              }
+                            >
+                              <StatusDot status={endpoint.status} />
+                              {endpoint.status}
+                            </Badge>
+                            <Badge>{endpointKind === "mcp" ? "MCP" : "HTTP"}</Badge>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {endpoint.description}
+                          </p>
+                        </div>
+                        <DisableEndpointAction
+                          endpoint={endpoint}
+                          canDisable={roleAllows(user?.role, [
+                            "owner",
+                            "admin",
+                            "operator",
+                          ])}
+                          onDisabled={() => setAttempt((value) => value + 1)}
+                        />
+                      </div>
+                      <div className="mt-5 grid grid-cols-2 divide-x rounded-lg border bg-muted/20 py-3 text-center">
+                        <div>
+                          <strong className="block text-sm">
+                            {endpoint.functionCount}
+                          </strong>
+                          <span className="text-[10px] text-muted-foreground">
+                            Functions
+                          </span>
+                        </div>
+                        <div>
+                          <strong className="block text-sm">
+                            {endpointKind === "mcp"
+                              ? endpoint.mcpToolCount
+                              : endpoint.httpRouteCount}
+                          </strong>
+                          <span className="text-[10px] text-muted-foreground">
+                            {endpointKind === "mcp" ? "MCP tools" : "HTTP routes"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <EnvironmentEndpointUrls
+                          kind={endpointKind}
+                          urls={endpoint.environmentEndpoints}
+                          fallback={endpoint.endpoints}
+                        />
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">
+                            {endpoint.environment.name} · {endpoint.authMode}
+                          </span>
+                          <span>
+                            {endpoint.activeDeployment
+                              ? `v${endpoint.activeDeployment.version} · ${new Date(endpoint.updatedAt).toLocaleDateString()}`
+                              : "Not deployed"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Link
+                      href={`${basePath}/${endpoint.id}`}
+                      className="flex items-center justify-between border-t bg-muted/15 px-5 py-3 text-xs font-medium text-muted-foreground transition group-hover:text-primary"
+                    >
+                      Open {endpointLabel} <ArrowRight size={14} />
+                    </Link>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <EmptyState
@@ -218,14 +261,25 @@ export function RuntimeEndpointsPage({ kind }: { kind: "mcp" | "http" }) {
               description={
                 query
                   ? "Try a different search term."
-                  : `Create a ${singular} and assign project Functions.`
+                  : `Create an ${singular} and assign project Functions.`
               }
               action={
                 !query && (
-                  <EndpointCreateDialog
-                    kind={kind}
-                    onCreated={() => setAttempt((value) => value + 1)}
-                  />
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {kind !== "http" && (
+                      <EndpointCreateDialog
+                        kind="mcp"
+                        onCreated={() => setAttempt((value) => value + 1)}
+                      />
+                    )}
+                    {kind !== "mcp" && (
+                      <EndpointCreateDialog
+                        kind="http"
+                        variant={kind ? "primary" : "secondary"}
+                        onCreated={() => setAttempt((value) => value + 1)}
+                      />
+                    )}
+                  </div>
                 )
               }
             />

@@ -1,5 +1,5 @@
-import { RuntimeEndpointsPage } from "@/components/runtime-endpoints-page";
+import { redirect } from "next/navigation";
 
 export default function McpEndpointsPage() {
-  return <RuntimeEndpointsPage kind="mcp" />;
+  redirect("/endpoints");
 }

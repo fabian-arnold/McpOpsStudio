@@ -5,7 +5,7 @@ export type Tab =
   | "authentication"
   | "network"
   | "executions"
-  | "manifest"
+  | "metadata"
   | "settings";
 
 export const tabs: Array<{ id: Tab; label: string }> = [
@@ -14,6 +14,6 @@ export const tabs: Array<{ id: Tab; label: string }> = [
   { id: "authentication", label: "Authentication" },
   { id: "network", label: "Network" },
   { id: "executions", label: "Executions" },
-  { id: "manifest", label: "Manifest" },
+  { id: "metadata", label: "Metadata" },
   { id: "settings", label: "Settings" },
 ];

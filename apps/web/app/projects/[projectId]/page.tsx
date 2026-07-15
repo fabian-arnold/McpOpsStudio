@@ -93,10 +93,7 @@ export default function ProjectDetailPage() {
       {project.endpoints.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {project.endpoints.map((endpoint) => {
-            const href =
-              endpoint.kind === "mcp"
-                ? `/mcp-endpoints/${endpoint.id}`
-                : `/http-apis/${endpoint.id}`;
+            const href = `/endpoints/${endpoint.id}`;
             const Icon = endpoint.kind === "mcp" ? TerminalSquare : Globe2;
             return (
               <Link

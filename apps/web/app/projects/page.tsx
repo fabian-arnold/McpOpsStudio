@@ -43,7 +43,7 @@ export default function ProjectsPage() {
   useEffect(load, [load]);
   async function select(project: ProjectSummary) {
     await api(`/api/projects/${project.id}/select`, { method: "POST", body: "{}" });
-    window.location.assign("/mcp-endpoints");
+    window.location.assign("/endpoints");
   }
   if (loadError)
     return (

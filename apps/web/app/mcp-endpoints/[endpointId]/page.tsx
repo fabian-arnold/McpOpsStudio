@@ -1,12 +1,9 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { RuntimeEndpointDetailPage } from "@/components/runtime-endpoint-detail";
-
-export default function McpEndpointDetailPage() {
-  return (
-    <Suspense fallback={null}>
-      <RuntimeEndpointDetailPage kind="mcp" />
-    </Suspense>
-  );
+export default async function McpEndpointDetailPage({
+  params,
+}: {
+  params: Promise<{ endpointId: string }>;
+}) {
+  redirect(`/endpoints/${(await params).endpointId}`);
 }

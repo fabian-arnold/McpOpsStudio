@@ -11,26 +11,23 @@ import { cn } from "@/lib/cn";
 import type { RuntimeEndpointDetail } from "@/lib/types";
 
 import { Authentication } from "./runtime-endpoint-authentication";
-import {
-  NetworkPolicy,
-  Executions,
-  Manifest,
-  Settings,
-} from "./runtime-endpoint-operations";
+import { NetworkPolicy, Executions, Settings } from "./runtime-endpoint-operations";
+import { EndpointMetadata } from "./runtime-endpoint-metadata";
 import { Bindings, Overview } from "./runtime-endpoint-overview";
-import { tabs, type EndpointKind, type Tab } from "./runtime-endpoint-types";
+import { tabs, type Tab } from "./runtime-endpoint-types";
 
-export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
+export function RuntimeEndpointDetailPage() {
   const { endpointId } = useParams<{ endpointId: string }>();
   const search = useSearchParams();
   const router = useRouter();
   const [endpoint, setEndpoint] = useState<RuntimeEndpointDetail>();
   const [error, setError] = useState<string>();
+  const requestedTab =
+    search.get("tab") === "manifest" ? "metadata" : search.get("tab");
   const tab = (
-    tabs.some((item) => item.id === search.get("tab")) ? search.get("tab") : "overview"
+    tabs.some((item) => item.id === requestedTab) ? requestedTab : "overview"
   ) as Tab;
-  const basePath = kind === "mcp" ? "/mcp-endpoints" : "/http-apis";
-  const label = kind === "mcp" ? "MCP Endpoint" : "HTTP API";
+  const basePath = "/endpoints";
 
   const load = useCallback(async () => {
     try {
@@ -38,12 +35,11 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
       const value = await api<RuntimeEndpointDetail>(
         `/api/runtime-endpoints/${endpointId}`,
       );
-      if (value.kind !== kind) throw new Error(`This endpoint is not an ${label}.`);
       setEndpoint(value);
     } catch (reason) {
       setError(errorMessage(reason));
     }
-  }, [endpointId, kind, label]);
+  }, [endpointId]);
   useEffect(() => void load(), [load]);
 
   function selectTab(next: Tab) {
@@ -63,13 +59,16 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
       </AppShell>
     );
 
+  const endpointKind = endpoint.kind;
+  const label = endpointKind === "mcp" ? "MCP Endpoint" : "HTTP API";
+
   return (
     <AppShell>
       <Link
         href={basePath}
         className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={13} /> {kind === "mcp" ? "MCP Endpoints" : "HTTP APIs"}
+        <ArrowLeft size={13} /> Endpoints
       </Link>
       <PageHeader
         eyebrow={label}
@@ -104,16 +103,16 @@ export function RuntimeEndpointDetailPage({ kind }: { kind: EndpointKind }) {
           ))}
         </div>
       </div>
-      {tab === "overview" && <Overview endpoint={endpoint} kind={kind} />}
+      {tab === "overview" && <Overview endpoint={endpoint} kind={endpointKind} />}
       {tab === "bindings" && (
-        <Bindings endpoint={endpoint} kind={kind} onChanged={load} />
+        <Bindings endpoint={endpoint} kind={endpointKind} onChanged={load} />
       )}
       {tab === "authentication" && (
         <Authentication endpoint={endpoint} onChanged={load} />
       )}
       {tab === "network" && <NetworkPolicy endpoint={endpoint} onChanged={load} />}
       {tab === "executions" && <Executions endpoint={endpoint} />}
-      {tab === "manifest" && <Manifest endpoint={endpoint} />}
+      {tab === "metadata" && <EndpointMetadata endpoint={endpoint} />}
       {tab === "settings" && <Settings endpoint={endpoint} onChanged={load} />}
     </AppShell>
   );

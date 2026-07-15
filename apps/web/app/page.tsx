@@ -129,7 +129,7 @@ export default function DashboardPage() {
             <EndpointCreateDialog
               kind="mcp"
               variant="secondary"
-              onCreated={(endpoint) => router.push(`/mcp-endpoints/${endpoint.id}`)}
+              onCreated={(endpoint) => router.push(`/endpoints/${endpoint.id}`)}
             />
             <Link href="/functions">
               <Button>

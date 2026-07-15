@@ -152,7 +152,7 @@ export function BindingGroup({
                   </code>
                   {endpoint ? (
                     <Link
-                      href={`${endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${endpoint.id}?tab=bindings`}
+                      href={`/endpoints/${endpoint.id}?tab=bindings`}
                       className="mt-1 block truncate text-[10px] text-muted-foreground hover:text-primary"
                     >
                       {endpoint.name} · {endpoint.environment.name}

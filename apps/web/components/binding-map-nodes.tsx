@@ -146,7 +146,7 @@ export function EndpointNode({
             {endpoint.kind === "mcp" ? "MCP service" : "HTTP service"}
           </p>
           <Link
-            href={`${endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${endpoint.id}?tab=bindings`}
+            href={`/endpoints/${endpoint.id}?tab=bindings`}
             className={`mt-1 block truncate text-sm font-semibold ${endpoint.kind === "mcp" ? "hover:text-cyan-600 dark:hover:text-cyan-400" : "hover:text-amber-600 dark:hover:text-amber-400"}`}
           >
             {endpoint.name}
