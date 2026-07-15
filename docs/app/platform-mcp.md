@@ -28,6 +28,13 @@ changes. Manual runs use only the active immutable schedule artifact. The
 binding's empty input, service identity, permissions, network policy, and trigger
 metadata against saved development Function code.
 
+Typed storage is available through `storage_collections_list`,
+`storage_collection_get`, collection create/version/grant tools, bounded
+`storage_records_query` and optimistic record mutation tools. Cache inspection uses
+`storage_cache_list`, `storage_cache_reveal`, and `storage_cache_delete`. Record and
+cache values require owner or admin access; cache reveals are size-limited, redacted,
+and audited. Storage mutations require `mcpops:write` and default to `dryRun: true`.
+
 Endpoint discovery returns final environment URLs and describes the credential
 scheme or header that callers must supply. It never includes credential or Secret
 values.

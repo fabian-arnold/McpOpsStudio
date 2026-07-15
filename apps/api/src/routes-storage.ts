@@ -17,7 +17,7 @@ import { requireRole } from "./auth.js";
 import { parse, sessionContext } from "./helpers.js";
 import { cacheInspector } from "./resources.js";
 
-const environmentTenantSchema = z
+export const environmentTenantSchema = z
   .object({
     environmentId: z.string().uuid(),
     tenantId: z
@@ -27,23 +27,25 @@ const environmentTenantSchema = z
       .regex(/^[A-Za-z0-9._-]+$/),
   })
   .strict();
-const recordCreateSchema = environmentTenantSchema.extend({
+export const recordCreateSchema = environmentTenantSchema.extend({
   data: z.record(z.unknown()),
 });
-const recordUpdateSchema = recordCreateSchema.extend({
+export const recordUpdateSchema = recordCreateSchema.extend({
   revision: z.number().int().positive(),
 });
-const recordDeleteSchema = environmentTenantSchema.extend({
+export const recordDeleteSchema = environmentTenantSchema.extend({
   revision: z.number().int().positive(),
 });
-const recordQuerySchema = environmentTenantSchema.extend(collectionQuerySchema.shape);
-const grantSchema = z
+export const recordQuerySchema = environmentTenantSchema.extend(
+  collectionQuerySchema.shape,
+);
+export const collectionGrantInputSchema = z
   .object({
     functionId: z.string().uuid(),
     permissions: collectionPermissionsSchema,
   })
   .strict();
-const cacheListSchema = z
+export const cacheListSchema = z
   .object({
     environmentId: z.string().uuid(),
     cursor: z.string().regex(/^\d+$/).default("0"),
@@ -53,7 +55,7 @@ const cacheListSchema = z
     prefix: z.string().max(256).optional(),
   })
   .strict();
-const cacheTokenSchema = z
+export const cacheTokenSchema = z
   .object({ environmentId: z.string().uuid(), keyToken: z.string().max(4_096) })
   .strict();
 
@@ -186,7 +188,7 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
     const session = sessionContext(request);
     requireRole(session, ["owner", "admin"]);
     const { collectionId } = request.params as { collectionId: string };
-    const input = parse(grantSchema, request.body);
+    const input = parse(collectionGrantInputSchema, request.body);
     await scopedCollection(session.projectId, collectionId);
     const fn = await prisma.function.findFirst({
       where: { id: input.functionId, projectId: session.projectId },
@@ -442,7 +444,7 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
   });
 }
 
-async function queryRecords(
+export async function queryRecords(
   projectId: string,
   environmentId: string,
   collectionId: string,
@@ -650,7 +652,7 @@ function fieldExpression(field: string, schema: unknown): Prisma.Sql {
   return text;
 }
 
-function validateDefinition(
+export function validateDefinition(
   schema: Record<string, unknown>,
   indexes: Array<{ fields: string[] }>,
 ) {
@@ -658,7 +660,7 @@ function validateDefinition(
   for (const index of indexes)
     for (const field of index.fields) fieldDefinition(schema, field);
 }
-function validateRecord(schema: unknown, data: unknown) {
+export function validateRecord(schema: unknown, data: unknown) {
   const validate = new Ajv({ allErrors: true, strict: false }).compile(
     schema as object,
   );
@@ -683,7 +685,7 @@ function fieldDefinition(schema: unknown, field: string): Record<string, unknown
   }
   return current;
 }
-function compatibleSchema(previous: unknown, next: unknown): boolean {
+export function compatibleSchema(previous: unknown, next: unknown): boolean {
   const left = previous as Record<string, unknown>;
   const right = next as Record<string, unknown>;
   const oldRequired = new Set(Array.isArray(left.required) ? left.required : []);
@@ -702,20 +704,20 @@ function compatibleSchema(previous: unknown, next: unknown): boolean {
   }
   return true;
 }
-function definitionChecksum(schema: unknown, indexes: unknown): string {
+export function definitionChecksum(schema: unknown, indexes: unknown): string {
   return createHash("sha256").update(canonicalJson({ schema, indexes })).digest("hex");
 }
-function cacheKeyDigest(key: string): string {
+export function cacheKeyDigest(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
-async function scopedCollection(projectId: string, id: string) {
+export async function scopedCollection(projectId: string, id: string) {
   const collection = await prisma.dataCollection.findFirst({
     where: { id, projectId },
   });
   if (!collection) throw notFound("Data collection not found");
   return collection;
 }
-async function activeDefinition(
+export async function activeDefinition(
   projectId: string,
   collectionId: string,
   environmentId: string,
@@ -751,7 +753,7 @@ async function activeDefinition(
     where: { id: String(pinned.schemaVersionId), collectionId },
   });
 }
-async function assertEnvironment(projectId: string, environmentId: string) {
+export async function assertEnvironment(projectId: string, environmentId: string) {
   const found = await prisma.environment.findFirst({
     where: { id: environmentId, projectId },
   });
@@ -780,7 +782,7 @@ async function audit(
     },
   });
 }
-async function knownSecrets(
+export async function knownSecrets(
   projectId: string,
   environmentId: string,
 ): Promise<string[]> {
@@ -840,7 +842,7 @@ function recordFieldValue(
         : null;
   return value ?? null;
 }
-function decodeKey(value: string): string {
+export function decodeKey(value: string): string {
   try {
     const key = Buffer.from(value, "base64url").toString("utf8");
     if (!key) throw new Error();
@@ -852,7 +854,7 @@ function decodeKey(value: string): string {
     });
   }
 }
-function assertCacheKey(key: string, projectId: string, environmentId: string) {
+export function assertCacheKey(key: string, projectId: string, environmentId: string) {
   if (!key.startsWith(`mcpops:${projectId}:${environmentId}:`))
     throw Object.assign(new Error("Cache key is outside the selected scope"), {
       statusCode: 403,
@@ -865,13 +867,13 @@ function escapeLike(value: string) {
 function notFound(message: string) {
   return Object.assign(new Error(message), { statusCode: 404, code: "NOT_FOUND" });
 }
-function conflict() {
+export function conflict() {
   return Object.assign(
     new Error("Record was changed or deleted by another operation"),
     { statusCode: 409, code: "REVISION_CONFLICT" },
   );
 }
-function rejectSecretData(value: unknown, secrets: readonly string[]): void {
+export function rejectSecretData(value: unknown, secrets: readonly string[]): void {
   const contains = (item: unknown): boolean => {
     if (typeof item === "string")
       return (

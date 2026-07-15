@@ -10,6 +10,7 @@ vi.mock("./resources.js", () => ({
     add: vi.fn(),
     getJobSchedulers: vi.fn(),
   },
+  cacheInspector: {},
 }));
 
 describe("platform MCP module", () => {
@@ -48,6 +49,19 @@ describe("platform MCP module", () => {
         "cron_binding_delete",
         "cron_binding_run",
         "cron_binding_runs",
+        "storage_collections_list",
+        "storage_collection_get",
+        "storage_collection_create",
+        "storage_collection_version_create",
+        "storage_collection_grant_set",
+        "storage_collection_grant_delete",
+        "storage_records_query",
+        "storage_record_create",
+        "storage_record_update",
+        "storage_record_delete",
+        "storage_cache_list",
+        "storage_cache_reveal",
+        "storage_cache_delete",
       ]),
     );
     expect(names).toHaveLength(new Set(names).size);
@@ -65,6 +79,13 @@ describe("platform MCP module", () => {
     expect(functionTest?.inputSchema.properties).toMatchObject({
       cronBindingId: { type: "string" },
       source: { enum: ["mcp", "http", "cron", "test"] },
+    });
+    const collectionCreate = module.platformTools.find(
+      (tool) => tool.name === "storage_collection_create",
+    );
+    expect(collectionCreate).toMatchObject({
+      inputSchema: { required: ["definition"] },
+      annotations: { readOnlyHint: false, destructiveHint: true },
     });
   }, 15_000);
 });
