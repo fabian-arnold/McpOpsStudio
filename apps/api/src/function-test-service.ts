@@ -11,37 +11,93 @@ export async function executeDevelopmentFunctionTest(
 ): Promise<{ status: number; body: unknown }> {
   const body = testInvocationSchema.parse(inputValue);
   const fn = await projectRepository(session.projectId).projectFunction(functionId);
-  if (!fn) throw Object.assign(new Error("Function not found"), { code: "NOT_FOUND", statusCode: 404 });
+  if (!fn)
+    throw Object.assign(new Error("Function not found"), {
+      code: "NOT_FOUND",
+      statusCode: 404,
+    });
   const endpoint = await prisma.runtimeEndpoint.findFirst({
-    where: { projectId: session.projectId, activeDeploymentId: { not: null }, environment: { slug: "development" }, ...(body.endpointId ? { id: body.endpointId } : {}) },
+    where: {
+      projectId: session.projectId,
+      activeDeploymentId: { not: null },
+      environment: { slug: "development" },
+      ...(body.endpointId ? { id: body.endpointId } : {}),
+    },
     select: { id: true },
   });
-  if (!endpoint) throw Object.assign(new Error("Deploy the Project to development once, then select a development endpoint for runtime capabilities."), { code: "DEVELOPMENT_RUNTIME_UNAVAILABLE", statusCode: 409 });
+  if (!endpoint)
+    throw Object.assign(
+      new Error(
+        "Deploy the Project to development once, then select a development endpoint for runtime capabilities.",
+      ),
+      { code: "DEVELOPMENT_RUNTIME_UNAVAILABLE", statusCode: 409 },
+    );
   const availableFunctions = await prisma.function.findMany({
     where: { projectId: session.projectId, enabled: true },
     include: { versions: { orderBy: { version: "desc" }, take: 1 }, grants: true },
     orderBy: { name: "asc" },
   });
-  const { functions: selectedFunctions, calls } = resolveFunctionCallGraph(availableFunctions, new Set([functionId]));
-  const libraries = await prisma.projectLibrary.findMany({ where: { projectId: session.projectId }, orderBy: { version: "desc" }, distinct: ["importPath"] });
-  const snapshotFunctions = await Promise.all(selectedFunctions.map(async (item) => {
-    const version = item.versions[0];
-    if (!version) throw Object.assign(new Error(`Function ${item.name} has no saved development version`), { code: "FUNCTION_NOT_SAVED", statusCode: 409 });
-    const built = await bundleFunction({ code: version.code, projectLibraries: libraries.map((library) => ({ importPath: library.importPath, code: library.code, version: library.version })) });
-    return {
-      id: item.id, functionId: item.id, versionId: version.id, version: version.version,
-      name: item.name, slug: item.slug, enabled: item.enabled, riskLevel: item.riskLevel,
-      requiredPermissions: item.requiredPermissions, secretGrants: item.grants.map((grant) => grant.secretName),
-      timeoutMs: item.timeoutMs, inputSchema: item.inputSchema, outputSchema: item.outputSchema,
-      cachePolicy: item.cachePolicy, compiledCode: built.compiledCode,
-    };
-  }));
-  const base = process.env.RUNTIME_INTERNAL_URL ?? "http://localhost:8080";
-  const response = await fetch(`${base}/internal/runtime-endpoints/${endpoint.id}/functions/${functionId}/test`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...(process.env.INTERNAL_API_TOKEN ? { "x-internal-token": process.env.INTERNAL_API_TOKEN } : {}) },
-    body: JSON.stringify({ ...body, savedDevelopmentSnapshot: { functions: snapshotFunctions, calls } }),
-    signal: AbortSignal.timeout(125_000),
+  const { functions: selectedFunctions, calls } = resolveFunctionCallGraph(
+    availableFunctions,
+    new Set([functionId]),
+  );
+  const libraries = await prisma.projectLibrary.findMany({
+    where: { projectId: session.projectId },
+    orderBy: { version: "desc" },
+    distinct: ["importPath"],
   });
+  const snapshotFunctions = await Promise.all(
+    selectedFunctions.map(async (item) => {
+      const version = item.versions[0];
+      if (!version)
+        throw Object.assign(
+          new Error(`Function ${item.name} has no saved development version`),
+          { code: "FUNCTION_NOT_SAVED", statusCode: 409 },
+        );
+      const built = await bundleFunction({
+        code: version.code,
+        projectLibraries: libraries.map((library) => ({
+          importPath: library.importPath,
+          code: library.code,
+          version: library.version,
+        })),
+      });
+      return {
+        id: item.id,
+        functionId: item.id,
+        versionId: version.id,
+        version: version.version,
+        name: item.name,
+        slug: item.slug,
+        enabled: item.enabled,
+        riskLevel: item.riskLevel,
+        requiredPermissions: item.requiredPermissions,
+        secretGrants: item.grants.map((grant) => grant.secretName),
+        timeoutMs: item.timeoutMs,
+        inputSchema: item.inputSchema,
+        outputSchema: item.outputSchema,
+        cachePolicy: item.cachePolicy,
+        compiledCode: built.compiledCode,
+      };
+    }),
+  );
+  const base = process.env.RUNTIME_INTERNAL_URL ?? "http://localhost:8080";
+  const response = await fetch(
+    `${base}/internal/runtime-endpoints/${endpoint.id}/functions/${functionId}/test`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(process.env.INTERNAL_API_TOKEN
+          ? { "x-internal-token": process.env.INTERNAL_API_TOKEN }
+          : {}),
+      },
+      body: JSON.stringify({
+        ...body,
+        savedDevelopmentSnapshot: { functions: snapshotFunctions, calls },
+      }),
+      signal: AbortSignal.timeout(125_000),
+    },
+  );
   return { status: response.status, body: await response.json() };
 }

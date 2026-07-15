@@ -4,11 +4,7 @@ import { isIP } from "node:net";
 import { z } from "zod";
 import { prisma } from "@mcpops/db";
 
-export const platformScopes = [
-  "mcpops:read",
-  "mcpops:write",
-  "mcpops:deploy",
-] as const;
+export const platformScopes = ["mcpops:read", "mcpops:write", "mcpops:deploy"] as const;
 export type PlatformScope = (typeof platformScopes)[number];
 
 export type OAuthRequestState = {
@@ -44,7 +40,9 @@ export function parseScopes(value: string | undefined): PlatformScope[] {
     .filter((item): item is PlatformScope =>
       platformScopes.includes(item as PlatformScope),
     );
-  return [...new Set(requested.length ? requested : ["mcpops:read"])] as PlatformScope[];
+  return [
+    ...new Set(requested.length ? requested : ["mcpops:read"]),
+  ] as PlatformScope[];
 }
 
 export function validRedirectUri(value: string): boolean {
@@ -71,8 +69,20 @@ const clientMetadataSchema = z
 
 function privateAddress(address: string): boolean {
   if (!isIP(address)) return true;
-  if (address === "::1" || address.startsWith("fe80:") || address.startsWith("fc") || address.startsWith("fd")) return true;
-  if (address.startsWith("127.") || address.startsWith("169.254.") || address.startsWith("10.") || address.startsWith("192.168.")) return true;
+  if (
+    address === "::1" ||
+    address.startsWith("fe80:") ||
+    address.startsWith("fc") ||
+    address.startsWith("fd")
+  )
+    return true;
+  if (
+    address.startsWith("127.") ||
+    address.startsWith("169.254.") ||
+    address.startsWith("10.") ||
+    address.startsWith("192.168.")
+  )
+    return true;
   const match = /^172\.(\d+)\./.exec(address);
   return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
 }
@@ -81,7 +91,11 @@ export async function resolveOAuthClient(clientId: string) {
   const stored = await prisma.oAuthClient.findUnique({ where: { id: clientId } });
   if (stored) return stored;
   const metadataUrl = new URL(clientId);
-  if (metadataUrl.protocol !== "https:" || !metadataUrl.pathname || metadataUrl.pathname === "/")
+  if (
+    metadataUrl.protocol !== "https:" ||
+    !metadataUrl.pathname ||
+    metadataUrl.pathname === "/"
+  )
     throw oauthError("invalid_client", "Unknown OAuth client");
   const addresses = await lookup(metadataUrl.hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some((entry) => privateAddress(entry.address)))
@@ -91,9 +105,13 @@ export async function resolveOAuthClient(clientId: string) {
     signal: AbortSignal.timeout(5_000),
     headers: { accept: "application/json" },
   });
-  if (!response.ok) throw oauthError("invalid_client", "Client metadata could not be loaded");
+  if (!response.ok)
+    throw oauthError("invalid_client", "Client metadata could not be loaded");
   const metadata = clientMetadataSchema.parse(await response.json());
-  if (metadata.client_id !== clientId || !metadata.redirect_uris.every(validRedirectUri))
+  if (
+    metadata.client_id !== clientId ||
+    !metadata.redirect_uris.every(validRedirectUri)
+  )
     throw oauthError("invalid_client", "Client metadata is invalid");
   return prisma.oAuthClient.create({
     data: {

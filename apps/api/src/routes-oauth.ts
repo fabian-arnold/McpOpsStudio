@@ -39,7 +39,10 @@ const registrationSchema = z.object({
 });
 
 export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
-  if (process.env.NODE_ENV === "production" && new URL(publicOrigin()).protocol !== "https:")
+  if (
+    process.env.NODE_ENV === "production" &&
+    new URL(publicOrigin()).protocol !== "https:"
+  )
     throw new Error("PUBLIC_CONTROL_PLANE_URL must use HTTPS for platform MCP OAuth");
   app.get("/.well-known/oauth-protected-resource/platform/mcp", async () => ({
     resource: platformResource(),
@@ -67,10 +70,19 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/oauth/register", async (request, reply) => {
     const body = parse(registrationSchema, request.body);
-    if (!body.redirect_uris.every(validRedirectUri)) throw oauthError("invalid_redirect_uri", "Redirect URIs must use HTTPS or a loopback HTTP address");
+    if (!body.redirect_uris.every(validRedirectUri))
+      throw oauthError(
+        "invalid_redirect_uri",
+        "Redirect URIs must use HTTPS or a loopback HTTP address",
+      );
     const id = `mcp_${opaqueToken()}`;
     await prisma.oAuthClient.create({
-      data: { id, name: body.client_name, redirectUris: body.redirect_uris, registration: "dynamic" },
+      data: {
+        id,
+        name: body.client_name,
+        redirectUris: body.redirect_uris,
+        registration: "dynamic",
+      },
     });
     return reply.status(201).send({
       client_id: id,
@@ -84,9 +96,17 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/oauth/authorize", async (request, reply) => {
     const query = parse(authorizeSchema, request.query);
-    if (query.resource !== platformResource()) throw oauthError("invalid_target", "The resource must be the platform MCP endpoint");
+    if (query.resource !== platformResource())
+      throw oauthError(
+        "invalid_target",
+        "The resource must be the platform MCP endpoint",
+      );
     const client = await resolveOAuthClient(query.client_id);
-    if (!clientRedirects(client).includes(query.redirect_uri)) throw oauthError("invalid_request", "The redirect URI is not registered for this client");
+    if (!clientRedirects(client).includes(query.redirect_uri))
+      throw oauthError(
+        "invalid_request",
+        "The redirect URI is not registered for this client",
+      );
     const session = decodeSession(request.cookies.mcpops_session);
     if (!session) {
       const returnTo = `${request.url}`;
@@ -105,7 +125,12 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
       resource: query.resource,
       codeChallenge: query.code_challenge,
     };
-    await controlPlaneState.set(`oauth:request:${approvalId}`, JSON.stringify(approval), "EX", 600);
+    await controlPlaneState.set(
+      `oauth:request:${approvalId}`,
+      JSON.stringify(approval),
+      "EX",
+      600,
+    );
     return reply.redirect(`/oauth/consent?request=${encodeURIComponent(approvalId)}`);
   });
 
@@ -115,7 +140,12 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
     const raw = await controlPlaneState.get(`oauth:request:${approvalId}`);
     if (!raw) throw oauthError("NOT_FOUND", "Authorization request expired", 404);
     const approval = JSON.parse(raw) as OAuthRequestState;
-    return { clientName: approval.clientName, redirectUri: approval.redirectUri, scopes: approval.scopes, user: { email: session.email, role: session.role } };
+    return {
+      clientName: approval.clientName,
+      redirectUri: approval.redirectUri,
+      scopes: approval.scopes,
+      user: { email: session.email, role: session.role },
+    };
   });
 
   app.post("/api/oauth/requests/:approvalId/decision", async (request) => {
@@ -133,9 +163,14 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
       const code = opaqueToken();
       await prisma.oAuthAuthorizationCode.create({
         data: {
-          codeHash: hashToken(code), clientId: approval.clientId, userId: session.userId,
-          redirectUri: approval.redirectUri, scopes: approval.scopes, resource: approval.resource,
-          codeChallenge: approval.codeChallenge, expiresAt: new Date(Date.now() + 5 * 60_000),
+          codeHash: hashToken(code),
+          clientId: approval.clientId,
+          userId: session.userId,
+          redirectUri: approval.redirectUri,
+          scopes: approval.scopes,
+          resource: approval.resource,
+          codeChallenge: approval.codeChallenge,
+          expiresAt: new Date(Date.now() + 5 * 60_000),
         },
       });
       destination.searchParams.set("code", code);
@@ -149,52 +184,126 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
     const body = request.body as Record<string, string | undefined>;
     if (body.grant_type === "authorization_code") {
       const codeHash = hashToken(String(body.code ?? ""));
-      const record = await prisma.oAuthAuthorizationCode.findUnique({ where: { codeHash }, include: { user: true } });
-      if (!record || record.consumedAt || record.expiresAt <= new Date()) throw oauthError("invalid_grant", "Authorization code is invalid or expired");
-      if (record.clientId !== body.client_id || record.redirectUri !== body.redirect_uri || record.resource !== body.resource)
+      const record = await prisma.oAuthAuthorizationCode.findUnique({
+        where: { codeHash },
+        include: { user: true },
+      });
+      if (!record || record.consumedAt || record.expiresAt <= new Date())
+        throw oauthError("invalid_grant", "Authorization code is invalid or expired");
+      if (
+        record.clientId !== body.client_id ||
+        record.redirectUri !== body.redirect_uri ||
+        record.resource !== body.resource
+      )
         throw oauthError("invalid_grant", "Authorization code context does not match");
-      const challenge = createHash("sha256").update(String(body.code_verifier ?? "")).digest("base64url");
-      if (challenge.length !== record.codeChallenge.length || !timingSafeEqual(Buffer.from(challenge), Buffer.from(record.codeChallenge)))
+      const challenge = createHash("sha256")
+        .update(String(body.code_verifier ?? ""))
+        .digest("base64url");
+      if (
+        challenge.length !== record.codeChallenge.length ||
+        !timingSafeEqual(Buffer.from(challenge), Buffer.from(record.codeChallenge))
+      )
         throw oauthError("invalid_grant", "PKCE verification failed");
       const access = opaqueToken();
       const refresh = opaqueToken();
       await prisma.$transaction(async (tx) => {
-        const consumed = await tx.oAuthAuthorizationCode.updateMany({ where: { id: record.id, consumedAt: null, expiresAt: { gt: new Date() } }, data: { consumedAt: new Date() } });
-        if (!consumed.count) throw oauthError("invalid_grant", "Authorization code was already used");
-        await tx.oAuthGrant.create({ data: {
-          clientId: record.clientId, userId: record.userId, scopes: record.scopes, resource: record.resource,
-          accessTokenHash: hashToken(access), refreshTokenHash: hashToken(refresh),
-          accessExpiresAt: new Date(Date.now() + 15 * 60_000), refreshExpiresAt: new Date(Date.now() + 8 * 60 * 60_000),
-        } });
+        const consumed = await tx.oAuthAuthorizationCode.updateMany({
+          where: { id: record.id, consumedAt: null, expiresAt: { gt: new Date() } },
+          data: { consumedAt: new Date() },
+        });
+        if (!consumed.count)
+          throw oauthError("invalid_grant", "Authorization code was already used");
+        await tx.oAuthGrant.create({
+          data: {
+            clientId: record.clientId,
+            userId: record.userId,
+            scopes: record.scopes,
+            resource: record.resource,
+            accessTokenHash: hashToken(access),
+            refreshTokenHash: hashToken(refresh),
+            accessExpiresAt: new Date(Date.now() + 15 * 60_000),
+            refreshExpiresAt: new Date(Date.now() + 8 * 60 * 60_000),
+          },
+        });
       });
-      return { access_token: access, refresh_token: refresh, token_type: "Bearer", expires_in: 900, scope: record.scopes.join(" ") };
+      return {
+        access_token: access,
+        refresh_token: refresh,
+        token_type: "Bearer",
+        expires_in: 900,
+        scope: record.scopes.join(" "),
+      };
     }
     if (body.grant_type === "refresh_token") {
       const refreshHash = hashToken(String(body.refresh_token ?? ""));
-      const grant = await prisma.oAuthGrant.findUnique({ where: { refreshTokenHash: refreshHash } });
-      if (!grant || grant.revokedAt || !grant.refreshExpiresAt || grant.refreshExpiresAt <= new Date() || grant.clientId !== body.client_id)
+      const grant = await prisma.oAuthGrant.findUnique({
+        where: { refreshTokenHash: refreshHash },
+      });
+      if (
+        !grant ||
+        grant.revokedAt ||
+        !grant.refreshExpiresAt ||
+        grant.refreshExpiresAt <= new Date() ||
+        grant.clientId !== body.client_id
+      )
         throw oauthError("invalid_grant", "Refresh token is invalid or expired");
       const access = opaqueToken();
       const refresh = opaqueToken();
-      const rotated = await prisma.oAuthGrant.updateMany({ where: { id: grant.id, refreshTokenHash: refreshHash, revokedAt: null }, data: {
-        accessTokenHash: hashToken(access), refreshTokenHash: hashToken(refresh), accessExpiresAt: new Date(Date.now() + 15 * 60_000),
-      } });
-      if (!rotated.count) throw oauthError("invalid_grant", "Refresh token was already used");
-      return { access_token: access, refresh_token: refresh, token_type: "Bearer", expires_in: 900, scope: grant.scopes.join(" ") };
+      const rotated = await prisma.oAuthGrant.updateMany({
+        where: { id: grant.id, refreshTokenHash: refreshHash, revokedAt: null },
+        data: {
+          accessTokenHash: hashToken(access),
+          refreshTokenHash: hashToken(refresh),
+          accessExpiresAt: new Date(Date.now() + 15 * 60_000),
+        },
+      });
+      if (!rotated.count)
+        throw oauthError("invalid_grant", "Refresh token was already used");
+      return {
+        access_token: access,
+        refresh_token: refresh,
+        token_type: "Bearer",
+        expires_in: 900,
+        scope: grant.scopes.join(" "),
+      };
     }
     throw oauthError("unsupported_grant_type", "Unsupported OAuth grant type");
   });
 
   app.get("/api/oauth/grants", async (request) => {
     const session = sessionContext(request);
-    const grants = await prisma.oAuthGrant.findMany({ where: { userId: session.userId, revokedAt: null, refreshExpiresAt: { gt: new Date() } }, include: { client: true }, orderBy: { updatedAt: "desc" } });
-    return grants.map((grant) => ({ id: grant.id, clientName: grant.client.name, scopes: grant.scopes, createdAt: grant.createdAt, expiresAt: grant.refreshExpiresAt }));
+    const grants = await prisma.oAuthGrant.findMany({
+      where: {
+        userId: session.userId,
+        revokedAt: null,
+        refreshExpiresAt: { gt: new Date() },
+      },
+      include: { client: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    return grants.map((grant) => ({
+      id: grant.id,
+      clientName: grant.client.name,
+      scopes: grant.scopes,
+      createdAt: grant.createdAt,
+      expiresAt: grant.refreshExpiresAt,
+    }));
   });
   app.delete("/api/oauth/grants/:grantId", async (request, reply) => {
     const session = sessionContext(request);
     const { grantId } = request.params as { grantId: string };
-    const updated = await prisma.oAuthGrant.updateMany({ where: { id: grantId, userId: session.userId }, data: { revokedAt: new Date(), refreshTokenHash: null } });
-    if (!updated.count) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "OAuth grant not found", requestId: requestId(request) } });
+    const updated = await prisma.oAuthGrant.updateMany({
+      where: { id: grantId, userId: session.userId },
+      data: { revokedAt: new Date(), refreshTokenHash: null },
+    });
+    if (!updated.count)
+      return reply.status(404).send({
+        error: {
+          code: "NOT_FOUND",
+          message: "OAuth grant not found",
+          requestId: requestId(request),
+        },
+      });
     return reply.status(204).send();
   });
 }

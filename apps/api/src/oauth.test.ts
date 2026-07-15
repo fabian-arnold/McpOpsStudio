@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { allowedScopesForRole, hashToken, parseScopes, validRedirectUri } from "./oauth.js";
+import {
+  allowedScopesForRole,
+  hashToken,
+  parseScopes,
+  validRedirectUri,
+} from "./oauth.js";
 
 describe("platform MCP OAuth safety", () => {
   it("accepts HTTPS and loopback redirects only", () => {
@@ -13,8 +18,15 @@ describe("platform MCP OAuth safety", () => {
   it("limits capabilities by installation-wide role", () => {
     expect(allowedScopesForRole("viewer")).toEqual(["mcpops:read"]);
     expect(allowedScopesForRole("operator")).toEqual(["mcpops:read", "mcpops:deploy"]);
-    expect(allowedScopesForRole("developer")).toEqual(["mcpops:read", "mcpops:write", "mcpops:deploy"]);
-    expect(parseScopes("mcpops:read unknown mcpops:write")).toEqual(["mcpops:read", "mcpops:write"]);
+    expect(allowedScopesForRole("developer")).toEqual([
+      "mcpops:read",
+      "mcpops:write",
+      "mcpops:deploy",
+    ]);
+    expect(parseScopes("mcpops:read unknown mcpops:write")).toEqual([
+      "mcpops:read",
+      "mcpops:write",
+    ]);
   });
 
   it("stores stable hashes rather than opaque token values", () => {

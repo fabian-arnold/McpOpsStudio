@@ -11,68 +11,179 @@ import { deploymentQueue } from "./resources.js";
 export async function developmentDeploymentPlan(projectId: string) {
   const [endpoints, functions, libraries] = await Promise.all([
     prisma.runtimeEndpoint.findMany({
-      where: { projectId, environment: { slug: "development" }, status: { not: "disabled" } },
+      where: {
+        projectId,
+        environment: { slug: "development" },
+        status: { not: "disabled" },
+      },
       include: { mcpToolBindings: true, httpRouteBindings: true },
       orderBy: [{ kind: "asc" }, { slug: "asc" }],
     }),
-    prisma.function.findMany({ where: { projectId }, select: { id: true, version: true, updatedAt: true }, orderBy: { id: "asc" } }),
-    prisma.projectLibrary.findMany({ where: { projectId }, select: { importPath: true, version: true, updatedAt: true }, orderBy: [{ importPath: "asc" }, { version: "desc" }] }),
+    prisma.function.findMany({
+      where: { projectId },
+      select: { id: true, version: true, updatedAt: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.projectLibrary.findMany({
+      where: { projectId },
+      select: { importPath: true, version: true, updatedAt: true },
+      orderBy: [{ importPath: "asc" }, { version: "desc" }],
+    }),
   ]);
-  if (!endpoints.length) throw Object.assign(new Error("Add a development endpoint before deploying"), { code: "NO_RUNTIME_ENDPOINTS", statusCode: 409 });
+  if (!endpoints.length)
+    throw Object.assign(new Error("Add a development endpoint before deploying"), {
+      code: "NO_RUNTIME_ENDPOINTS",
+      statusCode: 409,
+    });
   const state = {
     endpoints: endpoints.map((endpoint) => ({
       id: endpoint.id,
       updatedAt: endpoint.updatedAt.toISOString(),
-      bindings: endpoint.kind === "mcp" ? endpoint.mcpToolBindings : endpoint.httpRouteBindings,
+      bindings:
+        endpoint.kind === "mcp" ? endpoint.mcpToolBindings : endpoint.httpRouteBindings,
     })),
-    functions: functions.map((fn) => ({ ...fn, updatedAt: fn.updatedAt.toISOString() })),
-    libraries: libraries.map((library) => ({ ...library, updatedAt: library.updatedAt.toISOString() })),
+    functions: functions.map((fn) => ({
+      ...fn,
+      updatedAt: fn.updatedAt.toISOString(),
+    })),
+    libraries: libraries.map((library) => ({
+      ...library,
+      updatedAt: library.updatedAt.toISOString(),
+    })),
   };
-  return { ...state, endpointCount: endpoints.length, functionCount: functions.length, planChecksum: checksum(JSON.stringify(state)) };
+  return {
+    ...state,
+    endpointCount: endpoints.length,
+    functionCount: functions.length,
+    planChecksum: checksum(JSON.stringify(state)),
+  };
 }
 
 export async function queueDevelopmentDeployment(session: PlatformSession) {
-  const environment = await prisma.environment.findFirst({ where: { projectId: session.projectId, slug: "development" } });
-  if (!environment) throw Object.assign(new Error("Create the development environment before deploying."), { code: "DEVELOPMENT_ENVIRONMENT_REQUIRED", statusCode: 409 });
+  const environment = await prisma.environment.findFirst({
+    where: { projectId: session.projectId, slug: "development" },
+  });
+  if (!environment)
+    throw Object.assign(
+      new Error("Create the development environment before deploying."),
+      { code: "DEVELOPMENT_ENVIRONMENT_REQUIRED", statusCode: 409 },
+    );
   const endpoints = await prisma.runtimeEndpoint.findMany({
-    where: { projectId: session.projectId, environmentId: environment.id, status: { not: "disabled" } },
+    where: {
+      projectId: session.projectId,
+      environmentId: environment.id,
+      status: { not: "disabled" },
+    },
     include: { activeDeployment: true, networkPolicy: true },
     orderBy: [{ kind: "asc" }, { slug: "asc" }],
   });
-  if (!endpoints.length) throw Object.assign(new Error("Add an MCP Endpoint or HTTP API before deploying."), { code: "NO_RUNTIME_ENDPOINTS", statusCode: 409 });
-  const latestProject = await prisma.projectDeployment.aggregate({ where: { projectId: session.projectId, environmentId: environment.id }, _max: { version: true } });
+  if (!endpoints.length)
+    throw Object.assign(
+      new Error("Add an MCP Endpoint or HTTP API before deploying."),
+      { code: "NO_RUNTIME_ENDPOINTS", statusCode: 409 },
+    );
+  const latestProject = await prisma.projectDeployment.aggregate({
+    where: { projectId: session.projectId, environmentId: environment.id },
+    _max: { version: true },
+  });
   const endpointVersions = new Map<string, number>();
   for (const endpoint of endpoints) {
-    const latest = await prisma.deployment.aggregate({ where: { endpointId: endpoint.id }, _max: { version: true } });
+    const latest = await prisma.deployment.aggregate({
+      where: { endpointId: endpoint.id },
+      _max: { version: true },
+    });
     endpointVersions.set(endpoint.id, (latest._max.version ?? 0) + 1);
   }
   const created = await prisma.$transaction(async (tx) => {
-    const projectDeployment = await tx.projectDeployment.create({ data: { projectId: session.projectId, environmentId: environment.id, version: (latestProject._max.version ?? 0) + 1, status: "queued" } });
+    const projectDeployment = await tx.projectDeployment.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: environment.id,
+        version: (latestProject._max.version ?? 0) + 1,
+        status: "queued",
+      },
+    });
     const childDeployments = [];
     for (const endpoint of endpoints) {
       const endpointConfig = record(endpoint.runtimeConfig);
       const activeConfig = record(endpoint.activeDeployment?.runtimeConfig);
       const activeSnapshot = record(endpoint.activeDeployment?.snapshot);
       const runtimeConfig = deploymentRuntimeConfigSchema.parse({
-        env: resolveDevelopmentRuntimeEnvironment(environment.variables, endpointConfig, activeConfig, activeSnapshot),
-        endpointAccessPolicy: record(endpointConfig.endpointAccessPolicy ?? activeConfig.endpointAccessPolicy ?? activeSnapshot.endpointAccessPolicy),
+        env: resolveDevelopmentRuntimeEnvironment(
+          environment.variables,
+          endpointConfig,
+          activeConfig,
+          activeSnapshot,
+        ),
+        endpointAccessPolicy: record(
+          endpointConfig.endpointAccessPolicy ??
+            activeConfig.endpointAccessPolicy ??
+            activeSnapshot.endpointAccessPolicy,
+        ),
         network: endpoint.networkPolicy
           ? { allowPrivateHosts: stringList(endpoint.networkPolicy.allowPrivateHosts) }
-          : { allowPrivateHosts: stringList(record(activeConfig.network).allowPrivateHosts ?? record(activeSnapshot.networkPolicy).allowPrivateHosts) },
+          : {
+              allowPrivateHosts: stringList(
+                record(activeConfig.network).allowPrivateHosts ??
+                  record(activeSnapshot.networkPolicy).allowPrivateHosts,
+              ),
+            },
       });
-      const child = await tx.deployment.create({ data: {
-        endpointId: endpoint.id, projectDeploymentId: projectDeployment.id,
-        version: endpointVersions.get(endpoint.id)!, status: "queued", snapshot: {},
-        runtimeConfig: { ...runtimeConfig, timeoutMs: numericSetting(endpointConfig.timeoutMs, 30_000), maxConcurrentRequests: numericSetting(endpointConfig.maxConcurrentRequests, 20), requestedBy: session.userId },
-        checksum: "pending",
-      } });
-      await tx.deploymentLog.create({ data: { deploymentId: child.id, level: "info", message: "Project development deployment queued", metadata: { projectDeploymentId: projectDeployment.id } } });
+      const child = await tx.deployment.create({
+        data: {
+          endpointId: endpoint.id,
+          projectDeploymentId: projectDeployment.id,
+          version: endpointVersions.get(endpoint.id)!,
+          status: "queued",
+          snapshot: {},
+          runtimeConfig: {
+            ...runtimeConfig,
+            timeoutMs: numericSetting(endpointConfig.timeoutMs, 30_000),
+            maxConcurrentRequests: numericSetting(
+              endpointConfig.maxConcurrentRequests,
+              20,
+            ),
+            requestedBy: session.userId,
+          },
+          checksum: "pending",
+        },
+      });
+      await tx.deploymentLog.create({
+        data: {
+          deploymentId: child.id,
+          level: "info",
+          message: "Project development deployment queued",
+          metadata: { projectDeploymentId: projectDeployment.id },
+        },
+      });
       childDeployments.push(child);
     }
-    await tx.auditEvent.create({ data: { projectId: session.projectId, environmentId: environment.id, actorType: "user", actorId: session.userId, action: "project_deployment.queued", targetType: "project_deployment", targetId: projectDeployment.id, metadata: { version: projectDeployment.version, source: "control_plane" } } });
+    await tx.auditEvent.create({
+      data: {
+        projectId: session.projectId,
+        environmentId: environment.id,
+        actorType: "user",
+        actorId: session.userId,
+        action: "project_deployment.queued",
+        targetType: "project_deployment",
+        targetId: projectDeployment.id,
+        metadata: { version: projectDeployment.version, source: "control_plane" },
+      },
+    });
     return { projectDeployment, childDeployments };
   });
   for (const deployment of created.childDeployments)
-    await deploymentQueue.add("build", { deploymentId: deployment.id, projectId: session.projectId, actorId: session.userId }, deploymentJobOptions(deployment.id));
-  return { ...created.projectDeployment, endpointCount: created.childDeployments.length };
+    await deploymentQueue.add(
+      "build",
+      {
+        deploymentId: deployment.id,
+        projectId: session.projectId,
+        actorId: session.userId,
+      },
+      deploymentJobOptions(deployment.id),
+    );
+  return {
+    ...created.projectDeployment,
+    endpointCount: created.childDeployments.length,
+  };
 }

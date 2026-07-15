@@ -150,12 +150,14 @@ assert.ok(
 );
 await platformTool(3, "project_select", { project: "acme" });
 const platformFunctions = await platformTool(4, "functions_list");
-const platformFunction = platformFunctions.body.result.structuredContent.data.functions[0];
+const platformFunction =
+  platformFunctions.body.result.structuredContent.data.functions[0];
 assert.ok(platformFunction, "platform MCP lists selected-project Functions");
 const platformFunctionDetail = await platformTool(5, "function_get", {
   function: platformFunction.id,
 });
-const editableFunction = platformFunctionDetail.body.result.structuredContent.data.function;
+const editableFunction =
+  platformFunctionDetail.body.result.structuredContent.data.function;
 const platformEditPreview = await platformTool(6, "function_edit", {
   function: editableFunction.id,
   expectedVersion: editableFunction.version,

@@ -32,7 +32,9 @@ export default function LoginPage() {
           body: JSON.stringify({ email, password }),
         },
       );
-      const requestedReturn = new URLSearchParams(window.location.search).get("returnTo");
+      const requestedReturn = new URLSearchParams(window.location.search).get(
+        "returnTo",
+      );
       const returnTo = requestedReturn?.startsWith("/oauth/authorize?")
         ? requestedReturn
         : "/";
