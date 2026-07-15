@@ -3,6 +3,7 @@ import {
   allowedScopesForRole,
   hashToken,
   parseScopes,
+  validPublicOrigin,
   validRedirectUri,
 } from "./oauth.js";
 
@@ -11,8 +12,17 @@ describe("platform MCP OAuth safety", () => {
     expect(validRedirectUri("https://ide.example/callback")).toBe(true);
     expect(validRedirectUri("http://127.0.0.1:43123/callback")).toBe(true);
     expect(validRedirectUri("http://localhost:3000/callback")).toBe(true);
+    expect(validRedirectUri("http://[::1]:3000/callback")).toBe(true);
     expect(validRedirectUri("http://ide.example/callback")).toBe(false);
     expect(validRedirectUri("https://user:password@ide.example/callback")).toBe(false);
+  });
+
+  it("requires HTTPS except for loopback installation origins", () => {
+    expect(validPublicOrigin("https://studio.example.com")).toBe(true);
+    expect(validPublicOrigin("http://localhost:8080")).toBe(true);
+    expect(validPublicOrigin("http://127.0.0.1:8080")).toBe(true);
+    expect(validPublicOrigin("http://[::1]:8080")).toBe(true);
+    expect(validPublicOrigin("http://studio.example.com")).toBe(false);
   });
 
   it("limits capabilities by installation-wide role", () => {

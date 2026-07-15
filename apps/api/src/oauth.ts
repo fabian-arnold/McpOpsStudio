@@ -52,7 +52,20 @@ export function validRedirectUri(value: string): boolean {
     if (url.protocol === "https:") return true;
     return (
       url.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function validPublicOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
     );
   } catch {
     return false;
