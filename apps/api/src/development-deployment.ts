@@ -30,7 +30,13 @@ export async function developmentDeploymentPlan(projectId: string) {
       orderBy: [{ importPath: "asc" }, { version: "desc" }],
     }),
   ]);
-  if (!endpoints.length)
+  const cronBindings = await prisma.cronBinding.findMany({
+    where: { projectId, deletedAt: null },
+    select: { id: true, updatedAt: true, environmentId: true, functionId: true },
+    orderBy: { id: "asc" },
+  });
+  const cronBindingCount = cronBindings.length;
+  if (!endpoints.length && !cronBindingCount)
     throw Object.assign(new Error("Add a development endpoint before deploying"), {
       code: "NO_RUNTIME_ENDPOINTS",
       statusCode: 409,
@@ -50,6 +56,10 @@ export async function developmentDeploymentPlan(projectId: string) {
       ...library,
       updatedAt: library.updatedAt.toISOString(),
     })),
+    cronBindings: cronBindings.map((binding) => ({
+      ...binding,
+      updatedAt: binding.updatedAt.toISOString(),
+    })),
   };
   return {
     ...state,
@@ -59,6 +69,8 @@ export async function developmentDeploymentPlan(projectId: string) {
   };
 }
 
+// Project deployment queues endpoint and schedule artifacts as one atomic plan.
+// eslint-disable-next-line max-lines-per-function
 export async function queueDevelopmentDeployment(session: PlatformSession) {
   const environment = await prisma.environment.findFirst({
     where: { projectId: session.projectId, slug: "development" },
@@ -77,9 +89,12 @@ export async function queueDevelopmentDeployment(session: PlatformSession) {
     include: { activeDeployment: true, networkPolicy: true },
     orderBy: [{ kind: "asc" }, { slug: "asc" }],
   });
-  if (!endpoints.length)
+  const cronBindingCount = await prisma.cronBinding.count({
+    where: { projectId: session.projectId, deletedAt: null },
+  });
+  if (!endpoints.length && !cronBindingCount)
     throw Object.assign(
-      new Error("Add an MCP Endpoint or HTTP API before deploying."),
+      new Error("Add an MCP Endpoint, HTTP API, or cron binding before deploying."),
       { code: "NO_RUNTIME_ENDPOINTS", statusCode: 409 },
     );
   const latestProject = await prisma.projectDeployment.aggregate({
@@ -100,6 +115,14 @@ export async function queueDevelopmentDeployment(session: PlatformSession) {
         projectId: session.projectId,
         environmentId: environment.id,
         version: (latestProject._max.version ?? 0) + 1,
+        status: "queued",
+      },
+    });
+    const scheduleDeployment = await tx.scheduleDeployment.create({
+      data: {
+        projectDeploymentId: projectDeployment.id,
+        projectId: session.projectId,
+        environmentId: environment.id,
         status: "queued",
       },
     });
@@ -179,7 +202,7 @@ export async function queueDevelopmentDeployment(session: PlatformSession) {
         metadata: { version: projectDeployment.version, source: "control_plane" },
       },
     });
-    return { projectDeployment, childDeployments };
+    return { projectDeployment, childDeployments, scheduleDeployment };
   });
   for (const deployment of created.childDeployments)
     await deploymentQueue.add(
@@ -191,6 +214,11 @@ export async function queueDevelopmentDeployment(session: PlatformSession) {
       },
       deploymentJobOptions(deployment.id),
     );
+  await deploymentQueue.add(
+    "schedule-build",
+    { scheduleDeploymentId: created.scheduleDeployment.id, actorId: session.userId },
+    deploymentJobOptions(created.scheduleDeployment.id),
+  );
   return {
     ...created.projectDeployment,
     endpointCount: created.childDeployments.length,

@@ -18,7 +18,8 @@
     "@mcpops/sandbox": "workspace:*",
     "@mcpops/shared": "workspace:*",
     "ajv": "^8.20.0",
-    "bullmq": "^5.80.2"
+    "bullmq": "^5.80.2",
+    "ioredis": "^5.11.1"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

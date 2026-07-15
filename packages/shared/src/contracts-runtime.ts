@@ -84,11 +84,87 @@ export const networkPolicyUpdateSchema = z
           message: `Insecure TLS host '${host}' must be an exact allowed host`,
         });
   });
+
+const cronFieldRanges = [
+  [0, 59],
+  [0, 23],
+  [1, 31],
+  [1, 12],
+  [0, 7],
+] as const;
+
+export function isFiveFieldCron(expression: string): boolean {
+  const fields = expression.trim().split(/\s+/);
+  if (fields.length !== 5) return false;
+  return fields.every((field, index) => {
+    const [min, max] = cronFieldRanges[index]!;
+    return field.split(",").every((part) => cronPartIsValid(part, min, max));
+  });
+}
+
+function cronPartIsValid(part: string, min: number, max: number): boolean {
+  const [range = "", step, ...extra] = part.split("/");
+  if (extra.length || (step !== undefined && !positiveInteger(step))) return false;
+  if (range === "*") return true;
+  const values = range.split("-");
+  if (values.length > 2 || !values.every(nonNegativeInteger)) return false;
+  const start = Number(values[0]);
+  const end = Number(values[1] ?? values[0]);
+  return start >= min && start <= max && end >= start && end <= max;
+}
+
+function positiveInteger(value: string): boolean {
+  return /^\d+$/.test(value) && Number(value) > 0;
+}
+
+function nonNegativeInteger(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+export function isIanaTimezone(timezone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const cronBindingSchema = z
+  .object({
+    environmentId: z.string().uuid(),
+    functionId: z.string().uuid(),
+    name: z.string().trim().min(2).max(120),
+    expression: z.string().trim().refine(isFiveFieldCron, {
+      message: "Cron expression must contain exactly five valid fields",
+    }),
+    timezone: z.string().trim().min(1).max(128).refine(isIanaTimezone, {
+      message: "Timezone must be a valid IANA timezone",
+    }),
+    enabled: z.boolean().default(true),
+    serviceSubject: z.string().trim().min(1).max(256),
+    permissionGrants: z.array(z.string().min(1).max(256)).max(200).default([]),
+    networkPolicy: networkPolicyUpdateSchema.default({
+      allowedHosts: [],
+      allowedMethods: [],
+      allowedPorts: [],
+      maxResponseBytes: 1_048_576,
+      allowPrivateHosts: [],
+      allowInsecureTlsHosts: [],
+    }),
+  })
+  .strict();
+
+export const cronBindingUpdateSchema = cronBindingSchema.partial().strict();
+export const cronRunsQuerySchema = z
+  .object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
+  .strict();
 export const cachePurgeSchema = z.object({ confirmEndpointSlug: slugSchema }).strict();
 export const testInvocationSchema = z.object({
   endpointId: z.string().uuid().optional(),
   input: z.unknown(),
-  source: z.enum(["mcp", "http", "test"]).default("test"),
+  source: z.enum(["mcp", "http", "cron", "test"]).default("test"),
+  cronBindingId: z.string().uuid().optional(),
   caller: z
     .object({
       subject: z.string().optional(),

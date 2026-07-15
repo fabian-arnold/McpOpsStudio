@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable max-lines -- workbench state is intentionally owned by one hook */
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
@@ -55,7 +56,10 @@ export function useFunctionWorkbenchModel() {
   const [testInputMode, setTestInputMode] = useState<TestInputMode>("form");
   const [testPermissions, setTestPermissions] = useState<string[]>([]);
   const [testSubject, setTestSubject] = useState("editor-test");
-  const [testSource, setTestSource] = useState<"test" | "mcp" | "http">("test");
+  const [testSource, setTestSource] = useState<"test" | "mcp" | "http" | "cron">(
+    "test",
+  );
+  const [cronBindingId, setCronBindingId] = useState("");
   const [testResult, setTestResult] = useState<unknown>();
   const [testConsoleTab, setTestConsoleTab] = useState<TestConsoleTab>("setup");
   const [navigatorQuery, setNavigatorQuery] = useState("");
@@ -165,6 +169,9 @@ export function useFunctionWorkbenchModel() {
       setTestInputMode(savedTestValues?.inputMode ?? "form");
       setTestPermissions(savedTestValues?.permissions ?? []);
       setTestSource(savedTestValues?.source ?? "test");
+      setCronBindingId(
+        savedTestValues?.cronBindingId ?? current.cronBindings?.[0]?.id ?? "",
+      );
       setTestSubject(savedTestValues?.subject ?? "editor-test");
       setTestValuesHydratedFor(current.id);
     } catch (error) {
@@ -181,6 +188,7 @@ export function useFunctionWorkbenchModel() {
       permissions: testPermissions,
       source: testSource,
       subject: testSubject,
+      cronBindingId,
     };
     window.localStorage.setItem(
       `mcpops:function-test:${user?.project.id ?? "project"}:${fn.id}`,
@@ -194,6 +202,7 @@ export function useFunctionWorkbenchModel() {
     testPermissions,
     testSource,
     testSubject,
+    cronBindingId,
     testValuesHydratedFor,
     user?.project.id,
   ]);
@@ -350,8 +359,9 @@ export function useFunctionWorkbenchModel() {
           method: "POST",
           body: JSON.stringify({
             endpointId,
-            input: JSON.parse(testInput),
+            input: testSource === "cron" ? {} : JSON.parse(testInput),
             source: testSource,
+            ...(testSource === "cron" ? { cronBindingId } : {}),
             caller: {
               subject: testSubject || "editor-test",
               permissions: testPermissions,
@@ -452,6 +462,8 @@ export function useFunctionWorkbenchModel() {
     setTestPermissions,
     testSource,
     setTestSource,
+    cronBindingId,
+    setCronBindingId,
     testInputMode,
     setTestInputMode,
     deploying,

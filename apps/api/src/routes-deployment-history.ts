@@ -9,6 +9,7 @@ import {
   summarizeDeployments,
   DAY_MS,
 } from "./analytics.js";
+import { scheduleQueue } from "./resources.js";
 import { csv, deploymentListQuerySchema } from "./listing.js";
 import { inferFailedFunction, type FunctionSource } from "./deployment-failure.js";
 import { dateWhere, registerObservabilityRoutes } from "./observability-routes.js";
@@ -55,12 +56,20 @@ export async function registerDeploymentHistoryRoutes(
           },
           data: { status: "rolled_back" },
         });
+        await tx.scheduleDeployment.updateMany({
+          where: { projectDeploymentId: target.environment.activeProjectDeploymentId },
+          data: { status: "rolled_back" },
+        });
       }
       await tx.projectDeployment.update({
         where: { id: target.id },
         data: { status: "active" },
       });
       await tx.deployment.updateMany({
+        where: { projectDeploymentId: target.id },
+        data: { status: "active" },
+      });
+      await tx.scheduleDeployment.updateMany({
         where: { projectDeploymentId: target.id },
         data: { status: "active" },
       });
@@ -87,6 +96,15 @@ export async function registerDeploymentHistoryRoutes(
         },
       });
     });
+    await scheduleQueue.add(
+      "reconcile",
+      {},
+      {
+        jobId: `reconcile-rollback-${target.id}-${Date.now()}`,
+        attempts: 1,
+        removeOnComplete: 100,
+      },
+    );
     return {
       ok: true,
       activeProjectDeploymentId: target.id,
@@ -124,6 +142,7 @@ export async function registerDeploymentHistoryRoutes(
             },
           },
           _count: { select: { endpointDeployments: true } },
+          scheduleDeployment: { select: { snapshot: true, status: true } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
@@ -196,6 +215,17 @@ export async function registerDeploymentHistoryRoutes(
           baseUrl: deployment.environment.baseUrl,
         },
         endpointCount: deployment._count.endpointDeployments,
+        scheduleBindingCount: (() => {
+          const slices = Array.isArray(
+            record(deployment.scheduleDeployment?.snapshot).slices,
+          )
+            ? (record(deployment.scheduleDeployment?.snapshot).slices as unknown[])
+            : [];
+          const slice = slices
+            .map(record)
+            .find((item) => record(item.environment).id === deployment.environment.id);
+          return Array.isArray(slice?.bindings) ? slice.bindings.length : 0;
+        })(),
         sourceProjectDeployment: deployment.sourceProjectDeployment ?? undefined,
         createdAt: deployment.createdAt,
         completedAt: deployment.completedAt ?? undefined,

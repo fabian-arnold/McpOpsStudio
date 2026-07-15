@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable max-lines -- map node renderers share topology geometry and styles */
 
 import Link from "next/link";
 import {
@@ -8,6 +9,7 @@ import {
 } from "react";
 import {
   Braces,
+  CalendarClock,
   Globe2,
   Grip,
   Route,
@@ -25,6 +27,7 @@ import {
   type ConnectionPreview,
   type Layout,
   type MapEndpoint,
+  type MapCronBinding,
   type NodePosition,
 } from "./binding-map-types";
 
@@ -311,18 +314,56 @@ export function FunctionNode({
   );
 }
 
+export function CronNodeCard({
+  binding,
+  fn,
+}: {
+  binding: MapCronBinding;
+  fn?: OpsFunction;
+}) {
+  return (
+    <div className="relative size-full rounded-xl border border-emerald-500/35 bg-emerald-500/[.045] p-3 pr-10">
+      <span className="absolute -right-1.5 top-1/2 size-3 -translate-y-1/2 rounded-full border-2 border-card bg-emerald-500" />
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <CalendarClock size={15} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Cron schedule
+          </p>
+          <Link
+            href={`/schedules?bindingId=${binding.id}`}
+            className="block truncate text-xs font-semibold hover:text-primary"
+          >
+            {binding.name}
+          </Link>
+        </div>
+      </div>
+      <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">
+        {binding.expression} · {binding.timezone}
+      </p>
+      <p className="truncate text-[10px] text-muted-foreground">
+        {binding.environment.name} · {fn?.slug ?? "Unknown Function"}
+      </p>
+    </div>
+  );
+}
+
 export function GraphEdges({
   width,
   height,
   bindings,
   positions,
   preview,
+  schedules = [],
 }: {
   width: number;
   height: number;
   bindings: BindingNode[];
   positions: Layout;
   preview: ConnectionPreview | undefined;
+  schedules?: MapCronBinding[];
 }) {
   return (
     <svg
@@ -362,6 +403,16 @@ export function GraphEdges({
         >
           <path d="M 0 0 L 7 3.5 L 0 7 z" className="fill-violet-500" />
         </marker>
+        <marker
+          id="topology-arrow-cron"
+          markerHeight="7"
+          markerWidth="7"
+          orient="auto"
+          refX="6"
+          refY="3.5"
+        >
+          <path d="M 0 0 L 7 3.5 L 0 7 z" className="fill-emerald-500" />
+        </marker>
       </defs>
       {bindings.flatMap((binding) => {
         const functionPosition = positions[`function:${binding.functionId}`];
@@ -388,6 +439,22 @@ export function GraphEdges({
             kind={binding.endpointKind}
           />
         ));
+      })}
+      {schedules.map((binding) => {
+        const schedulePosition = positions[`schedule:${binding.id}`];
+        const functionPosition = positions[`function:${binding.functionId}`];
+        if (!schedulePosition || !functionPosition) return null;
+        return (
+          <TopologyEdge
+            key={`schedule:${binding.id}`}
+            startX={schedulePosition.x + NODE_SIZE.schedule.width}
+            startY={schedulePosition.y + NODE_SIZE.schedule.height / 2}
+            endX={functionPosition.x}
+            endY={functionPosition.y + NODE_SIZE.function.height / 2}
+            enabled={binding.enabled}
+            kind="cron"
+          />
+        );
       })}
       {preview && (
         <TopologyEdge
@@ -418,7 +485,7 @@ export function TopologyEdge({
   endX: number;
   endY: number;
   enabled: boolean;
-  kind: "mcp" | "http" | undefined;
+  kind: "mcp" | "http" | "cron" | undefined;
   preview?: boolean;
 }) {
   const direction = endX >= startX ? 1 : -1;
@@ -436,7 +503,9 @@ export function TopologyEdge({
             ? "stroke-cyan-500"
             : kind === "http"
               ? "stroke-amber-500"
-              : "stroke-violet-500"
+              : kind === "cron"
+                ? "stroke-emerald-500"
+                : "stroke-violet-500"
         }
         strokeDasharray={preview ? "6 5" : enabled ? undefined : "5 5"}
         strokeWidth={preview ? "2.5" : "2"}

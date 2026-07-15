@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Link2, Trash2 } from "lucide-react";
+import { CalendarClock, Link2, Trash2 } from "lucide-react";
 import {
   BindingEditorDialog,
   type EditableFunctionBinding,
@@ -50,6 +50,7 @@ export function FunctionBindings({
     );
   const mcp = fn.mcpBindings ?? [];
   const http = fn.httpBindings ?? [];
+  const cron = fn.cronBindings ?? [];
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -61,19 +62,27 @@ export function FunctionBindings({
           </p>
         </div>
         {canEdit && (
-          <BindingEditorDialog
-            endpoints={endpoints}
-            functions={functions}
-            fixedFunctionId={fn.id}
-            onSaved={onChanged}
-          />
+          <div className="flex gap-2">
+            <Link
+              href={`/schedules?functionId=${fn.id}&create=1`}
+              className="inline-flex h-8 items-center gap-2 rounded-lg border bg-card px-3 text-xs font-medium hover:bg-muted"
+            >
+              <CalendarClock size={12} /> Add cron
+            </Link>
+            <BindingEditorDialog
+              endpoints={endpoints}
+              functions={functions}
+              fixedFunctionId={fn.id}
+              onSaved={onChanged}
+            />
+          </div>
         )}
       </div>
-      {!mcp.length && !http.length ? (
+      {!mcp.length && !http.length && !cron.length ? (
         <EmptyState
           icon={<Link2 />}
           title="Not exposed"
-          description="Add an MCP tool or HTTP route binding for this Function."
+          description="Add an MCP tool, HTTP route, or cron binding for this Function."
         />
       ) : (
         <>
@@ -89,6 +98,37 @@ export function FunctionBindings({
             onToggle={onToggle}
             onRemove={onRemove}
           />
+          {cron.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Cron schedules
+              </h3>
+              <div className="space-y-2">
+                {cron.map((binding) => (
+                  <div key={binding.id} className="rounded-lg border p-3">
+                    <div className="flex items-start gap-2">
+                      <CalendarClock size={14} className="mt-0.5 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/schedules?bindingId=${binding.id}`}
+                          className="text-[11px] font-semibold hover:text-primary"
+                        >
+                          {binding.name}
+                        </Link>
+                        <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                          {binding.expression} · {binding.timezone} ·{" "}
+                          {binding.environment.name}
+                        </p>
+                      </div>
+                      <Badge tone={binding.enabled ? "success" : "neutral"}>
+                        {binding.enabled ? "enabled" : "disabled"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           <BindingGroup
             label="HTTP routes"
             bindings={http.map(editableHttp)}

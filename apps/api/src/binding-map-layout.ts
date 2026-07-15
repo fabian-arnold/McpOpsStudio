@@ -6,7 +6,9 @@ export const bindingMapLayoutSchema = z
       .array(
         z
           .object({
-            id: z.string().regex(/^(endpoint|binding|function):[0-9a-f-]{36}$/i),
+            id: z
+              .string()
+              .regex(/^(endpoint|binding|schedule|function):[0-9a-f-]{36}$/i),
             x: z.number().finite().min(0).max(5000),
             y: z.number().finite().min(0).max(5000),
           })
@@ -23,6 +25,7 @@ export function bindingMapNodeIds(
     httpRouteBindings: Array<{ id: string }>;
   }>,
   functions: Array<{ id: string }>,
+  cronBindings: Array<{ id: string }> = [],
 ) {
   return new Set([
     ...endpoints.map((endpoint) => `endpoint:${endpoint.id}`),
@@ -31,5 +34,6 @@ export function bindingMapNodeIds(
       ...endpoint.httpRouteBindings.map((binding) => `binding:${binding.id}`),
     ]),
     ...functions.map((fn) => `function:${fn.id}`),
+    ...cronBindings.map((binding) => `schedule:${binding.id}`),
   ]);
 }

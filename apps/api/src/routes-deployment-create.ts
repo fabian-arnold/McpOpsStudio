@@ -47,6 +47,9 @@ export async function registerDeploymentCreateRoutes(
     "http_binding.created",
     "http_binding.updated",
     "http_binding.deleted",
+    "cron_binding.created",
+    "cron_binding.updated",
+    "cron_binding.deleted",
     "network_policy.updated",
     "auth_policy.created",
     "auth_policy.updated",
@@ -87,30 +90,34 @@ export async function registerDeploymentCreateRoutes(
         inProgressDeployment: null,
         latestDraftChange: null,
       };
-    const [activeDeployment, inProgressDeployment, endpointCount] = await Promise.all([
-      development.activeProjectDeploymentId
-        ? prisma.projectDeployment.findUnique({
-            where: { id: development.activeProjectDeploymentId },
-            select: { id: true, version: true, completedAt: true },
-          })
-        : null,
-      prisma.projectDeployment.findFirst({
-        where: {
-          projectId: session.projectId,
-          environmentId: development.id,
-          status: { in: ["queued", "building", "deploying"] },
-        },
-        select: { id: true, version: true, status: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.runtimeEndpoint.count({
-        where: {
-          projectId: session.projectId,
-          environmentId: development.id,
-          status: { not: "disabled" },
-        },
-      }),
-    ]);
+    const [activeDeployment, inProgressDeployment, endpointCount, cronBindingCount] =
+      await Promise.all([
+        development.activeProjectDeploymentId
+          ? prisma.projectDeployment.findUnique({
+              where: { id: development.activeProjectDeploymentId },
+              select: { id: true, version: true, completedAt: true },
+            })
+          : null,
+        prisma.projectDeployment.findFirst({
+          where: {
+            projectId: session.projectId,
+            environmentId: development.id,
+            status: { in: ["queued", "building", "deploying"] },
+          },
+          select: { id: true, version: true, status: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.runtimeEndpoint.count({
+          where: {
+            projectId: session.projectId,
+            environmentId: development.id,
+            status: { not: "disabled" },
+          },
+        }),
+        prisma.cronBinding.count({
+          where: { projectId: session.projectId, deletedAt: null },
+        }),
+      ]);
     const latestDraftChange = await prisma.auditEvent.findFirst({
       where: {
         projectId: session.projectId,
@@ -124,12 +131,13 @@ export async function registerDeploymentCreateRoutes(
     });
     return {
       hasPendingChanges:
-        endpointCount > 0 && (!activeDeployment || Boolean(latestDraftChange)),
+        (endpointCount > 0 || cronBindingCount > 0) &&
+        (!activeDeployment || Boolean(latestDraftChange)),
       hasPendingRelease:
         Boolean(activeDeployment) &&
         production?.activeProjectDeployment?.sourceProjectDeployment?.id !==
           activeDeployment?.id,
-      hasDeployableEndpoints: endpointCount > 0,
+      hasDeployableEndpoints: endpointCount > 0 || cronBindingCount > 0,
       activeDeployment,
       productionDeployment: production?.activeProjectDeployment
         ? {
@@ -168,11 +176,14 @@ export async function registerDeploymentCreateRoutes(
       include: { activeDeployment: true, networkPolicy: true },
       orderBy: [{ kind: "asc" }, { slug: "asc" }],
     });
-    if (!endpoints.length)
+    const cronBindingCount = await prisma.cronBinding.count({
+      where: { projectId: session.projectId, deletedAt: null },
+    });
+    if (!endpoints.length && !cronBindingCount)
       return reply.status(409).send({
         error: {
           code: "NO_RUNTIME_ENDPOINTS",
-          message: "Add an MCP Endpoint or HTTP API before deploying.",
+          message: "Add an MCP Endpoint, HTTP API, or cron binding before deploying.",
           requestId: requestId(request),
         },
       });
@@ -194,6 +205,14 @@ export async function registerDeploymentCreateRoutes(
           projectId: session.projectId,
           environmentId: environment.id,
           version: (latestProject._max.version ?? 0) + 1,
+          status: "queued",
+        },
+      });
+      const scheduleDeployment = await tx.scheduleDeployment.create({
+        data: {
+          projectDeploymentId: projectDeployment.id,
+          projectId: session.projectId,
+          environmentId: environment.id,
           status: "queued",
         },
       });
@@ -273,7 +292,7 @@ export async function registerDeploymentCreateRoutes(
           metadata: { version: projectDeployment.version },
         },
       });
-      return { projectDeployment, childDeployments };
+      return { projectDeployment, childDeployments, scheduleDeployment };
     });
     for (const deployment of created.childDeployments)
       await deploymentQueue.add(
@@ -285,6 +304,11 @@ export async function registerDeploymentCreateRoutes(
         },
         deploymentJobOptions(deployment.id),
       );
+    await deploymentQueue.add(
+      "schedule-build",
+      { scheduleDeploymentId: created.scheduleDeployment.id, actorId: session.userId },
+      deploymentJobOptions(created.scheduleDeployment.id),
+    );
     return reply.status(202).send({
       ...created.projectDeployment,
       endpointCount: created.childDeployments.length,

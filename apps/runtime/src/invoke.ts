@@ -1,4 +1,5 @@
 import { Redis } from "ioredis";
+/* eslint-disable max-lines -- the shared invocation transaction keeps all trigger paths aligned */
 import { randomUUID } from "node:crypto";
 import {
   PolicyHttpClient,
@@ -12,6 +13,7 @@ import {
   SafeRuntimeError,
   type CallerIdentity,
   type RuntimeContext,
+  type RuntimeTrigger,
 } from "@mcpops/runtime-sdk";
 import type {
   HttpBinding,
@@ -61,13 +63,24 @@ export { capturedPayload, shouldCapturePayloads } from "./invocation-payloads.js
 export type InvokeRequest = {
   endpoint: LoadedEndpoint;
   fn: SnapshotFunction;
-  source: "mcp" | "http" | "test" | "internal";
+  source: "mcp" | "http" | "cron" | "test" | "internal";
   input: unknown;
   caller: CallerIdentity;
   requestId: string;
   correlationId?: string;
   tenantId?: string;
-  simulatedSource?: "mcp" | "http";
+  simulatedSource?: "mcp" | "http" | "cron";
+  cronBinding?: {
+    id: string;
+    name: string;
+    expression: string;
+    timezone: string;
+    scheduledAt: string;
+    triggeredAt: string;
+    origin: "scheduled" | "manual";
+    scheduleDeploymentId: string;
+  };
+  rootTrigger?: RuntimeTrigger;
   abortSignal?: AbortSignal;
   outputTransformer?: (output: unknown) => unknown;
   mcpBinding?: McpBinding;
@@ -291,6 +304,7 @@ export class RuntimeInvoker {
     const scope = `${request.endpoint.project.id}:${request.endpoint.environment.id}:${request.fn.functionId}`;
     const logger = new InvocationLogger(request, executionId, logs, secrets.values());
     const audit = new InvocationAudit(request);
+    const trigger = request.rootTrigger ?? this.trigger(request);
     const base = {
       invocation: {
         source: request.source,
@@ -300,14 +314,19 @@ export class RuntimeInvoker {
           ? { simulatedSource: request.simulatedSource }
           : {}),
       },
+      trigger,
       project: request.endpoint.project,
       environment: request.endpoint.environment,
-      endpoint: {
-        id: request.endpoint.id,
-        slug: request.endpoint.slug,
-        name: request.endpoint.name,
-        kind: request.endpoint.kind,
-      },
+      ...(!request.cronBinding
+        ? {
+            endpoint: {
+              id: request.endpoint.id,
+              slug: request.endpoint.slug,
+              name: request.endpoint.name,
+              kind: request.endpoint.kind,
+            },
+          }
+        : {}),
       function: {
         id: request.fn.functionId,
         name: request.fn.name,
@@ -410,6 +429,8 @@ export class RuntimeInvoker {
             internalDepth: depth + 1,
             deadlineAt: request.deadlineAt ?? Date.now() + request.fn.timeoutMs,
             skipPermissionAuthorization: true,
+            rootTrigger: trigger,
+            ...(request.cronBinding ? { cronBinding: request.cronBinding } : {}),
           });
           if (!child.ok) throw child.error;
           return child.output;
@@ -434,12 +455,19 @@ export class RuntimeInvoker {
     await saveExecution({
       id: executionId,
       projectId: request.endpoint.project.id,
-      endpointId: request.endpoint.id,
+      ...(request.cronBinding
+        ? {
+            cronBindingId: request.cronBinding.id,
+            scheduleDeploymentId: request.cronBinding.scheduleDeploymentId,
+          }
+        : {
+            endpointId: request.endpoint.id,
+            deploymentId: request.endpoint.deployment.id,
+          }),
       functionId: request.fn.functionId,
       functionVersionId: request.fn.versionId,
       ...(request.mcpBinding ? { mcpToolBindingId: request.mcpBinding.id } : {}),
       ...(request.httpBinding ? { httpRouteBindingId: request.httpBinding.id } : {}),
-      deploymentId: request.endpoint.deployment.id,
       requestId: request.requestId,
       ...(request.correlationId ? { correlationId: request.correlationId } : {}),
       invocationSource: request.source,
@@ -462,14 +490,15 @@ export class RuntimeInvoker {
         : {}),
       rootExecutionId: request.rootExecutionId ?? executionId,
     });
-    await saveRuntimeLogs(request.endpoint, logs).catch(() => {
+    await saveRuntimeLogs(request.endpoint, logs, request.cronBinding).catch(() => {
       process.stderr.write("Runtime log persistence failed.\n");
     });
     if (status === "denied" || status === "success")
       await saveAudit({
         projectId: request.endpoint.project.id,
         environmentId: request.endpoint.environment.id,
-        endpointId: request.endpoint.id,
+        ...(!request.cronBinding ? { endpointId: request.endpoint.id } : {}),
+        ...(request.cronBinding ? { cronBindingId: request.cronBinding.id } : {}),
         functionId: request.fn.functionId,
         actorType: "caller",
         ...(request.caller.subject ? { actorId: request.caller.subject } : {}),
@@ -488,5 +517,35 @@ export class RuntimeInvoker {
           deploymentVersion: request.endpoint.deployment.version,
         },
       });
+  }
+
+  private trigger(request: InvokeRequest): RuntimeTrigger {
+    if (request.cronBinding)
+      return {
+        type: "cron",
+        binding: { id: request.cronBinding.id, name: request.cronBinding.name },
+        scheduledAt: request.cronBinding.scheduledAt,
+        triggeredAt: request.cronBinding.triggeredAt,
+        expression: request.cronBinding.expression,
+        timezone: request.cronBinding.timezone,
+        origin: request.cronBinding.origin,
+      };
+    return {
+      type: "endpoint",
+      source:
+        request.source === "test" || request.simulatedSource === undefined
+          ? request.source === "mcp" || request.source === "http"
+            ? request.source
+            : "test"
+          : request.simulatedSource === "cron"
+            ? "test"
+            : request.simulatedSource,
+      endpoint: {
+        id: request.endpoint.id,
+        slug: request.endpoint.slug,
+        name: request.endpoint.name,
+        kind: request.endpoint.kind,
+      },
+    };
   }
 }

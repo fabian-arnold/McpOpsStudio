@@ -22,6 +22,7 @@ type ProjectDeployment = {
   status: "queued" | "building" | "deploying" | "active" | "failed" | "rolled_back";
   checksum: string;
   endpointCount: number;
+  scheduleBindingCount?: number;
   environment: { id: string; name: string; slug: string; baseUrl: string };
   sourceProjectDeployment?: { id: string; version: number };
   createdAt: string;
@@ -287,8 +288,8 @@ function DeploymentLane({
                   </Badge>
                 </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  {item.endpointCount} endpoints ·{" "}
-                  {new Date(item.createdAt).toLocaleString()}
+                  {item.endpointCount} endpoints · {item.scheduleBindingCount ?? 0}{" "}
+                  schedules · {new Date(item.createdAt).toLocaleString()}
                   {item.sourceProjectDeployment
                     ? ` · from development v${item.sourceProjectDeployment.version}`
                     : ""}

@@ -9,6 +9,7 @@ const connection = {
 };
 
 export const deploymentQueue = new Queue("deployments", { connection });
+export const scheduleQueue = new Queue("schedules", { connection });
 export const cacheInspector = new Redis(redisUrl.toString(), {
   lazyConnect: true,
   maxRetriesPerRequest: 1,
@@ -27,6 +28,7 @@ export async function connectApiResources(): Promise<void> {
 export async function closeApiResources(): Promise<void> {
   await Promise.all([
     deploymentQueue.close(),
+    scheduleQueue.close(),
     cacheInspector.quit(),
     controlPlaneState.quit(),
   ]);

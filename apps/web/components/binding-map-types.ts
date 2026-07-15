@@ -25,10 +25,24 @@ export type MapEndpoint = {
   mcpToolBindings: McpBinding[];
   httpRouteBindings: HttpBinding[];
 };
+export type MapCronBinding = {
+  id: string;
+  name: string;
+  functionId: string;
+  environmentId: string;
+  expression: string;
+  timezone: string;
+  enabled: boolean;
+  environment: { name: string; slug: string };
+};
 
 export type NodePosition = { x: number; y: number };
 export type Layout = Record<string, NodePosition>;
-export type BindingMapResponse = { endpoints: MapEndpoint[]; layout: unknown };
+export type BindingMapResponse = {
+  endpoints: MapEndpoint[];
+  cronBindings: MapCronBinding[];
+  layout: unknown;
+};
 export type PendingConnection = { endpoint: MapEndpoint; fn: OpsFunction };
 export type ConnectionPreviewBase = {
   pointerId: number;
@@ -63,5 +77,6 @@ export type BindingNode = {
 export const NODE_SIZE = {
   endpoint: { width: 280, height: 110 },
   binding: { width: 300, height: 92 },
+  schedule: { width: 300, height: 92 },
   function: { width: 260, height: 84 },
 };

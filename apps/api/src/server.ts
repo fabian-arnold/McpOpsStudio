@@ -14,6 +14,7 @@ import { registerEndpointSettingsRoutes } from "./routes-endpoint-settings.js";
 import { registerFunctionsRoutes } from "./routes-functions.js";
 import { registerFunctionDetailRoutes } from "./routes-function-detail.js";
 import { registerBindingsRoutes } from "./routes-bindings.js";
+import { registerCronBindingRoutes } from "./routes-cron-bindings.js";
 import { registerSecretsRoutes } from "./routes-secrets.js";
 import { registerEndpointAuthRoutes } from "./routes-endpoint-auth.js";
 import { registerAuthPoliciesRoutes } from "./routes-auth-policies.js";
@@ -24,8 +25,8 @@ import { registerDeploymentHistoryRoutes } from "./routes-deployment-history.js"
 import { registerManifestsRoutes } from "./routes-manifests.js";
 import { registerOAuthRoutes } from "./routes-oauth.js";
 import { registerPlatformMcpRoutes } from "./platform-mcp.js";
-
 import { registerStorageRoutes } from "./routes-storage.js";
+
 await connectApiResources();
 const app = await createApiApplication({ assertScopedCursor });
 app.addHook("onClose", async () => {
@@ -46,6 +47,7 @@ await registerEndpointSettingsRoutes(app);
 await registerFunctionsRoutes(app);
 await registerFunctionDetailRoutes(app);
 await registerBindingsRoutes(app);
+await registerCronBindingRoutes(app);
 await registerSecretsRoutes(app);
 await registerEndpointAuthRoutes(app);
 await registerAuthPoliciesRoutes(app);
@@ -54,6 +56,6 @@ await registerDeploymentCreateRoutes(app);
 await registerDeploymentReleaseRoutes(app);
 await registerDeploymentHistoryRoutes(app);
 await registerManifestsRoutes(app);
-
 await registerStorageRoutes(app);
+
 export { app };

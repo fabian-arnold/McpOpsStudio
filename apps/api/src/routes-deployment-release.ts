@@ -4,6 +4,7 @@ import { prisma } from "@mcpops/db";
 import { canonicalJson } from "@mcpops/shared";
 import { requireRole } from "./auth.js";
 import { checksum, sessionContext, parse, requestId } from "./helpers.js";
+import { scheduleQueue } from "./resources.js";
 import {
   arrayRecords,
   promoteEndpointSnapshot,
@@ -31,6 +32,7 @@ export async function registerDeploymentReleaseRoutes(
       },
       include: {
         endpointDeployments: { include: { endpoint: true } },
+        scheduleDeployment: true,
       },
     });
     if (!source)
@@ -111,6 +113,25 @@ export async function registerDeploymentReleaseRoutes(
           });
       }
     }
+    const sourceSchedule = record(source.scheduleDeployment?.snapshot);
+    const productionScheduleSlice = arrayRecords(sourceSchedule.slices).find(
+      (slice) => record(slice.environment).slug === "production",
+    );
+    if (productionScheduleSlice)
+      for (const fn of arrayRecords(productionScheduleSlice.functions))
+        for (const name of stringList(fn.secretGrants)) requiredSecrets.add(name);
+    if (productionScheduleSlice)
+      for (const query of arrayRecords(productionScheduleSlice.reviewedQueries)) {
+        const name = String(record(query.connection).name ?? "");
+        if (name && !connectionByName.has(name))
+          return reply.status(409).send({
+            error: {
+              code: "PRODUCTION_CONFIGURATION_INCOMPLETE",
+              message: `Production is missing reviewed database connection '${name}'.`,
+              requestId: requestId(request),
+            },
+          });
+      }
     const missingSecrets = [...requiredSecrets].filter(
       (name) => !secretNames.has(name),
     );
@@ -122,6 +143,9 @@ export async function registerDeploymentReleaseRoutes(
           requestId: requestId(request),
         },
       });
+    const promotedProductionScheduleSlice = productionScheduleSlice
+      ? promoteEndpointSnapshot(productionScheduleSlice, production, connectionByName)
+      : undefined;
     const latest = await prisma.projectDeployment.aggregate({
       where: { projectId: session.projectId, environmentId: production.id },
       _max: { version: true },
@@ -133,6 +157,10 @@ export async function registerDeploymentReleaseRoutes(
           data: { status: "rolled_back" },
         });
         await tx.deployment.updateMany({
+          where: { projectDeploymentId: production.activeProjectDeploymentId },
+          data: { status: "rolled_back" },
+        });
+        await tx.scheduleDeployment.updateMany({
           where: { projectDeploymentId: production.activeProjectDeploymentId },
           data: { status: "rolled_back" },
         });
@@ -188,6 +216,41 @@ export async function registerDeploymentReleaseRoutes(
           snapshot: promotedSnapshot,
         });
       }
+      const promotedScheduleSnapshot = {
+        schemaVersion: 1,
+        createdAt: new Date().toISOString(),
+        project: record(sourceSchedule.project),
+        slices: promotedProductionScheduleSlice
+          ? [
+              {
+                ...promotedProductionScheduleSlice,
+                environment: {
+                  id: production.id,
+                  slug: production.slug,
+                  name: production.name,
+                  capturePayloads: production.capturePayloads,
+                  logLevel: production.logLevel,
+                  logRetentionDays: production.logRetentionDays,
+                  logRetentionMaxEntries: production.logRetentionMaxEntries,
+                  logRetentionMaxBytes: production.logRetentionMaxBytes,
+                },
+                env: record(production.variables),
+              },
+            ]
+          : [],
+      };
+      const scheduleChecksum = checksum(canonicalJson(promotedScheduleSnapshot));
+      const scheduleDeployment = await tx.scheduleDeployment.create({
+        data: {
+          projectDeploymentId: projectDeployment.id,
+          projectId: session.projectId,
+          environmentId: production.id,
+          status: "active",
+          snapshot: promotedScheduleSnapshot as never,
+          checksum: scheduleChecksum,
+          completedAt: new Date(),
+        },
+      });
       const projectSnapshot = {
         schemaVersion: 1,
         createdAt: new Date().toISOString(),
@@ -196,6 +259,11 @@ export async function registerDeploymentReleaseRoutes(
         sourceProjectDeploymentId: source.id,
         version: source.version,
         endpoints: artifacts,
+        schedule: {
+          scheduleDeploymentId: scheduleDeployment.id,
+          checksum: scheduleChecksum,
+          snapshot: promotedScheduleSnapshot,
+        },
       };
       const projectChecksum = checksum(canonicalJson(projectSnapshot));
       await tx.projectDeployment.update({
@@ -232,6 +300,11 @@ export async function registerDeploymentReleaseRoutes(
         checksum: projectChecksum,
       };
     });
+    await scheduleQueue.add(
+      "reconcile",
+      {},
+      { jobId: `reconcile-release-${result.id}`, attempts: 1, removeOnComplete: 100 },
+    );
     return reply.status(201).send(result);
   });
 }

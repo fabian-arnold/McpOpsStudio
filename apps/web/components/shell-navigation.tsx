@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Activity,
+  CalendarClock,
   Boxes,
   Code2,
   Command,
@@ -33,10 +34,11 @@ type NavItem = {
 export const projectNav: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/functions", label: "Functions", icon: Code2 },
+  { href: "/schedules", label: "Schedules", icon: CalendarClock },
   { href: "/map", label: "Endpoint Map", icon: Network },
   { href: "/endpoints", label: "Endpoints", icon: ServerCog },
-  { href: "/storage", label: "Storage", icon: Database },
   { href: "/libraries", label: "Libraries", icon: Library },
+  { href: "/storage", label: "Storage", icon: Database },
   { href: "/auth-policies", label: "Authentication", icon: KeyRound },
   { href: "/secrets", label: "Secrets", icon: LockKeyhole },
   { href: "/executions", label: "Executions", icon: Activity },

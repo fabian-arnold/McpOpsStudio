@@ -186,9 +186,23 @@ export type FunctionMcpBinding = McpBinding & {
 export type FunctionHttpBinding = HttpBinding & {
   endpoint: FunctionBindingEndpoint;
 };
+export type CronBinding = {
+  id: string;
+  environmentId: string;
+  functionId: string;
+  name: string;
+  expression: string;
+  timezone: string;
+  enabled: boolean;
+  serviceSubject: string;
+  permissionGrants: string[];
+  environment: { id: string; name: string; slug: string };
+  scheduler?: { status: "available" | "unavailable"; nextRunAt: number | null };
+};
 export type FunctionDetail = OpsFunction & {
   mcpBindings: FunctionMcpBinding[];
   httpBindings: FunctionHttpBinding[];
+  cronBindings: CronBinding[];
 };
 export type ProjectLibrary = {
   id: string;
@@ -242,9 +256,11 @@ export type RuntimeLog = {
   requestId: string;
   correlationId?: string;
   executionId: string;
-  deploymentId: string;
+  deploymentId?: string;
+  scheduleDeploymentId?: string;
   environment: { id: string; name: string; slug: string };
-  endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
+  endpoint?: { id: string; name: string; slug: string; kind: "mcp" | "http" };
+  cronBinding?: { id: string; name: string };
   function: { id: string; name: string; slug: string };
 };
 export type AuditEvent = {

@@ -1,5 +1,11 @@
 # Runtime and Deployments
 
+Cron bindings produce one immutable schedule artifact per Project deployment.
+Private workers reconcile BullMQ job schedulers from the active artifact, claim
+ticks durably, reject stale artifacts and duplicate delivery, and invoke the
+same Function executor and validation pipeline used by MCP and HTTP. Endpoint
+and schedule lineage remain distinct in executions and logs.
+
 ## Function lifecycle
 
 A project-level `Function` contains stable editable metadata. Each source save
@@ -161,9 +167,9 @@ The executor exposes only capability objects on `RuntimeContext`:
 - Append-only audit writer
 - Feature-gated reviewed database query interface
 - Typed project Function calls
+- Explicitly granted typed PostgreSQL collections
 - Abort signal
 
-- Explicitly granted typed PostgreSQL collections
 The child communicates privileged operations back to the parent process over IPC. Do not pass raw clients, master keys, database URLs or unrestricted environment variables into the child.
 
 Storage keys support one `*` wildcard through bounded bulk operations:

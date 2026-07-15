@@ -6,12 +6,14 @@ import { compact } from "./storage-repository.js";
 export type ExecutionRecord = {
   id?: string;
   projectId: string;
-  endpointId: string;
+  endpointId?: string;
+  cronBindingId?: string;
   functionId: string;
   functionVersionId: string;
   mcpToolBindingId?: string;
   httpRouteBindingId?: string;
-  deploymentId: string;
+  deploymentId?: string;
+  scheduleDeploymentId?: string;
   requestId: string;
   correlationId?: string;
   invocationSource: string;
@@ -42,6 +44,7 @@ export type RuntimeLogRecord = {
 export async function saveRuntimeLogs(
   endpoint: LoadedEndpoint,
   events: readonly RuntimeLogRecord[],
+  cronBinding?: { id: string; scheduleDeploymentId: string },
 ): Promise<void> {
   if (events.length)
     await prisma.runtimeLog.createMany({
@@ -51,9 +54,13 @@ export async function saveRuntimeLogs(
         return {
           projectId: endpoint.project.id,
           environmentId: endpoint.environment.id,
-          endpointId: endpoint.id,
+          ...(cronBinding
+            ? {
+                cronBindingId: cronBinding.id,
+                scheduleDeploymentId: cronBinding.scheduleDeploymentId,
+              }
+            : { endpointId: endpoint.id, deploymentId: endpoint.deployment.id }),
           functionId: event.functionId,
-          deploymentId: endpoint.deployment.id,
           executionId: event.executionId,
           requestId: event.requestId,
           ...(event.correlationId ? { correlationId: event.correlationId } : {}),
@@ -146,6 +153,7 @@ export async function saveAudit(data: {
   projectId: string;
   environmentId?: string;
   endpointId?: string;
+  cronBindingId?: string;
   functionId?: string;
   actorType: string;
   actorId?: string;

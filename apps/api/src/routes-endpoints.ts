@@ -27,7 +27,7 @@ export async function registerEndpointsRoutes(app: FastifyInstance): Promise<voi
   });
   app.get("/api/binding-map", async (request) => {
     const session = sessionContext(request);
-    const [project, endpoints] = await Promise.all([
+    const [project, endpoints, cronBindings] = await Promise.all([
       prisma.project.findUniqueOrThrow({
         where: { id: session.projectId },
         select: { bindingMapLayout: true },
@@ -63,14 +63,28 @@ export async function registerEndpointsRoutes(app: FastifyInstance): Promise<voi
         },
         orderBy: [{ kind: "asc" }, { name: "asc" }],
       }),
+      prisma.cronBinding.findMany({
+        where: { projectId: session.projectId, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          functionId: true,
+          environmentId: true,
+          expression: true,
+          timezone: true,
+          enabled: true,
+          environment: { select: { name: true, slug: true } },
+        },
+        orderBy: [{ environment: { slug: "asc" } }, { name: "asc" }],
+      }),
     ]);
-    return { endpoints, layout: project.bindingMapLayout };
+    return { endpoints, cronBindings, layout: project.bindingMapLayout };
   });
   app.patch("/api/binding-map/layout", async (request, reply) => {
     const session = sessionContext(request);
     requireRole(session, ["owner", "admin", "developer"]);
     const input = parse(bindingMapLayoutSchema, request.body);
-    const [endpoints, functions] = await Promise.all([
+    const [endpoints, functions, cronBindings] = await Promise.all([
       prisma.runtimeEndpoint.findMany({
         where: { projectId: session.projectId },
         select: {
@@ -83,8 +97,12 @@ export async function registerEndpointsRoutes(app: FastifyInstance): Promise<voi
         where: { projectId: session.projectId },
         select: { id: true },
       }),
+      prisma.cronBinding.findMany({
+        where: { projectId: session.projectId, deletedAt: null },
+        select: { id: true },
+      }),
     ]);
-    const validNodeIds = bindingMapNodeIds(endpoints, functions);
+    const validNodeIds = bindingMapNodeIds(endpoints, functions, cronBindings);
     const unknownNode = input.nodes.find((node) => !validNodeIds.has(node.id));
     if (unknownNode) {
       return reply.status(400).send({

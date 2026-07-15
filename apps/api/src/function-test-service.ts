@@ -16,11 +16,29 @@ export async function executeDevelopmentFunctionTest(
       code: "NOT_FOUND",
       statusCode: 404,
     });
+  const cronBinding =
+    body.source === "cron" && body.cronBindingId
+      ? await prisma.cronBinding.findFirst({
+          where: {
+            id: body.cronBindingId,
+            projectId: session.projectId,
+            functionId,
+            deletedAt: null,
+          },
+          include: { networkPolicy: true },
+        })
+      : null;
+  if (body.source === "cron" && !cronBinding)
+    throw Object.assign(new Error("Select a cron binding for this Function."), {
+      code: "INVALID_CRON_BINDING",
+      statusCode: 400,
+    });
   const endpoint = await prisma.runtimeEndpoint.findFirst({
     where: {
       projectId: session.projectId,
       activeDeploymentId: { not: null },
       environment: { slug: "development" },
+      ...(cronBinding ? { environmentId: cronBinding.environmentId } : {}),
       ...(body.endpointId ? { id: body.endpointId } : {}),
     },
     select: { id: true },
@@ -94,6 +112,25 @@ export async function executeDevelopmentFunctionTest(
       },
       body: JSON.stringify({
         ...body,
+        ...(cronBinding
+          ? {
+              input: {},
+              caller: {
+                subject: cronBinding.serviceSubject,
+                permissions: cronBinding.permissionGrants,
+                claims: { service: true, simulated: true },
+              },
+              cronBinding: {
+                id: cronBinding.id,
+                name: cronBinding.name,
+                expression: cronBinding.expression,
+                timezone: cronBinding.timezone,
+                permissionGrants: cronBinding.permissionGrants,
+                serviceSubject: cronBinding.serviceSubject,
+                networkPolicy: cronBinding.networkPolicy,
+              },
+            }
+          : {}),
         savedDevelopmentSnapshot: { functions: snapshotFunctions, calls },
       }),
       signal: AbortSignal.timeout(125_000),

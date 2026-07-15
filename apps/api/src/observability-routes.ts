@@ -11,7 +11,8 @@ import {
 
 type ExecutionViewRow = {
   id: string;
-  endpointId: string;
+  endpointId: string | null;
+  cronBindingId?: string | null;
   functionId: string;
   createdAt: Date;
   requestId: string;
@@ -26,10 +27,12 @@ type ExecutionViewRow = {
   output: unknown;
   error: unknown;
   function?: { name: string };
-  deployment?: { version: number };
+  deployment?: { version: number } | null;
+  scheduleDeployment?: { projectDeployment: { version: number } } | null;
   functionVersion?: { version: number };
   mcpToolBinding?: { toolName: string } | null;
   httpRouteBinding?: { method: string; path: string } | null;
+  cronBinding?: { name: string } | null;
 };
 
 type AuditViewRow = {
@@ -86,6 +89,11 @@ function registerLogRoutes(app: FastifyInstance): void {
                   name: { contains: query.q, mode: "insensitive" as const },
                 },
               },
+              {
+                cronBinding: {
+                  name: { contains: query.q, mode: "insensitive" as const },
+                },
+              },
             ],
           }
         : {}),
@@ -98,6 +106,7 @@ function registerLogRoutes(app: FastifyInstance): void {
           environment: { select: { id: true, name: true, slug: true } },
           endpoint: { select: { id: true, name: true, slug: true, kind: true } },
           function: { select: { id: true, name: true, slug: true } },
+          cronBinding: { select: { id: true, name: true } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
@@ -124,8 +133,10 @@ function registerLogRoutes(app: FastifyInstance): void {
         correlationId: row.correlationId,
         executionId: row.executionId,
         deploymentId: row.deploymentId,
+        scheduleDeploymentId: row.scheduleDeploymentId,
         environment: row.environment,
         endpoint: row.endpoint,
+        cronBinding: row.cronBinding,
         function: row.function,
       })),
     );
@@ -186,6 +197,10 @@ function registerExecutionRoutes(app: FastifyInstance): void {
         functionVersion: { select: { version: true } },
         mcpToolBinding: true,
         httpRouteBinding: true,
+        cronBinding: { select: { name: true } },
+        scheduleDeployment: {
+          select: { projectDeployment: { select: { version: true } } },
+        },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: query.limit + 1,
@@ -231,6 +246,10 @@ function registerExecutionRoutes(app: FastifyInstance): void {
         functionVersion: { select: { version: true } },
         mcpToolBinding: { select: { toolName: true } },
         httpRouteBinding: { select: { method: true, path: true } },
+        cronBinding: { select: { name: true } },
+        scheduleDeployment: {
+          select: { projectDeployment: { select: { version: true } } },
+        },
       },
     });
     return row
@@ -290,11 +309,14 @@ function registerAuditRoutes(app: FastifyInstance): void {
   });
 }
 
+// Endpoint and cron lineage intentionally normalize through one public view.
+// eslint-disable-next-line complexity
 export function executionView(row: ExecutionViewRow) {
   const callerIdentity = isRecord(row.callerIdentity) ? row.callerIdentity : {};
   return {
     id: row.id,
-    endpointId: row.endpointId,
+    endpointId: row.endpointId ?? undefined,
+    cronBindingId: row.cronBindingId ?? undefined,
     functionId: row.functionId,
     createdAt: row.createdAt,
     requestId: row.requestId,
@@ -307,14 +329,15 @@ export function executionView(row: ExecutionViewRow) {
       row.mcpToolBinding?.toolName ??
       (row.httpRouteBinding
         ? `${row.httpRouteBinding.method} ${row.httpRouteBinding.path}`
-        : undefined),
+        : row.cronBinding?.name),
     caller:
       typeof callerIdentity.subject === "string" ? callerIdentity.subject : undefined,
     callerIdentity,
     status: row.status,
     durationMs: row.durationMs,
     functionVersion: row.functionVersion?.version ?? 0,
-    deploymentVersion: row.deployment?.version ?? 0,
+    deploymentVersion:
+      row.deployment?.version ?? row.scheduleDeployment?.projectDeployment.version ?? 0,
     input: row.input,
     output: row.output ?? undefined,
     error: row.error ?? undefined,

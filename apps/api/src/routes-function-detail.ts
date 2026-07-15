@@ -123,11 +123,32 @@ export async function registerFunctionDetailRoutes(
         },
       });
     const body = parse(testInvocationSchema, request.body);
+    const cronBinding =
+      body.source === "cron" && body.cronBindingId
+        ? await prisma.cronBinding.findFirst({
+            where: {
+              id: body.cronBindingId,
+              projectId: session.projectId,
+              functionId,
+              deletedAt: null,
+            },
+            include: { networkPolicy: true },
+          })
+        : null;
+    if (body.source === "cron" && !cronBinding)
+      return reply.status(400).send({
+        error: {
+          code: "INVALID_CRON_BINDING",
+          message: "Select a cron binding for this Function.",
+          requestId: requestId(request),
+        },
+      });
     const endpoint = await prisma.runtimeEndpoint.findFirst({
       where: {
         projectId: session.projectId,
         activeDeploymentId: { not: null },
         environment: { slug: "development" },
+        ...(cronBinding ? { environmentId: cronBinding.environmentId } : {}),
         ...(body.endpointId ? { id: body.endpointId } : {}),
       },
       select: { id: true },
@@ -210,6 +231,25 @@ export async function registerFunctionDetailRoutes(
         },
         body: JSON.stringify({
           ...body,
+          ...(cronBinding
+            ? {
+                input: {},
+                caller: {
+                  subject: cronBinding.serviceSubject,
+                  permissions: cronBinding.permissionGrants,
+                  claims: { service: true, simulated: true },
+                },
+                cronBinding: {
+                  id: cronBinding.id,
+                  name: cronBinding.name,
+                  expression: cronBinding.expression,
+                  timezone: cronBinding.timezone,
+                  permissionGrants: cronBinding.permissionGrants,
+                  serviceSubject: cronBinding.serviceSubject,
+                  networkPolicy: cronBinding.networkPolicy,
+                },
+              }
+            : {}),
           savedDevelopmentSnapshot: { functions: snapshotFunctions, calls },
         }),
         signal: AbortSignal.timeout(125_000),

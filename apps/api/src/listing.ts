@@ -23,7 +23,7 @@ export const executionListQuerySchema = z
       .optional(),
     requestId: z.string().max(256).optional(),
     callerSubject: z.string().max(512).optional(),
-    source: z.enum(["mcp", "http", "test", "internal"]).optional(),
+    source: z.enum(["mcp", "http", "cron", "test", "internal"]).optional(),
     format: z.enum(["json", "csv"]).default("json"),
   })
   .strict()

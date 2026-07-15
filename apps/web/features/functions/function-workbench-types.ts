@@ -37,7 +37,8 @@ export type StoredTestValues = {
   input: string;
   inputMode: TestInputMode;
   permissions: string[];
-  source: "test" | "mcp" | "http";
+  source: "test" | "mcp" | "http" | "cron";
+  cronBindingId?: string;
   subject: string;
 };
 export type WorkbenchPanel = "left" | "right" | "bottom";

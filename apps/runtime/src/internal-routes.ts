@@ -1,11 +1,12 @@
 import type { FastifyInstance } from "fastify";
+import { prisma } from "@mcpops/db";
 import type { FunctionExecutor } from "@mcpops/sandbox";
 import { asSafeRuntimeError, type CallerIdentity } from "@mcpops/runtime-sdk";
 import { authorizeEndpointAccess } from "./auth.js";
 import { deploymentSnapshotSchema, type LoadedEndpoint } from "./domain.js";
 import type { RuntimeInvoker } from "./invoke.js";
 import type { RuntimeMetrics } from "./metrics.js";
-import { loadEndpointById } from "./repository.js";
+import { loadEndpointById, logSettings } from "./repository.js";
 import type { checkRuntimeReadiness } from "./readiness.js";
 import {
   auditEndpointAccessDenial,
@@ -134,11 +135,25 @@ export function registerInternalRoutes(
           },
         });
       const body = object(request.body);
+      const simulatedCron = object(body.cronBinding);
+      const simulatedNetworkPolicy = object(simulatedCron.networkPolicy);
       const savedDevelopmentSnapshot = object(body.savedDevelopmentSnapshot);
       const parsedSnapshot = deploymentSnapshotSchema.safeParse({
         ...endpoint.snapshot,
         functions: savedDevelopmentSnapshot.functions,
         functionCalls: savedDevelopmentSnapshot.calls,
+        ...(typeof simulatedCron.id === "string"
+          ? {
+              networkPolicy: {
+                allowedHosts: simulatedNetworkPolicy.allowedHosts,
+                allowedMethods: simulatedNetworkPolicy.allowedMethods,
+                allowedPorts: simulatedNetworkPolicy.allowedPorts,
+                maxResponseBytes: simulatedNetworkPolicy.maxResponseBytes,
+                allowPrivateHosts: simulatedNetworkPolicy.allowPrivateHosts,
+                allowInsecureTlsHosts: simulatedNetworkPolicy.allowInsecureTlsHosts,
+              },
+            }
+          : {}),
       });
       if (!parsedSnapshot.success)
         return reply.code(400).send({
@@ -192,6 +207,22 @@ export function registerInternalRoutes(
         requestId: request.id,
         abortSignal: requestAbortSignal(request),
         ...(correlationId ? { correlationId } : {}),
+        ...(typeof simulatedCron.id === "string"
+          ? {
+              rootTrigger: {
+                type: "cron" as const,
+                binding: {
+                  id: simulatedCron.id,
+                  name: String(simulatedCron.name),
+                },
+                scheduledAt: new Date().toISOString(),
+                triggeredAt: new Date().toISOString(),
+                expression: String(simulatedCron.expression),
+                timezone: String(simulatedCron.timezone),
+                origin: "manual" as const,
+              },
+            }
+          : {}),
       });
       const metadata = {
         executionMode: "saved_development_version" as const,
@@ -227,4 +258,168 @@ export function registerInternalRoutes(
           };
     },
   );
+
+  app.post<{ Params: { runId: string }; Body: unknown }>(
+    "/internal/cron-runs/:runId/invoke",
+    async (request, reply) => {
+      if (
+        options.internalApiToken &&
+        request.headers["x-internal-token"] !== options.internalApiToken
+      )
+        return sendError(reply, {
+          code: "UNAUTHENTICATED",
+          message: "Internal authentication is required.",
+          requestId: request.id,
+        });
+      const run = await prisma.scheduledRun.findUnique({
+        where: { id: request.params.runId },
+        include: {
+          cronBinding: { select: { id: true } },
+          scheduleDeployment: {
+            include: {
+              projectDeployment: {
+                include: { environment: true, project: true },
+              },
+            },
+          },
+        },
+      });
+      if (!run || run.status !== "running")
+        return reply.code(409).send({
+          error: {
+            code: "CRON_RUN_NOT_CLAIMED",
+            message: "The scheduled run is not available for invocation.",
+            requestId: request.id,
+          },
+        });
+      const projectDeployment = run.scheduleDeployment.projectDeployment;
+      if (
+        projectDeployment.environment.activeProjectDeploymentId !== projectDeployment.id
+      )
+        return reply.code(409).send({
+          error: {
+            code: "STALE_SCHEDULE_DEPLOYMENT",
+            message: "The schedule deployment is no longer active.",
+            requestId: request.id,
+          },
+        });
+      const snapshot = object(run.scheduleDeployment.snapshot);
+      const slice = array(snapshot.slices)
+        .map(object)
+        .find((item) => object(item.environment).id === run.environmentId);
+      const binding = array(slice?.bindings)
+        .map(object)
+        .find((item) => item.id === run.cronBindingId);
+      if (!slice || !binding || binding.enabled !== true)
+        return reply.code(409).send({
+          error: {
+            code: "CRON_BINDING_NOT_ACTIVE",
+            message: "The cron binding is not present in the active snapshot.",
+            requestId: request.id,
+          },
+        });
+      const parsedSnapshot = deploymentSnapshotSchema.safeParse({
+        functions: slice.functions,
+        functionCalls: slice.functionCalls,
+        mcpBindings: [],
+        httpBindings: [],
+        authPolicies: [],
+        endpointAccessPolicy: {},
+        networkPolicy: binding.networkPolicy,
+        env: slice.env,
+        libraries: slice.libraries,
+        capabilities: slice.capabilities,
+        reviewedQueries: slice.reviewedQueries,
+        collections: slice.collections,
+      });
+      if (!parsedSnapshot.success)
+        return reply.code(500).send({
+          error: {
+            code: "CONFIGURATION_ERROR",
+            message: "The active schedule artifact is invalid.",
+            requestId: request.id,
+          },
+        });
+      const environment = projectDeployment.environment;
+      const settings = logSettings(environment);
+      const pseudoEndpoint: LoadedEndpoint = {
+        id: run.cronBindingId,
+        name: String(binding.name ?? "Scheduled Function"),
+        slug: run.cronBindingId,
+        kind: "http",
+        project: {
+          id: projectDeployment.project.id,
+          name: projectDeployment.project.name,
+          slug: projectDeployment.project.slug,
+        },
+        environment: {
+          id: environment.id,
+          name: environment.name,
+          slug: environment.slug,
+          capturePayloads: environment.capturePayloads,
+          ...settings,
+        },
+        deployment: {
+          id: run.scheduleDeployment.id,
+          version: projectDeployment.version,
+          checksum: run.scheduleDeployment.checksum,
+        },
+        snapshot: parsedSnapshot.data,
+      };
+      const fn = pseudoEndpoint.snapshot.functions.find(
+        (item) => item.functionId === binding.functionId,
+      );
+      if (!fn)
+        return reply.code(500).send({
+          error: {
+            code: "CONFIGURATION_ERROR",
+            message: "The scheduled Function is missing from the active artifact.",
+            requestId: request.id,
+          },
+        });
+      const triggeredAt = run.triggeredAt ?? new Date();
+      const result = await invoker.invoke({
+        endpoint: pseudoEndpoint,
+        fn,
+        source: "cron",
+        input: {},
+        caller: {
+          subject: String(binding.serviceSubject),
+          permissions: stringArray(binding.permissionGrants),
+          claims: { service: true, cronBindingId: run.cronBindingId },
+        },
+        requestId: run.requestId,
+        abortSignal: requestAbortSignal(request),
+        cronBinding: {
+          id: run.cronBindingId,
+          name: String(binding.name),
+          expression: String(binding.expression),
+          timezone: String(binding.timezone),
+          scheduledAt: run.scheduledAt.toISOString(),
+          triggeredAt: triggeredAt.toISOString(),
+          origin: run.origin,
+          scheduleDeploymentId: run.scheduleDeploymentId,
+        },
+      });
+      return reply.code(result.ok ? 200 : 422).send(
+        result.ok
+          ? {
+              status: "success",
+              output: result.output,
+              durationMs: result.durationMs,
+              executionId: result.executionId,
+            }
+          : {
+              status: "failed",
+              error: result.error.toJSON(),
+              durationMs: result.durationMs,
+              executionId: result.executionId,
+            },
+      );
+    },
+  );
+}
+
+function array(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }

@@ -16,6 +16,11 @@ export type ProjectDeploymentSnapshot = {
   projectId: string;
   environmentId: string;
   endpoints: EndpointArtifact[];
+  schedule?: {
+    scheduleDeploymentId: string;
+    checksum: string;
+    snapshot: unknown;
+  };
 };
 
 export function projectDeploymentReadiness(
@@ -54,13 +59,17 @@ async function finalizeTransaction(projectDeploymentId: string): Promise<void> {
             },
             orderBy: { endpointId: "asc" },
           },
+          scheduleDeployment: true,
         },
       });
       if (!projectDeployment || projectDeployment.completedAt) return;
 
-      const readiness = projectDeploymentReadiness(
-        projectDeployment.endpointDeployments.map((item) => item.status),
-      );
+      const readiness = projectDeploymentReadiness([
+        ...projectDeployment.endpointDeployments.map((item) => item.status),
+        ...(projectDeployment.scheduleDeployment
+          ? [projectDeployment.scheduleDeployment.status]
+          : []),
+      ]);
       const completedAt = new Date();
       if (readiness === "failed") {
         await tx.projectDeployment.updateMany({
@@ -110,6 +119,11 @@ async function finalizeTransaction(projectDeploymentId: string): Promise<void> {
       for (const deployment of projectDeployment.endpointDeployments) {
         await activateEndpoint(tx, deployment, completedAt);
       }
+      if (projectDeployment.scheduleDeployment)
+        await tx.scheduleDeployment.update({
+          where: { id: projectDeployment.scheduleDeployment.id },
+          data: { status: "active", completedAt },
+        });
       await tx.auditEvent.create({
         data: {
           projectId: projectDeployment.projectId,
@@ -167,6 +181,11 @@ function createProjectSnapshot(
       endpoint: EndpointArtifact["endpoint"];
       snapshot: unknown;
     }>;
+    scheduleDeployment?: {
+      id: string;
+      checksum: string;
+      snapshot: unknown;
+    } | null;
   },
   completedAt: Date,
 ): ProjectDeploymentSnapshot {
@@ -183,6 +202,15 @@ function createProjectSnapshot(
       endpoint: item.endpoint,
       snapshot: item.snapshot,
     })),
+    ...(projectDeployment.scheduleDeployment
+      ? {
+          schedule: {
+            scheduleDeploymentId: projectDeployment.scheduleDeployment.id,
+            checksum: projectDeployment.scheduleDeployment.checksum,
+            snapshot: projectDeployment.scheduleDeployment.snapshot,
+          },
+        }
+      : {}),
   };
 }
 

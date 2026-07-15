@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable max-lines -- pointer interactions and persisted topology state are co-located */
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -24,6 +26,7 @@ import {
 } from "./binding-map-layout";
 import {
   BindingNodeCard,
+  CronNodeCard,
   EndpointNode,
   FunctionNode,
   GraphLaneLabel,
@@ -36,12 +39,14 @@ import {
   type ConnectionPreview,
   type Layout,
   type MapEndpoint,
+  type MapCronBinding,
   type NodePosition,
   type PendingConnection,
 } from "./binding-map-types";
 
 export function BindingMap({ functions }: { functions: OpsFunction[] }) {
   const [endpoints, setEndpoints] = useState<MapEndpoint[]>();
+  const [cronBindings, setCronBindings] = useState<MapCronBinding[]>([]);
   const [positions, setPositions] = useState<Layout>({});
   const [error, setError] = useState<string>();
   const [revision, setRevision] = useState(0);
@@ -69,15 +74,19 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
 
   const bindings = useMemo(() => flattenBindings(endpoints ?? []), [endpoints]);
   const defaultPositions = useMemo(
-    () => buildDefaultLayout(endpoints ?? [], functions),
-    [endpoints, functions],
+    () => buildDefaultLayout(endpoints ?? [], functions, cronBindings),
+    [cronBindings, endpoints, functions],
   );
 
   const load = useCallback(() => {
     setError(undefined);
     api<BindingMapResponse>("/api/binding-map")
       .then((response) => {
-        const defaults = buildDefaultLayout(response.endpoints, functions);
+        const defaults = buildDefaultLayout(
+          response.endpoints,
+          functions,
+          response.cronBindings,
+        );
         const stored = readLayout(response.layout);
         const validStored = Object.fromEntries(
           Object.entries(stored).filter(([id]) => id in defaults),
@@ -86,6 +95,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
         positionsRef.current = next;
         setPositions(next);
         setEndpoints(response.endpoints);
+        setCronBindings(response.cronBindings);
       })
       .catch((reason) => setError(errorMessage(reason)));
   }, [functions]);
@@ -318,6 +328,9 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
             <span className="flex items-center gap-1">
               <i className="size-2 rounded-full bg-amber-500" /> HTTP
             </span>
+            <span className="flex items-center gap-1">
+              <i className="size-2 rounded-full bg-emerald-500" /> Cron
+            </span>
           </span>
           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             {saving ? (
@@ -327,6 +340,14 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
             )}
             {saving ? "Saving layout" : "Layout saved"}
           </span>
+          {canManage && (
+            <Link
+              href="/schedules?create=1"
+              className="inline-flex h-8 items-center rounded-lg border bg-card px-3 text-xs font-medium hover:bg-muted"
+            >
+              Add cron
+            </Link>
+          )}
           {canManage && (
             <Button variant="secondary" size="sm" onClick={resetLayout}>
               <RotateCcw size={13} /> Reset layout
@@ -349,14 +370,16 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
           style={{ width: graphWidth, height: graphHeight }}
         >
           <GraphLaneLabel x={70} label="MCP / HTTP services" />
-          <GraphLaneLabel x={580} label="Tools / routes" />
-          <GraphLaneLabel x={1120} label="Functions" />
+          <GraphLaneLabel x={500} label="Tools / routes" />
+          <GraphLaneLabel x={850} label="Cron schedules" />
+          <GraphLaneLabel x={1250} label="Functions" />
           <GraphEdges
             width={graphWidth}
             height={graphHeight}
             bindings={bindings}
             positions={positions}
             preview={connectionPreview}
+            schedules={cronBindings}
           />
 
           {endpoints.map((endpoint) => {
@@ -421,6 +444,30 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
             );
           })}
 
+          {cronBindings.map((binding) => {
+            const id = `schedule:${binding.id}`;
+            const position = positions[id];
+            if (!position) return null;
+            return (
+              <MovableNode
+                key={id}
+                id={id}
+                position={position}
+                size={NODE_SIZE.schedule}
+                active={activeNode === id}
+                canMove={canManage}
+                dragHandle={dragHandle(id)}
+              >
+                <CronNodeCard
+                  binding={binding}
+                  {...(functions.find((fn) => fn.id === binding.functionId)
+                    ? { fn: functions.find((fn) => fn.id === binding.functionId)! }
+                    : {})}
+                />
+              </MovableNode>
+            );
+          })}
+
           {functions.map((fn) => {
             const id = `function:${fn.id}`;
             const position = positions[id];
@@ -451,7 +498,7 @@ export function BindingMap({ functions }: { functions: OpsFunction[] }) {
             );
           })}
 
-          {!endpoints.length && !functions.length && (
+          {!endpoints.length && !cronBindings.length && !functions.length && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-dashed bg-card px-8 py-6 text-center text-sm text-muted-foreground">
               Create a Function or runtime endpoint to start the map.
             </div>

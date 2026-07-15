@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+/* eslint-disable max-lines -- vertical-slice assertions intentionally run as one ordered scenario */
 import { createHash, randomBytes } from "node:crypto";
 
 const control = process.env.E2E_CONTROL_URL ?? "http://localhost:8080/api";
@@ -824,6 +825,132 @@ const composedEntry = await ensureFunction({
   secretGrantIds: [],
   cachePolicy: null,
 });
+const collectionProbe = await ensureFunction({
+  name: "e2e_collection_probe",
+  slug: "e2e_collection_probe",
+  description: "Stable E2E tenant collection fixture",
+  code: 'export default async function handler(ctx, input) { const collection = ctx.collections.collection("e2e_customers"); const created = await collection.create({ name: input.name, score: input.score }); const page = await collection.query({ where: { field: "score", op: "gte", value: input.minimum }, orderBy: [{ field: "score", direction: "desc" }], limit: 20 }); return { createdId: created.id, count: await collection.count({ where: { field: "score", op: "gte", value: input.minimum } }), names: page.items.map((item) => item.data.name) }; }',
+  inputSchema: {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      score: { type: "number" },
+      minimum: { type: "number" },
+    },
+    required: ["name", "score", "minimum"],
+    additionalProperties: false,
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      createdId: { type: "string" },
+      count: { type: "number" },
+      names: { type: "array", items: { type: "string" } },
+    },
+    required: ["createdId", "count", "names"],
+    additionalProperties: false,
+  },
+  timeoutMs: 5000,
+  enabled: true,
+  riskLevel: "write",
+  requiredPermissions: [],
+  secretGrantIds: [],
+  cachePolicy: null,
+});
+const developmentEnvironment = environments.body.find(
+  (environment) => environment.slug === "development",
+);
+assert.ok(developmentEnvironment, "seeded Development environment exists");
+const currentCollections = await json(
+  `${control}/data-collections?environmentId=${developmentEnvironment.id}`,
+  { headers: { cookie } },
+);
+let e2eCollection = currentCollections.body.find(
+  (collection) => collection.slug === "e2e_customers",
+);
+if (!e2eCollection)
+  e2eCollection = (
+    await json(`${control}/data-collections`, {
+      method: "POST",
+      headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "E2E Customers",
+        slug: "e2e_customers",
+        description: "Tenant-scoped PostgreSQL collection fixture",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["name", "score"],
+          properties: { name: { type: "string" }, score: { type: "number" } },
+        },
+        indexes: [
+          { name: "by_score", kind: "btree", fields: ["score"], unique: false },
+        ],
+      }),
+    })
+  ).body;
+await json(`${control}/data-collections/${e2eCollection.id}/grants`, {
+  method: "PUT",
+  headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+  body: JSON.stringify({
+    functionId: collectionProbe.id,
+    permissions: ["read", "write", "delete"],
+  }),
+});
+const cronProbe = await ensureFunction({
+  name: "e2e_cron_probe",
+  slug: "e2e_cron_probe",
+  description: "Stable E2E cron fixture",
+  code: 'export default async function handler(ctx) { return { ok: true, trigger: ctx.trigger.type, origin: ctx.trigger.type === "cron" ? ctx.trigger.origin : "endpoint" }; }',
+  inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  outputSchema: {
+    type: "object",
+    properties: {
+      ok: { type: "boolean" },
+      trigger: { type: "string" },
+      origin: { type: "string" },
+    },
+    required: ["ok", "trigger", "origin"],
+    additionalProperties: false,
+  },
+  timeoutMs: 5000,
+  enabled: true,
+  riskLevel: "read",
+  requiredPermissions: [],
+  secretGrantIds: [],
+  cachePolicy: null,
+});
+const existingSchedules = await json(`${control}/cron-bindings`, {
+  headers: { cookie },
+});
+let cronBinding = existingSchedules.body.items.find(
+  (binding) => binding.name === "E2E cron probe",
+);
+if (!cronBinding)
+  cronBinding = (
+    await json(`${control}/cron-bindings`, {
+      method: "POST",
+      headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+      body: JSON.stringify({
+        environmentId: mcpEndpoint.environment.id,
+        functionId: cronProbe.id,
+        name: "E2E cron probe",
+        expression: "0 0 1 1 *",
+        timezone: "UTC",
+        enabled: true,
+        serviceSubject: "e2e-cron-service",
+        permissionGrants: [],
+        networkPolicy: {
+          allowedHosts: [],
+          allowedMethods: [],
+          allowedPorts: [],
+          maxResponseBytes: 1048576,
+          allowPrivateHosts: [],
+          allowInsecureTlsHosts: [],
+        },
+      }),
+    })
+  ).body;
 assert.notEqual(
   composedLeaf.id,
   composedEntry.id,
@@ -850,6 +977,27 @@ if (
       toolName: "e2e_composed_value",
       title: "E2E composed value",
       description: "Exercises a pinned internal Function call",
+      enabled: true,
+    }),
+  });
+}
+if (
+  !endpointDetail.body.mcpBindings.some(
+    (binding) => binding.toolName === "e2e_collection_probe",
+  )
+) {
+  await json(`${control}/runtime-endpoints/${mcpEndpoint.id}/mcp-bindings`, {
+    method: "POST",
+    headers: {
+      cookie,
+      "x-csrf-token": csrf,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      functionId: collectionProbe.id,
+      toolName: "e2e_collection_probe",
+      title: "E2E collection probe",
+      description: "Exercises tenant-scoped PostgreSQL collection queries",
       enabled: true,
     }),
   });
@@ -938,6 +1086,41 @@ const composedDeployment = await json(`${control}/deployments`, {
   body: "{}",
 });
 await waitForDeployment(composedDeployment.body.id, cookie);
+await json(`${control}/cron-bindings/${cronBinding.id}/run`, {
+  method: "POST",
+  headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+  body: "{}",
+});
+let completedCronRun;
+for (let attempt = 0; attempt < 30; attempt += 1) {
+  const response = await json(`${control}/cron-bindings/${cronBinding.id}/runs`, {
+    headers: { cookie },
+  });
+  completedCronRun = response.body.items.find(
+    (run) => run.origin === "manual" && ["success", "failed"].includes(run.status),
+  );
+  if (completedCronRun) break;
+  await new Promise((resolve) => setTimeout(resolve, 500));
+}
+assert.equal(
+  completedCronRun?.status,
+  "success",
+  "manual cron run executes the active snapshot",
+);
+assert.ok(completedCronRun?.execution?.id, "manual cron run records execution lineage");
+const cronExecutions = await json(`${control}/executions?functionId=${cronProbe.id}`, {
+  headers: { cookie },
+});
+assert.equal(
+  cronExecutions.body.items[0]?.invocationSource,
+  "cron",
+  "cron execution is queryable",
+);
+assert.equal(
+  cronExecutions.body.items[0]?.binding,
+  "E2E cron probe",
+  "cron execution labels its binding",
+);
 const composedCall = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
   headers: mcpHeaders,
@@ -952,6 +1135,46 @@ assert.equal(
   composedCall.body.result.structuredContent.value,
   42,
   "ctx.functions.call executes the pinned child Function",
+);
+const collectionCall = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
+  method: "POST",
+  headers: { ...mcpHeaders, "x-tenant-id": "e2e-tenant" },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 5,
+    method: "tools/call",
+    params: {
+      name: "e2e_collection_probe",
+      arguments: { name: "Ada", score: 42, minimum: 40 },
+    },
+  }),
+});
+assert.equal(
+  collectionCall.body.result.structuredContent.count >= 1,
+  true,
+  "ctx.collections executes bounded tenant-scoped PostgreSQL queries",
+);
+assert.ok(
+  collectionCall.body.result.structuredContent.names.includes("Ada"),
+  "collection query returns the created tenant record",
+);
+const inspectedCollectionRecords = await json(
+  `${control}/data-collections/${e2eCollection.id}/records/query`,
+  {
+    method: "POST",
+    headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+    body: JSON.stringify({
+      environmentId: developmentEnvironment.id,
+      tenantId: "e2e-tenant",
+      where: { field: "score", op: "gte", value: 40 },
+      orderBy: [{ field: "score", direction: "desc" }],
+      limit: 20,
+    }),
+  },
+);
+assert.ok(
+  inspectedCollectionRecords.body.items.some((record) => record.data.name === "Ada"),
+  "Storage inspector queries persisted tenant records without fetch-all filtering",
 );
 const internalExecutions = await json(
   `${control}/executions?functionId=${composedLeaf.id}`,

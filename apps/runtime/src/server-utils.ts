@@ -339,8 +339,10 @@ export function requestAbortSignal(request: FastifyRequest): AbortSignal {
   else request.raw.once("aborted", () => controller.abort());
   return controller.signal;
 }
-export function normalizeTestSource(value: unknown): "mcp" | "http" | undefined {
-  return value === "mcp" || value === "http" ? value : undefined;
+export function normalizeTestSource(
+  value: unknown,
+): "mcp" | "http" | "cron" | undefined {
+  return value === "mcp" || value === "http" || value === "cron" ? value : undefined;
 }
 
 export function isPublicRuntimePath(path: string): boolean {

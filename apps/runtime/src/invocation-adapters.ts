@@ -225,7 +225,9 @@ export class InvocationAudit implements AuditWriter {
     await saveAudit({
       projectId: this.request.endpoint.project.id,
       environmentId: this.request.endpoint.environment.id,
-      endpointId: this.request.endpoint.id,
+      ...(this.request.cronBinding
+        ? { cronBindingId: this.request.cronBinding.id }
+        : { endpointId: this.request.endpoint.id }),
       functionId: this.request.fn.functionId,
       actorType: "caller",
       ...(this.request.caller.subject ? { actorId: this.request.caller.subject } : {}),

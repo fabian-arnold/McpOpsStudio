@@ -1,4 +1,4 @@
-export type InvocationSource = "mcp" | "http" | "test" | "internal";
+export type InvocationSource = "mcp" | "http" | "cron" | "test" | "internal";
 export type RiskLevel = "read" | "write" | "destructive";
 
 export type CallerIdentity = {
@@ -113,16 +113,32 @@ export interface ScopedCollection<T = Record<string, unknown>> {
 export interface ProjectCollections {
   collection<T = Record<string, unknown>>(slug: string): ScopedCollection<T>;
 }
+export type EndpointTrigger = {
+  type: "endpoint";
+  source: "mcp" | "http" | "test";
+  endpoint: { id: string; slug: string; name: string; kind: "mcp" | "http" };
+};
+export type CronTrigger = {
+  type: "cron";
+  binding: { id: string; name: string };
+  scheduledAt: string;
+  triggeredAt: string;
+  expression: string;
+  timezone: string;
+  origin: "scheduled" | "manual";
+};
+export type RuntimeTrigger = EndpointTrigger | CronTrigger;
 export type RuntimeContext = {
   invocation: {
     source: InvocationSource;
     requestId: string;
     correlationId?: string;
-    simulatedSource?: "mcp" | "http";
+    simulatedSource?: "mcp" | "http" | "cron";
   };
+  trigger: RuntimeTrigger;
   project: { id: string; slug: string; name: string };
   environment: { id: string; slug: string; name: string };
-  endpoint: {
+  endpoint?: {
     id: string;
     slug: string;
     name: string;

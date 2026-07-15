@@ -108,7 +108,7 @@ export default function ExecutionsPage() {
               onChange={(event) => setSource(event.target.value)}
             >
               <option value="">All sources</option>
-              {["mcp", "http", "test", "internal"].map((item) => (
+              {["mcp", "http", "cron", "test", "internal"].map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>

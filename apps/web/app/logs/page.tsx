@@ -251,7 +251,8 @@ function LogRow({ item }: { item: RuntimeLog }) {
             {item.function.slug}
           </Link>
           <span className="block truncate text-[9px] text-muted-foreground">
-            {item.environment.name} · {item.endpoint.name}
+            {item.environment.name} ·{" "}
+            {item.endpoint?.name ?? item.cronBinding?.name ?? "Schedule"}
           </span>
         </td>
         <td className="px-2 py-2 font-mono text-[11px] leading-5">{item.message}</td>

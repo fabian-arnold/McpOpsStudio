@@ -68,10 +68,11 @@ const storageCompletions = [
 const runtimeTypes = `
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type RuntimeContext = {
-  invocation: { source: "mcp" | "http" | "test" | "internal"; requestId: string; correlationId?: string };
+  invocation: { source: "mcp" | "http" | "cron" | "test" | "internal"; requestId: string; correlationId?: string; simulatedSource?: "mcp" | "http" | "cron" };
+  trigger: { type: "endpoint"; source: "mcp" | "http" | "test"; endpoint: { id: string; slug: string; name: string; kind: "mcp" | "http" } } | { type: "cron"; binding: { id: string; name: string }; scheduledAt: string; triggeredAt: string; expression: string; timezone: string; origin: "scheduled" | "manual" };
   project: { id: string; slug: string; name: string };
   environment: { id: string; slug: string; name: string };
-  endpoint: { id: string; slug: string; name: string };
+  endpoint?: { id: string; slug: string; name: string; kind: "mcp" | "http" };
   function: { id: string; name: string; riskLevel: "read" | "write" | "destructive" };
   caller: { subject?: string; email?: string; name?: string; tenantId?: string; permissions: string[]; claims: Record<string, unknown> };
   tenant?: { id: string };

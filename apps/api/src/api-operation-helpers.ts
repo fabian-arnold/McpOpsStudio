@@ -70,9 +70,27 @@ export function functionView<
       enabled: boolean;
       endpoint: { id: string; name: string; slug: string; kind: "mcp" | "http" };
     }>;
+    cronBindings?: Array<{
+      id: string;
+      functionId: string;
+      environmentId: string;
+      name: string;
+      expression: string;
+      timezone: string;
+      enabled: boolean;
+      serviceSubject: string;
+      permissionGrants: unknown;
+      environment: { id: string; name: string; slug: string };
+    }>;
   },
 >(fn: T, includeBindings = false) {
-  const { grants, mcpToolBindings = [], httpRouteBindings = [], ...functionData } = fn;
+  const {
+    grants,
+    mcpToolBindings = [],
+    httpRouteBindings = [],
+    cronBindings = [],
+    ...functionData
+  } = fn;
   return {
     ...functionData,
     secretGrants: grants.map((grant) => ({
@@ -81,6 +99,14 @@ export function functionView<
     })),
     ...(includeBindings
       ? normalizeFunctionBindings(mcpToolBindings, httpRouteBindings)
+      : {}),
+    ...(includeBindings
+      ? {
+          cronBindings: cronBindings.map((binding) => ({
+            ...binding,
+            permissionGrants: stringList(binding.permissionGrants),
+          })),
+        }
       : {}),
   };
 }

@@ -4,6 +4,7 @@ import {
   type BindingNode,
   type Layout,
   type MapEndpoint,
+  type MapCronBinding,
   type NodePosition,
 } from "./binding-map-types";
 
@@ -35,6 +36,7 @@ export function flattenBindings(endpoints: MapEndpoint[]): BindingNode[] {
 export function buildDefaultLayout(
   endpoints: MapEndpoint[],
   functions: OpsFunction[],
+  cronBindings: MapCronBinding[] = [],
 ): Layout {
   const layout: Layout = {};
   let endpointCursor = 90;
@@ -48,14 +50,17 @@ export function buildDefaultLayout(
     };
     bindings.forEach((binding, index) => {
       layout[`binding:${binding.id}`] = {
-        x: 580,
+        x: 500,
         y: endpointCursor + index * 112,
       };
     });
     endpointCursor += groupHeight + 70;
   }
+  cronBindings.forEach((binding, index) => {
+    layout[`schedule:${binding.id}`] = { x: 850, y: 90 + index * 112 };
+  });
   functions.forEach((fn, index) => {
-    layout[`function:${fn.id}`] = { x: 1120, y: 90 + index * 112 };
+    layout[`function:${fn.id}`] = { x: 1250, y: 90 + index * 112 };
   });
   return layout;
 }
@@ -77,6 +82,7 @@ export function readLayout(value: unknown): Layout {
 export function nodeSize(id: string) {
   if (id.startsWith("endpoint:")) return NODE_SIZE.endpoint;
   if (id.startsWith("binding:")) return NODE_SIZE.binding;
+  if (id.startsWith("schedule:")) return NODE_SIZE.schedule;
   return NODE_SIZE.function;
 }
 

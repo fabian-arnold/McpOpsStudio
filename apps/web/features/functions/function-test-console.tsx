@@ -27,6 +27,8 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
     setEndpointId,
     testSource,
     setTestSource,
+    cronBindingId,
+    setCronBindingId,
     testSubject,
     setTestSubject,
     testPermissions,
@@ -117,7 +119,29 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
                 <option value="test">Test</option>
                 <option value="mcp">MCP</option>
                 <option value="http">HTTP</option>
+                <option value="cron">Cron</option>
               </select>
+              {testSource === "cron" && (
+                <>
+                  <label className="label mt-2">Draft cron binding</label>
+                  <select
+                    className="field"
+                    value={cronBindingId}
+                    onChange={(event) => setCronBindingId(event.target.value)}
+                  >
+                    <option value="">Select cron binding</option>
+                    {(fn?.cronBindings ?? []).map((binding) => (
+                      <option key={binding.id} value={binding.id}>
+                        {binding.name} · {binding.timezone}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Cron simulation always sends <code>{"{}"}</code> and uses the
+                    binding service identity, grants, and network policy.
+                  </p>
+                </>
+              )}
             </div>
             <div>
               <label className="label">Caller subject</label>

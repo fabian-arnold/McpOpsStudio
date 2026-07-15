@@ -51,6 +51,8 @@ export function endpointListWhere(
 
 // Every repository entry point requires the authenticated project id. Keeping
 // tenant predicates here makes accidental cross-project reads difficult.
+// The single factory keeps those scoping guarantees visible for every relation.
+// eslint-disable-next-line max-lines-per-function
 export const projectRepository = (projectId: string) => ({
   environments: () =>
     prisma.environment.findMany({
@@ -155,6 +157,10 @@ export const projectRepository = (projectId: string) => ({
             },
           },
         },
+        cronBindings: {
+          where: { deletedAt: null },
+          include: { environment: { select: { id: true, name: true, slug: true } } },
+        },
       },
       orderBy: { name: "asc" },
     }),
@@ -189,6 +195,10 @@ export const projectRepository = (projectId: string) => ({
           include: {
             endpoint: { select: { id: true, name: true, slug: true, kind: true } },
           },
+        },
+        cronBindings: {
+          where: { deletedAt: null },
+          include: { environment: { select: { id: true, name: true, slug: true } } },
         },
       },
     }),

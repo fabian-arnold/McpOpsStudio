@@ -1,5 +1,11 @@
 # Control-Plane API
 
+Project cron bindings use `GET/POST /api/cron-bindings`,
+`GET/PATCH/DELETE /api/cron-bindings/:id`, `POST
+/api/cron-bindings/:id/run`, and `GET /api/cron-bindings/:id/runs`. Mutations
+require CSRF validation. Editing roles are owner, admin, and developer; active
+manual runs are limited to owner, admin, and operator.
+
 The Fastify control-plane API is served under `/api`. It is packaged with the
 web application and Caddy in the public `control-plane` role.
 
@@ -137,8 +143,6 @@ GET /api/audit-events
 
 Execution list filters include endpoint, function, status, request ID, tenant and invocation source. Returned sensitive fields are masked.
 
-## Adding endpoints
-
 ### Typed storage and cache inspection
 
 ```text
@@ -159,6 +163,8 @@ DELETE /api/storage/cache/key
 
 Record requests require an environment and tenant scope. Cache enumeration is
 cursor-based and bounded; reveals are audited and always redact known secrets.
+
+## Adding endpoints
 
 New public endpoints must:
 

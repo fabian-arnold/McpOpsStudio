@@ -1,5 +1,5 @@
 export type RiskLevel = "read" | "write" | "destructive";
-export type InvocationSource = "mcp" | "http" | "test" | "internal";
+export type InvocationSource = "mcp" | "http" | "cron" | "test" | "internal";
 
 export type CallerIdentity = {
   subject?: string;
@@ -85,6 +85,7 @@ export type SnapshotReviewedQuery = {
   maxRows: number;
   maxBytes: number;
 };
+
 export type SnapshotCollectionGrant = {
   grantId: string;
   functionId: string;
