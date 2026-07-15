@@ -6,7 +6,11 @@ COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --filter @mcpops/web... --frozen-lockfile=false
 
 FROM deps AS build
+ARG MCP_OPS_VERSION=development
+ARG MCP_OPS_COMMIT_SHA=unknown
 ENV DOCKER_BUILD=1
+ENV MCP_OPS_VERSION=${MCP_OPS_VERSION}
+ENV MCP_OPS_COMMIT_SHA=${MCP_OPS_COMMIT_SHA}
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
 RUN pnpm --filter @mcpops/web build

@@ -12,6 +12,11 @@ import {
   projectNav,
 } from "./shell-navigation";
 
+const buildVersion = process.env.NEXT_PUBLIC_MCP_OPS_VERSION ?? "development";
+const buildCommit = process.env.NEXT_PUBLIC_MCP_OPS_COMMIT_SHA ?? "unknown";
+const shortBuildCommit =
+  buildCommit === "unknown" ? buildCommit : buildCommit.slice(0, 12);
+
 export function ShellSidebar({
   identity,
   pathname,
@@ -181,6 +186,18 @@ export function ShellSidebar({
           <Settings size={16} />
           Platform settings
         </a>
+        <div
+          className="mt-2 border-t px-3 pt-3 text-[10px] leading-4 text-muted-foreground"
+          title={`Version ${buildVersion} · Commit ${buildCommit}`}
+        >
+          <p>
+            Version{" "}
+            <span className="font-medium text-foreground/70">{buildVersion}</span>
+          </p>
+          <p>
+            Commit <code className="text-foreground/70">{shortBuildCommit}</code>
+          </p>
+        </div>
       </div>
     </>
   );

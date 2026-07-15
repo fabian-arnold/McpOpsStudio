@@ -39,7 +39,11 @@ ENV NODE_ENV=development
 FROM dependencies AS build
 ARG APP
 ARG API_INTERNAL_URL=http://127.0.0.1:3001
+ARG MCP_OPS_VERSION=development
+ARG MCP_OPS_COMMIT_SHA=unknown
 ENV API_INTERNAL_URL=${API_INTERNAL_URL}
+ENV MCP_OPS_VERSION=${MCP_OPS_VERSION}
+ENV MCP_OPS_COMMIT_SHA=${MCP_OPS_COMMIT_SHA}
 RUN case "$APP" in \
       control-plane) pnpm --filter "@mcpops/api..." build && pnpm --filter "@mcpops/web..." build ;; \
       worker) pnpm --filter "@mcpops/runtime..." build && pnpm --filter "@mcpops/worker..." build ;; \

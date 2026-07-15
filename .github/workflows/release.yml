@@ -185,7 +185,10 @@ jobs:
         with:
           context: .
           file: infra/docker/Dockerfile
-          build-args: APP=${{ matrix.app }}
+          build-args: |
+            APP=${{ matrix.app }}
+            MCP_OPS_VERSION=${{ github.ref_name }}
+            MCP_OPS_COMMIT_SHA=${{ github.sha }}
           platforms: ${{ matrix.platform.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
