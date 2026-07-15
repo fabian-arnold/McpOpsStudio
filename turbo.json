@@ -7,7 +7,11 @@
     },
     "dev": { "cache": false, "persistent": true },
     "lint": { "dependsOn": ["^lint"] },
-    "test": { "dependsOn": ["^build"], "cache": false, "outputs": [] },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": ["DATABASE_URL", "MCP_OPS_MASTER_KEY", "RUN_REVIEWED_DB_INTEGRATION"]
+    },
     "typecheck": { "dependsOn": ["^build"] }
   }
 }

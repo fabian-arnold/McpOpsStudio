@@ -47,6 +47,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore Turbo cache
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Generate Prisma client
         run: pnpm db:generate
 
@@ -58,7 +66,7 @@ jobs:
 
       - name: Build workspace and documentation
         run: |
-          pnpm -r --workspace-concurrency=4 build
+          pnpm build
           pnpm docs:build
 
       - name: Validate Compose files
@@ -98,8 +106,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build cached Compose images
+        run: |
+          docker buildx bake -f infra/docker-compose.yml \
+            --set control-plane.tags=mcp-ops-studio-control-plane \
+            --set control-plane.cache-from=type=gha,scope=ci-control-plane \
+            --set control-plane.cache-to=type=gha,mode=max,scope=ci-control-plane \
+            --set control-plane.output=type=docker \
+            --set worker.tags=mcp-ops-studio-worker \
+            --set worker.cache-from=type=gha,scope=ci-worker \
+            --set worker.cache-to=type=gha,mode=max,scope=ci-worker \
+            --set worker.output=type=docker \
+            --set migrate.tags=mcp-ops-studio-migrate \
+            --set migrate.cache-from=type=gha,scope=ci-migrate \
+            --set migrate.cache-to=type=gha,mode=max,scope=ci-migrate \
+            --set migrate.output=type=docker
+
       - name: Start Compose stack
-        run: docker compose --profile demo -f infra/docker-compose.yml up --build --detach --wait --scale worker=2
+        run: docker compose --profile demo -f infra/docker-compose.yml up --no-build --detach --wait --scale worker=2
 
       - name: Run vertical-slice integration test
         run: pnpm test:e2e
@@ -160,7 +187,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=release-${{ matrix.app }}-${{ matrix.platform.architecture }}
+          cache-from: |
+            type=gha,scope=release-${{ matrix.app }}-${{ matrix.platform.architecture }}
+            type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=release-${{ matrix.app }}-${{ matrix.platform.architecture }}
 
   image-manifests:
