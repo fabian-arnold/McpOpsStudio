@@ -261,13 +261,13 @@ export function ResizeHandle({
       aria-label={`Resize ${panel} panel`}
       aria-orientation={horizontal ? "horizontal" : "vertical"}
       aria-valuenow={value}
-      aria-valuemin={panel === "left" ? 190 : panel === "right" ? 300 : 180}
-      aria-valuemax={panel === "left" ? 340 : panel === "right" ? 460 : 520}
+      aria-valuemin={panel === "left" ? 190 : panel === "right" ? 280 : 180}
+      aria-valuemax={panel === "left" ? 300 : panel === "right" ? 380 : 520}
       title="Drag to resize · Double-click to reset"
       className={
         horizontal
           ? "group flex h-1.5 cursor-row-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30"
-          : "group hidden cursor-col-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30 2xl:flex"
+          : "group hidden cursor-col-resize items-center justify-center bg-border/50 outline-none hover:bg-primary/30 focus:bg-primary/30 xl:flex"
       }
       onPointerDown={(event) => onPointerDown(panel, event)}
       onDoubleClick={onReset}
@@ -430,7 +430,7 @@ export function readWorkbenchLayout(value: string | null): WorkbenchLayout {
 
 export function clampPanelSize(panel: WorkbenchPanel, value: number) {
   const [minimum, maximum] =
-    panel === "left" ? [190, 340] : panel === "right" ? [300, 460] : [180, 520];
+    panel === "left" ? [190, 300] : panel === "right" ? [280, 380] : [180, 520];
   return Math.min(maximum, Math.max(minimum, Math.round(value)));
 }
 
