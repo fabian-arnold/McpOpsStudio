@@ -111,11 +111,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build cached Compose images
         run: |
-          docker buildx bake -f infra/docker-compose.yml \
+          docker buildx bake --allow=fs.read=.. -f infra/docker-compose.yml \
             --set control-plane.tags=mcp-ops-studio-control-plane \
             --set control-plane.cache-from=type=gha,scope=ci-control-plane \
             --set control-plane.cache-to=type=gha,mode=max,scope=ci-control-plane \
