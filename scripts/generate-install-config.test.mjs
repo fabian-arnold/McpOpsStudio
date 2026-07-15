@@ -9,18 +9,20 @@ test("generates a complete stable installation configuration", async () => {
   const root = await mkdtemp(join(tmpdir(), "mcpops-config-"));
   const template = join(root, "template.sh");
   const target = join(root, "config");
+  const ownerUid = process.getuid?.() ?? 0;
+  const ownerGid = process.getgid?.() ?? 0;
   await writeFile(template, "#!/bin/sh\n", { mode: 0o700 });
   try {
     const first = await ensureInstallConfig(target, {
       postgresInitTemplate: template,
-      ownerUid: 0,
-      ownerGid: 0,
+      ownerUid,
+      ownerGid,
       log() {},
     });
     const second = await ensureInstallConfig(target, {
       postgresInitTemplate: template,
-      ownerUid: 0,
-      ownerGid: 0,
+      ownerUid,
+      ownerGid,
       log() {},
     });
     assert.deepEqual(second, first);
