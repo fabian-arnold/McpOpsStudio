@@ -20,6 +20,10 @@ export const controlPlaneState = new Redis(redisUrl.toString(), {
   enableOfflineQueue: false,
 });
 
+export async function connectApiResources(): Promise<void> {
+  if (controlPlaneState.status === "wait") await controlPlaneState.connect();
+}
+
 export async function closeApiResources(): Promise<void> {
   await Promise.all([
     deploymentQueue.close(),

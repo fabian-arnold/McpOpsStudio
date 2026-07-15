@@ -82,7 +82,12 @@ const authorization = await fetch(authorizeUrl, {
   headers: { cookie },
   redirect: "manual",
 });
-assert.equal(authorization.status, 302, "browser authorization requests consent");
+if (authorization.status !== 302) {
+  const body = await authorization.text();
+  throw new Error(
+    `Browser authorization expected a consent redirect, received ${authorization.status}: ${body}`,
+  );
+}
 const consentLocation = new URL(authorization.headers.get("location"), runtime);
 const approvalId = consentLocation.searchParams.get("request");
 assert.ok(approvalId, "browser authorization creates a bounded approval request");

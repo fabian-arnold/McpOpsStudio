@@ -1,6 +1,6 @@
 import { createApiApplication } from "./application.js";
 import { assertScopedCursor } from "./api-operation-helpers.js";
-import { closeApiResources } from "./resources.js";
+import { closeApiResources, connectApiResources } from "./resources.js";
 
 import { registerAuthRoutes } from "./routes-auth.js";
 import { registerProjectsRoutes } from "./routes-projects.js";
@@ -25,6 +25,7 @@ import { registerManifestsRoutes } from "./routes-manifests.js";
 import { registerOAuthRoutes } from "./routes-oauth.js";
 import { registerPlatformMcpRoutes } from "./platform-mcp.js";
 
+await connectApiResources();
 const app = await createApiApplication({ assertScopedCursor });
 app.addHook("onClose", async () => {
   await closeApiResources();
