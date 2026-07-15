@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, randomBytes } from "node:crypto";
 
 const control = process.env.E2E_CONTROL_URL ?? "http://localhost:8080/api";
 const runtime = process.env.E2E_RUNTIME_URL ?? "http://localhost:8080";
@@ -44,6 +45,129 @@ const cookies =
   [login.response.headers.get("set-cookie")].filter(Boolean);
 const cookie = cookies.map((value) => value.split(";", 1)[0]).join("; ");
 const csrf = login.body.csrfToken;
+
+const protectedResource = await json(
+  `${runtime}/.well-known/oauth-protected-resource/platform/mcp`,
+);
+assert.equal(
+  protectedResource.body.resource,
+  `${runtime}/platform/mcp`,
+  "platform MCP advertises OAuth protected-resource metadata",
+);
+const oauthClient = await json(`${runtime}/oauth/register`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    client_name: "MCP Ops Studio E2E",
+    redirect_uris: ["http://127.0.0.1:43123/callback"],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+  }),
+});
+const verifier = randomBytes(48).toString("base64url");
+const challenge = createHash("sha256").update(verifier).digest("base64url");
+const authorizeUrl = new URL(`${runtime}/oauth/authorize`);
+authorizeUrl.search = new URLSearchParams({
+  response_type: "code",
+  client_id: oauthClient.body.client_id,
+  redirect_uri: "http://127.0.0.1:43123/callback",
+  scope: "mcpops:read mcpops:write mcpops:deploy",
+  state: "e2e-state",
+  resource: `${runtime}/platform/mcp`,
+  code_challenge: challenge,
+  code_challenge_method: "S256",
+}).toString();
+const authorization = await fetch(authorizeUrl, {
+  headers: { cookie },
+  redirect: "manual",
+});
+assert.equal(authorization.status, 302, "browser authorization requests consent");
+const consentLocation = new URL(authorization.headers.get("location"), runtime);
+const approvalId = consentLocation.searchParams.get("request");
+assert.ok(approvalId, "browser authorization creates a bounded approval request");
+const approval = await json(`${control}/oauth/requests/${approvalId}`, {
+  headers: { cookie },
+});
+assert.equal(approval.body.clientName, "MCP Ops Studio E2E");
+const decision = await json(`${control}/oauth/requests/${approvalId}/decision`, {
+  method: "POST",
+  headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
+  body: JSON.stringify({ approve: true }),
+});
+const authorizationCode = new URL(decision.body.redirectTo).searchParams.get("code");
+assert.ok(authorizationCode, "approved browser flow returns an authorization code");
+const token = await json(`${runtime}/oauth/token`, {
+  method: "POST",
+  headers: { "content-type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({
+    grant_type: "authorization_code",
+    code: authorizationCode,
+    client_id: oauthClient.body.client_id,
+    redirect_uri: "http://127.0.0.1:43123/callback",
+    resource: `${runtime}/platform/mcp`,
+    code_verifier: verifier,
+  }),
+});
+const platformHeaders = {
+  authorization: `Bearer ${token.body.access_token}`,
+  "content-type": "application/json",
+};
+const platformInitialize = await json(`${runtime}/platform/mcp`, {
+  method: "POST",
+  headers: platformHeaders,
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "mcpops-e2e", version: "1.0.0" },
+    },
+  }),
+});
+const platformSessionId = platformInitialize.response.headers.get("mcp-session-id");
+assert.ok(platformSessionId, "platform MCP initialization creates an isolated session");
+async function platformTool(id, name, args = {}) {
+  return json(`${runtime}/platform/mcp`, {
+    method: "POST",
+    headers: { ...platformHeaders, "mcp-session-id": platformSessionId },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: { name, arguments: args },
+    }),
+  });
+}
+const platformProjects = await platformTool(2, "projects_list");
+assert.ok(
+  platformProjects.body.result.structuredContent.data.projects.some(
+    (project) => project.slug === "acme",
+  ),
+  "platform MCP lists installation projects",
+);
+await platformTool(3, "project_select", { project: "acme" });
+const platformFunctions = await platformTool(4, "functions_list");
+const platformFunction = platformFunctions.body.result.structuredContent.data.functions[0];
+assert.ok(platformFunction, "platform MCP lists selected-project Functions");
+const platformFunctionDetail = await platformTool(5, "function_get", {
+  function: platformFunction.id,
+});
+const editableFunction = platformFunctionDetail.body.result.structuredContent.data.function;
+const platformEditPreview = await platformTool(6, "function_edit", {
+  function: editableFunction.id,
+  expectedVersion: editableFunction.version,
+  expectedChecksum: editableFunction.checksum,
+  source: editableFunction.code,
+});
+assert.equal(
+  platformEditPreview.body.result.structuredContent.dryRun,
+  true,
+  "platform Function edits default to non-mutating dry runs",
+);
+
 const endpoints = await json(`${control}/runtime-endpoints`, { headers: { cookie } });
 const mcpEndpoint = endpoints.body.find(
   (entry) => entry.kind === "mcp" && entry.slug === "customer-operations",

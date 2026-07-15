@@ -26,7 +26,14 @@ export async function createApiApplication(
   options: ApplicationOptions,
 ): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: process.env.LOG_LEVEL ?? "info" },
+    logger: {
+      level: process.env.LOG_LEVEL ?? "info",
+      redact: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "req.headers.x-csrf-token",
+      ],
+    },
     genReqId: (request) =>
       String(request.headers["x-request-id"] ?? crypto.randomUUID()),
   });

@@ -39,6 +39,8 @@ const registrationSchema = z.object({
 });
 
 export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
+  if (process.env.NODE_ENV === "production" && new URL(publicOrigin()).protocol !== "https:")
+    throw new Error("PUBLIC_CONTROL_PLANE_URL must use HTTPS for platform MCP OAuth");
   app.get("/.well-known/oauth-protected-resource/platform/mcp", async () => ({
     resource: platformResource(),
     authorization_servers: [publicOrigin()],

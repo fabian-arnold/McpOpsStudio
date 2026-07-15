@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import {
+  CallToolRequestSchema,
+  InitializeRequestSchema,
+  LATEST_PROTOCOL_VERSION,
+  ListToolsRequestSchema,
+  SUPPORTED_PROTOCOL_VERSIONS,
+} from "@modelcontextprotocol/sdk/types.js";
 import { Ajv } from "ajv";
 import { z } from "zod";
 import { prisma } from "@mcpops/db";
@@ -76,17 +83,24 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
     const rpc = request.body as Rpc;
     if (!rpc || rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") return reply.status(400).send(rpcError(null, -32600, "Invalid Request"));
     if (rpc.method === "initialize") {
+      if (!InitializeRequestSchema.safeParse(rpc).success) return reply.status(400).send(rpcError(rpc.id ?? null, -32602, "Invalid initialize parameters"));
       const id = randomUUID();
       await saveSession(id, { userId: identity.userId });
       reply.header("mcp-session-id", id);
-      return rpcResult(rpc, { protocolVersion: "2025-11-25", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "MCP Ops Studio Platform", version: "0.1.0", description: "Developer control-plane tools for MCP Ops Studio" } });
+      const requested = object(rpc.params).protocolVersion;
+      const protocolVersion = typeof requested === "string" && SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : LATEST_PROTOCOL_VERSION;
+      return rpcResult(rpc, { protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "MCP Ops Studio Platform", version: "0.1.0", description: "Developer control-plane tools for MCP Ops Studio" } });
     }
     if (!sessionId) return reply.status(400).send(rpcError(rpc.id ?? null, -32000, "Missing MCP session ID"));
     const session = await loadSession(sessionId);
     if (!session || session.userId !== identity.userId) return reply.status(404).send(rpcError(rpc.id ?? null, -32001, "MCP session expired"));
     if (rpc.method === "notifications/initialized") return reply.status(202).send();
-    if (rpc.method === "tools/list") return rpcResult(rpc, { tools });
+    if (rpc.method === "tools/list") {
+      if (!ListToolsRequestSchema.safeParse(rpc).success) return reply.status(400).send(rpcError(rpc.id ?? null, -32602, "Invalid tools/list parameters"));
+      return rpcResult(rpc, { tools });
+    }
     if (rpc.method !== "tools/call") return rpcError(rpc.id ?? null, -32601, "Method not found");
+    if (!CallToolRequestSchema.safeParse(rpc).success) return reply.status(400).send(rpcError(rpc.id ?? null, -32602, "Invalid tools/call parameters"));
     const params = object(rpc.params);
     const name = String(params.name ?? "");
     try {
@@ -180,8 +194,16 @@ async function callTool(name: string, args: Record<string, unknown>, identity: M
 }
 
 function tool(name: string, description: string, properties: Record<string, unknown>, readOnly: boolean) {
-  return { name, title: name.split("_").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" "), description, inputSchema: { type: "object", properties, additionalProperties: false }, annotations: { readOnlyHint: readOnly, destructiveHint: false, idempotentHint: readOnly } };
+  const required = requiredToolFields[name] ?? [];
+  return { name, title: name.split("_").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" "), description, inputSchema: { type: "object", properties, ...(required.length ? { required } : {}), additionalProperties: false }, annotations: { readOnlyHint: readOnly, destructiveHint: !readOnly, idempotentHint: readOnly } };
 }
+const requiredToolFields: Record<string, string[]> = {
+  project_select: ["project"], function_get: ["function"], function_create: ["draft"],
+  function_edit: ["function", "expectedVersion", "expectedChecksum"], function_validate: ["function"],
+  function_test: ["function", "input"], library_get: ["library"], endpoint_get: ["endpoint"],
+  binding_create: ["endpoint", "binding"], binding_edit: ["endpoint", "bindingId", "changes"],
+  endpoint_discover: ["endpoint"],
+};
 function stringField(description: string) { return { type: "string", description }; }
 function optionalString(description: string) { return stringField(description); }
 function booleanField(description: string, defaultValue: boolean) { return { type: "boolean", description, default: defaultValue }; }

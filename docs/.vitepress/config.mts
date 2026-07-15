@@ -56,6 +56,7 @@ export default defineConfig({
           { text: "Dashboard", link: "/app/dashboard" },
           { text: "Functions", link: "/app/functions" },
           { text: "Function editor", link: "/app/function-editor" },
+          { text: "IDE access", link: "/app/platform-mcp" },
           { text: "Operational templates", link: "/app/templates" },
           { text: "Endpoint Map", link: "/app/endpoint-map" },
           { text: "Endpoints", link: "/app/endpoints" },
