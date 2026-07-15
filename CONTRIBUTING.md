@@ -29,10 +29,15 @@ Install and validate the workspace:
 ```bash
 corepack enable
 pnpm install
+pnpm hooks:install
 pnpm db:generate
 pnpm build
 pnpm test
 ```
+
+`pnpm hooks:install` installs the versioned pre-commit hook into the local Git
+repository. The hook checks the staged snapshot and rejects commits with Prettier
+violations. It does not rewrite files; run `pnpm format` to apply fixes.
 
 Start the complete development environment:
 

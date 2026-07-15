@@ -15,6 +15,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "hooks:check": "node scripts/check-staged-format.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
     "analyze": "pnpm analyze:architecture && pnpm analyze:workspace && pnpm analyze:dead-code",
     "analyze:architecture": "depcruise apps packages --config dependency-cruiser.config.cjs",
     "analyze:workspace": "node scripts/check-workspace-boundaries.mjs",
