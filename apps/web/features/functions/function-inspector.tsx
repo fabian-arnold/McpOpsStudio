@@ -34,7 +34,7 @@ export function FunctionInspector({ model }: { model: FunctionWorkbenchModel }) 
     removeBinding,
   } = model;
   return (
-    <aside className="border-l bg-card xl:overflow-hidden">
+    <aside className="border-t bg-card 2xl:overflow-hidden 2xl:border-l 2xl:border-t-0">
       <div className="flex border-b p-1">
         {(
           [
@@ -52,7 +52,7 @@ export function FunctionInspector({ model }: { model: FunctionWorkbenchModel }) 
           </button>
         ))}
       </div>
-      <div className="max-h-[calc(100vh-205px)] overflow-auto p-4">
+      <div className="overflow-auto p-4 2xl:max-h-[calc(100vh-205px)]">
         {!draft ? (
           <Skeleton className="h-96" />
         ) : inspectorTab === "settings" ? (

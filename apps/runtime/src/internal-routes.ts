@@ -217,7 +217,9 @@ export function registerInternalRoutes(
           }
         : {
             status: result.error.code === "TIMEOUT" ? "timeout" : "error",
-            error: result.error.toJSON(),
+            // This endpoint is reachable only through the authenticated control plane
+            // and is the sole surface allowed to reveal sanitized connection diagnostics.
+            error: result.error.toDiagnosticJSON(),
             durationMs: result.durationMs,
             requestId: request.id,
             logs: result.logs,

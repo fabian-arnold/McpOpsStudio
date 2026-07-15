@@ -19,9 +19,18 @@ export function NetworkPolicy({
   };
   const [hosts, setHosts] = useState((policy.allowedHosts ?? []).join("\n"));
   const [methods, setMethods] = useState((policy.allowedMethods ?? ["GET"]).join(", "));
+  const [ports, setPorts] = useState((policy.allowedPorts ?? [443]).join(", "));
+  const [privateHosts, setPrivateHosts] = useState(
+    (policy.allowPrivateHosts ?? []).join("\n"),
+  );
+  const [maxResponseBytes, setMaxResponseBytes] = useState(
+    policy.maxResponseBytes ?? 1048576,
+  );
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string>();
   async function save() {
     setBusy(true);
+    setMessage(undefined);
     try {
       await api(`/api/runtime-endpoints/${endpoint.id}/network-policy`, {
         method: "PUT",
@@ -31,12 +40,18 @@ export function NetworkPolicy({
             .split(",")
             .map((value) => value.trim().toUpperCase())
             .filter(Boolean),
-          allowedPorts: policy.allowedPorts ?? [443],
-          allowPrivateHosts: policy.allowPrivateHosts ?? [],
-          maxResponseBytes: policy.maxResponseBytes ?? 1048576,
+          allowedPorts: ports
+            .split(",")
+            .map((value) => Number(value.trim()))
+            .filter((value) => Number.isInteger(value)),
+          allowPrivateHosts: privateHosts.split(/\s+/).filter(Boolean),
+          maxResponseBytes,
         }),
       });
       await onChanged();
+      setMessage("Network policy saved.");
+    } catch (reason) {
+      setMessage(errorMessage(reason));
     } finally {
       setBusy(false);
     }
@@ -49,22 +64,74 @@ export function NetworkPolicy({
       </p>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div>
-          <label className="label">Allowed hosts · one per line</label>
+          <label className="label" htmlFor="network-allowed-hosts">
+            Allowed hosts · one per line
+          </label>
           <textarea
             className="field min-h-36 font-mono"
+            id="network-allowed-hosts"
             value={hosts}
             onChange={(event) => setHosts(event.target.value)}
           />
         </div>
         <div>
-          <label className="label">Allowed methods · comma separated</label>
+          <label className="label" htmlFor="network-allowed-methods">
+            Allowed methods · comma separated
+          </label>
           <input
             className="field font-mono"
+            id="network-allowed-methods"
             value={methods}
             onChange={(event) => setMethods(event.target.value)}
           />
         </div>
+        <div>
+          <label className="label" htmlFor="network-allowed-ports">
+            Allowed ports · comma separated
+          </label>
+          <input
+            className="field font-mono"
+            id="network-allowed-ports"
+            inputMode="numeric"
+            value={ports}
+            onChange={(event) => setPorts(event.target.value)}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Use only the destination ports required by these Functions.
+          </p>
+        </div>
+        <div>
+          <label className="label" htmlFor="network-max-response-bytes">
+            Maximum response size · bytes
+          </label>
+          <input
+            className="field font-mono"
+            id="network-max-response-bytes"
+            max={10485760}
+            min={1024}
+            type="number"
+            value={maxResponseBytes}
+            onChange={(event) => setMaxResponseBytes(Number(event.target.value))}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="label" htmlFor="network-private-hosts">
+            Approved private hosts · one per line
+          </label>
+          <textarea
+            className="field min-h-28 font-mono"
+            id="network-private-hosts"
+            placeholder="Internal hosts remain blocked unless explicitly listed here"
+            value={privateHosts}
+            onChange={(event) => setPrivateHosts(event.target.value)}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Each host must also appear in Allowed hosts. Metadata addresses remain
+            blocked even when listed.
+          </p>
+        </div>
       </div>
+      {message && <p className="mt-3 text-xs text-muted-foreground">{message}</p>}
       <Button className="mt-4" loading={busy} onClick={() => void save()}>
         Save network policy
       </Button>

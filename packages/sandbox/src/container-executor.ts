@@ -6,7 +6,11 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { asSafeRuntimeError, SafeRuntimeError } from "@mcpops/runtime-sdk";
+import {
+  asSafeRuntimeError,
+  SafeRuntimeError,
+  type InternalRuntimeErrorShape,
+} from "@mcpops/runtime-sdk";
 import {
   dispatchCapability,
   LocalChildProcessExecutor,
@@ -217,7 +221,7 @@ export class DisposableContainerExecutor implements FunctionExecutor {
                 error: asSafeRuntimeError(
                   error,
                   request.context.invocation.requestId,
-                ).toJSON(),
+                ).toDiagnosticJSON(),
               }),
           );
         else if (raw.type === "result")
@@ -235,7 +239,7 @@ export class DisposableContainerExecutor implements FunctionExecutor {
               error: normalizeContainerError(
                 raw.error,
                 request.context.invocation.requestId,
-              ).toJSON(),
+              ).toDiagnosticJSON(),
               durationMs: Math.round(performance.now() - startedAt),
             },
           );
@@ -259,6 +263,7 @@ type ContainerMessage =
         message?: string;
         requestId?: string;
         retryable?: boolean;
+        diagnostic?: InternalRuntimeErrorShape["diagnostic"];
       };
     }
   | { type: "rpc"; id: number; operation: string; args: unknown[] };
@@ -389,7 +394,13 @@ function internalResult(
   };
 }
 function normalizeContainerError(
-  value: { code?: string; message?: string; requestId?: string; retryable?: boolean },
+  value: {
+    code?: string;
+    message?: string;
+    requestId?: string;
+    retryable?: boolean;
+    diagnostic?: InternalRuntimeErrorShape["diagnostic"];
+  },
   requestId: string,
 ): SafeRuntimeError {
   const allowed = new Set([
@@ -412,5 +423,6 @@ function normalizeContainerError(
         : String(value.message ?? "The function could not be completed."),
     requestId: value.requestId ?? requestId,
     ...(value.retryable === undefined ? {} : { retryable: value.retryable }),
+    ...(value.diagnostic === undefined ? {} : { diagnostic: value.diagnostic }),
   });
 }

@@ -8,6 +8,13 @@ type ExecuteMessage = {
 };
 type CancelMessage = { type: "cancel"; reason?: string };
 type SerializedContext = Record<string, unknown> & { secrets: Record<string, string> };
+type Diagnostic = {
+  code: "HTTP_CONNECT_FAILED";
+  host: string;
+  port: number;
+  phase: "dns" | "connect" | "tls" | "timeout";
+  cause: string;
+};
 const hostProcess = process;
 let nextRpcId = 1;
 let activeAbortController: AbortController | undefined;
@@ -32,7 +39,12 @@ type RpcResult = {
   type: "rpc-result" | "rpc-error";
   id: number;
   value?: unknown;
-  error?: { message?: string; code?: string; requestId?: string };
+  error?: {
+    message?: string;
+    code?: string;
+    requestId?: string;
+    diagnostic?: Diagnostic;
+  };
 };
 function handle(raw: ExecuteMessage | CancelMessage | RpcResult): void {
   if (raw.type === "rpc-result" || raw.type === "rpc-error") {
@@ -89,6 +101,7 @@ async function execute(message: ExecuteMessage): Promise<void> {
       message?: string;
       requestId?: string;
       retryable?: boolean;
+      diagnostic?: Diagnostic;
     };
     send({
       type: "error",
@@ -97,6 +110,7 @@ async function execute(message: ExecuteMessage): Promise<void> {
         message: value.message,
         requestId: value.requestId,
         retryable: value.retryable,
+        diagnostic: value.diagnostic,
       },
     });
   }

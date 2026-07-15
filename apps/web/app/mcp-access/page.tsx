@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PlugZap, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell";
+import { McpClientSetup } from "@/components/mcp-client-setup";
 import { Badge, Button, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 
@@ -94,6 +95,9 @@ export default function McpAccessPage() {
             </div>
           ))}
         </section>
+      </div>
+      <div className="mt-5">
+        <McpClientSetup endpoint={endpoint} />
       </div>
     </AppShell>
   );

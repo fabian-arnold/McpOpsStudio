@@ -134,6 +134,30 @@ const platformInitialize = await json(`${runtime}/platform/mcp`, {
 });
 const platformSessionId = platformInitialize.response.headers.get("mcp-session-id");
 assert.ok(platformSessionId, "platform MCP initialization creates an isolated session");
+const platformToolList = await json(`${runtime}/platform/mcp`, {
+  method: "POST",
+  headers: { ...platformHeaders, "mcp-session-id": platformSessionId },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/list",
+    params: {},
+  }),
+});
+const platformToolNames = platformToolList.body.result.tools.map((tool) => tool.name);
+for (const name of [
+  "secrets_list",
+  "function_secret_grants_set",
+  "auth_policy_create",
+  "endpoint_auth_assign",
+  "network_policy_edit",
+  "executions_list",
+  "execution_logs",
+  "deployments_list",
+  "deployment_logs",
+]) {
+  assert.ok(platformToolNames.includes(name), `platform MCP exposes ${name}`);
+}
 async function platformTool(id, name, args = {}) {
   const response = await json(`${runtime}/platform/mcp`, {
     method: "POST",
@@ -151,24 +175,30 @@ async function platformTool(id, name, args = {}) {
     );
   return response;
 }
-const platformProjects = await platformTool(2, "projects_list");
+const platformProjects = await platformTool(3, "projects_list");
 assert.ok(
   platformProjects.body.result.structuredContent.data.projects.some(
     (project) => project.slug === "acme",
   ),
   "platform MCP lists installation projects",
 );
-await platformTool(3, "project_select", { project: "acme" });
-const platformFunctions = await platformTool(4, "functions_list");
+await platformTool(4, "project_select", { project: "acme" });
+const platformSecrets = await platformTool(5, "secrets_list");
+assert.equal(
+  platformSecrets.body.result.structuredContent.data.containsSecretValues,
+  false,
+  "platform MCP Secret listing never contains Secret values",
+);
+const platformFunctions = await platformTool(6, "functions_list");
 const platformFunction =
   platformFunctions.body.result.structuredContent.data.functions[0];
 assert.ok(platformFunction, "platform MCP lists selected-project Functions");
-const platformFunctionDetail = await platformTool(5, "function_get", {
+const platformFunctionDetail = await platformTool(7, "function_get", {
   function: platformFunction.id,
 });
 const editableFunction =
   platformFunctionDetail.body.result.structuredContent.data.function;
-const platformEditPreview = await platformTool(6, "function_edit", {
+const platformEditPreview = await platformTool(8, "function_edit", {
   function: editableFunction.id,
   expectedVersion: editableFunction.version,
   expectedChecksum: editableFunction.checksum,

@@ -40,6 +40,12 @@ import {
   queueDevelopmentDeployment,
 } from "./development-deployment.js";
 import { executeDevelopmentFunctionTest } from "./function-test-service.js";
+import { callSecretTool, secretToolNames } from "./platform-mcp-secrets.js";
+import { callPolicyTool, policyToolNames } from "./platform-mcp-policies.js";
+import {
+  callObservabilityTool,
+  observabilityToolNames,
+} from "./platform-mcp-observability.js";
 
 type McpIdentity = {
   grantId: string;
@@ -73,7 +79,7 @@ type EndpointSummaryInput = Pick<
   | "updatedAt"
 >;
 
-const editSchema = z
+export const functionEditSchema = z
   .object({
     function: z.string().min(1),
     expectedVersion: z.number().int().positive(),
@@ -87,8 +93,13 @@ const editSchema = z
     dryRun: z.boolean().default(true),
   })
   .refine(
-    (value) => Boolean(value.patch) !== Boolean(value.source),
-    "Provide exactly one of patch or source",
+    (value) => !(value.patch && value.source),
+    "Provide patch or source, not both",
+  )
+  .refine(
+    (value) =>
+      Boolean(value.patch || value.source || Object.keys(value.changes ?? {}).length),
+    "Provide source, patch, or metadata changes",
   );
 
 const requiredToolFields: Record<string, string[]> = {
@@ -103,9 +114,25 @@ const requiredToolFields: Record<string, string[]> = {
   binding_create: ["endpoint", "binding"],
   binding_edit: ["endpoint", "bindingId", "changes"],
   endpoint_discover: ["endpoint"],
+  secret_create: ["name"],
+  secret_set_value: ["secret", "environment", "value"],
+  secret_delete: ["secret"],
+  function_secret_grants_get: ["function"],
+  function_secret_grants_set: ["function", "secrets"],
+  auth_policy_get: ["policy"],
+  auth_policy_create: ["definition"],
+  auth_policy_edit: ["policy", "definition"],
+  auth_policy_delete: ["policy"],
+  endpoint_auth_assign: ["endpoint", "policies"],
+  network_policy_get: ["endpoint"],
+  network_policy_edit: ["endpoint", "policy"],
+  execution_get: ["execution"],
+  execution_logs: ["execution"],
+  deployment_get: ["deployment"],
+  deployment_logs: ["deployment"],
 };
 
-const tools = [
+export const platformTools = [
   tool(
     "projects_list",
     "List active installation projects available for selection.",
@@ -237,9 +264,177 @@ const tools = [
     true,
   ),
   tool(
+    "secrets_list",
+    "List logical Secrets and value presence without returning values.",
+    {},
+    true,
+  ),
+  tool(
+    "secret_create",
+    "Create an empty logical Secret in Development and Production.",
+    {
+      name: stringField("Uppercase logical Secret name"),
+    },
+    false,
+  ),
+  tool(
+    "secret_set_value",
+    "Set or rotate one environment-specific Secret value.",
+    {
+      secret: stringField("Logical Secret name"),
+      environment: stringField("Environment ID, slug, or name"),
+      value: stringField("Secret value; never returned or audited"),
+    },
+    false,
+  ),
+  tool(
+    "secret_delete",
+    "Delete an unused logical Secret after dependency checks.",
+    {
+      secret: stringField("Logical Secret name"),
+    },
+    false,
+  ),
+  tool(
+    "function_secret_grants_get",
+    "Inspect a Function's logical Secret grants.",
+    {
+      function: stringField("Function ID, slug, or name"),
+    },
+    true,
+  ),
+  tool(
+    "function_secret_grants_set",
+    "Replace a Function's Secret grants using logical names.",
+    {
+      function: stringField("Function ID, slug, or name"),
+      secrets: stringArrayField("Complete ordered set of logical Secret names"),
+    },
+    false,
+  ),
+  tool(
+    "auth_policies_list",
+    "List authentication policies and endpoint assignments.",
+    {},
+    true,
+  ),
+  tool(
+    "auth_policy_get",
+    "Inspect one authentication policy and its assignments.",
+    {
+      policy: stringField("Authentication policy ID or name"),
+    },
+    true,
+  ),
+  tool(
+    "auth_policy_create",
+    "Create a validated endpoint authentication policy.",
+    {
+      definition: objectField("Policy matching the platform authentication contract"),
+    },
+    false,
+  ),
+  tool(
+    "auth_policy_edit",
+    "Replace a validated authentication policy definition.",
+    {
+      policy: stringField("Authentication policy ID or name"),
+      definition: objectField("Complete policy definition"),
+    },
+    false,
+  ),
+  tool(
+    "auth_policy_delete",
+    "Delete an unassigned authentication policy.",
+    {
+      policy: stringField("Authentication policy ID or name"),
+    },
+    false,
+  ),
+  tool(
+    "endpoint_auth_assign",
+    "Replace, remove, or reorder endpoint authentication policies.",
+    {
+      endpoint: stringField("Endpoint ID or slug"),
+      policies: stringArrayField(
+        "Policy IDs or names in evaluation order; empty removes all",
+      ),
+    },
+    false,
+  ),
+  tool(
+    "network_policy_get",
+    "Inspect an endpoint outbound network policy.",
+    {
+      endpoint: stringField("Endpoint ID or slug"),
+    },
+    true,
+  ),
+  tool(
+    "network_policy_edit",
+    "Configure validated outbound hosts, methods, ports, private-host exceptions, and response size.",
+    {
+      endpoint: stringField("Endpoint ID or slug"),
+      policy: objectField("Complete network policy"),
+    },
+    false,
+  ),
+  tool(
     "deployment_status",
     "Inspect selected-project development deployment status.",
     {},
+    true,
+  ),
+  tool(
+    "executions_list",
+    "List safe, redacted execution records with optional filters.",
+    {
+      endpoint: optionalString("Endpoint ID, slug, or name"),
+      function: optionalString("Function ID, slug, or name"),
+      status: optionalString("Execution status"),
+      requestId: optionalString("Exact request ID"),
+      limit: optionalNumber("Maximum results, 1-200"),
+    },
+    true,
+  ),
+  tool(
+    "execution_get",
+    "Inspect one safe, redacted execution record.",
+    { execution: stringField("Execution ID") },
+    true,
+  ),
+  tool(
+    "execution_logs",
+    "Read redacted Function logs for one execution.",
+    {
+      execution: stringField("Execution ID"),
+      limit: optionalNumber("Maximum results, 1-200"),
+    },
+    true,
+  ),
+  tool(
+    "deployments_list",
+    "List successful, active, in-progress, and failed deployments.",
+    {
+      environment: optionalString("Environment ID, slug, or name"),
+      status: optionalString("Deployment status"),
+      limit: optionalNumber("Maximum results, 1-200"),
+    },
+    true,
+  ),
+  tool(
+    "deployment_get",
+    "Inspect one deployment without returning its source snapshot.",
+    { deployment: stringField("Project deployment ID") },
+    true,
+  ),
+  tool(
+    "deployment_logs",
+    "Read redacted endpoint build logs for one deployment.",
+    {
+      deployment: stringField("Project deployment ID"),
+      limit: optionalNumber("Maximum results, 1-200"),
+    },
     true,
   ),
   tool(
@@ -313,7 +508,7 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
           return reply
             .status(400)
             .send(rpcError(rpc.id ?? null, -32602, "Invalid tools/list parameters"));
-        return rpcResult(rpc, { tools });
+        return rpcResult(rpc, { tools: platformTools });
       }
       if (rpc.method !== "tools/call")
         return rpcError(rpc.id ?? null, -32601, "Method not found");
@@ -439,6 +634,11 @@ async function callTool(
       "PROJECT_NOT_FOUND",
       "The selected project is no longer active; select another project.",
     );
+
+  if (secretToolNames.has(name)) return callSecretTool(name, projectId, identity, args);
+  if (policyToolNames.has(name)) return callPolicyTool(name, projectId, identity, args);
+  if (observabilityToolNames.has(name))
+    return callObservabilityTool(name, projectId, args);
 
   if (name === "project_get") {
     const environments = await prisma.environment.findMany({
@@ -578,6 +778,9 @@ function booleanField(description: string, defaultValue: boolean) {
 function numberField(description: string) {
   return { type: "integer", description, minimum: 1 };
 }
+function optionalNumber(description: string) {
+  return { type: "integer", description, minimum: 1, maximum: 200 };
+}
 function objectField(description: string) {
   return { type: "object", description, additionalProperties: true };
 }
@@ -586,6 +789,9 @@ function optionalObject(description: string) {
 }
 function enumField(values: string[]) {
   return { type: "string", enum: values };
+}
+function stringArrayField(description: string) {
+  return { type: "array", items: { type: "string" }, description };
 }
 function anyField(description: string) {
   return { description };
@@ -812,7 +1018,7 @@ async function editFunction(
 ) {
   requireScope(identity, "mcpops:write");
   requireRole(identity, ["owner", "admin", "developer"]);
-  const input = editSchema.parse(args);
+  const input = functionEditSchema.parse(args);
   const fn = await findFunction(projectId, input.function);
   const latest = fn.versions[0];
   const currentChecksum = latest?.checksum ?? checksum(fn.code);
@@ -825,7 +1031,8 @@ async function editFunction(
       `Function changed; current version is ${fn.version} with checksum ${currentChecksum}`,
       409,
     );
-  const code = input.source ?? applyUnifiedPatch(fn.code, input.patch!);
+  const code =
+    input.source ?? (input.patch ? applyUnifiedPatch(fn.code, input.patch) : fn.code);
   const draft = functionCreateSchema.parse({
     ...functionDraft(fn),
     ...input.changes,
@@ -1291,6 +1498,27 @@ async function deploymentStatus(projectId: string) {
         orderBy: { createdAt: "desc" },
       })
     : null;
+  const latestFailed = environment
+    ? await prisma.projectDeployment.findFirst({
+        where: { projectId, environmentId: environment.id, status: "failed" },
+        include: {
+          endpointDeployments: {
+            where: { status: "failed" },
+            select: {
+              id: true,
+              endpoint: { select: { id: true, name: true, slug: true } },
+              logs: {
+                where: { level: "error" },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { message: true, createdAt: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : null;
   return output("Development deployment status", {
     environment: environment
       ? {
@@ -1300,6 +1528,7 @@ async function deploymentStatus(projectId: string) {
       : null,
     activeDeployment: environment?.activeProjectDeployment ?? null,
     inProgressDeployment: inProgress,
+    latestFailedDeployment: latestFailed,
   });
 }
 async function developmentDeploy(

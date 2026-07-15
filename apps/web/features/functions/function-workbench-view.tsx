@@ -134,7 +134,7 @@ export function FunctionWorkbenchView({ model }: { model: FunctionWorkbenchModel
           </div>
         </header>
         <div
-          className="grid min-h-[calc(100vh-150px)] grid-cols-1 xl:h-[calc(100vh-150px)] xl:min-h-0 xl:grid-cols-[var(--workbench-left)_6px_minmax(520px,1fr)_6px_var(--workbench-right)]"
+          className="grid min-h-[calc(100vh-150px)] grid-cols-1 2xl:h-[calc(100vh-150px)] 2xl:min-h-0 2xl:grid-cols-[var(--workbench-left)_6px_minmax(400px,1fr)_6px_var(--workbench-right)]"
           style={
             {
               "--workbench-left": `${workbenchLayout.left}px`,
@@ -142,7 +142,7 @@ export function FunctionWorkbenchView({ model }: { model: FunctionWorkbenchModel
             } as React.CSSProperties
           }
         >
-          <nav className="border-r bg-card p-3 xl:overflow-auto">
+          <nav className="border-b bg-card p-3 2xl:overflow-auto 2xl:border-b-0 2xl:border-r">
             <div className="mb-3 flex items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 <Search
@@ -225,7 +225,7 @@ export function FunctionWorkbenchView({ model }: { model: FunctionWorkbenchModel
               }))
             }
           />
-          <main className="flex min-w-0 flex-col xl:h-full xl:min-h-0 xl:overflow-hidden">
+          <main className="flex min-w-0 flex-col 2xl:h-full 2xl:min-h-0 2xl:overflow-hidden">
             <div className="flex h-10 items-center gap-2 border-b bg-card px-3 text-[11px]">
               <FileInput size={12} /> {draft?.slug || "function"}.ts
             </div>
@@ -281,7 +281,7 @@ export function FunctionWorkbenchView({ model }: { model: FunctionWorkbenchModel
                 </div>
               </section>
             )}
-            <div className="min-h-80 flex-1 xl:min-h-0">
+            <div className="min-h-80 flex-1 2xl:min-h-0">
               {loadError ? (
                 <div className="p-5">
                   <LoadError

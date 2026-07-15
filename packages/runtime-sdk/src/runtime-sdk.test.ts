@@ -29,3 +29,23 @@ describe("authorization", () => {
     ).toThrow(SafeRuntimeError);
   });
 });
+describe("runtime diagnostics", () => {
+  it("exposes connection diagnostics only through the explicit diagnostic shape", () => {
+    const error = new SafeRuntimeError({
+      code: "UPSTREAM_ERROR",
+      message: "The upstream service could not be reached.",
+      requestId: "request-1",
+      diagnostic: {
+        code: "HTTP_CONNECT_FAILED",
+        host: "sap.internal",
+        port: 50000,
+        phase: "tls",
+        cause: "CERT_UNTRUSTED",
+      },
+    });
+    expect(error.toJSON()).not.toHaveProperty("diagnostic");
+    expect(error.toDiagnosticJSON()).toMatchObject({
+      diagnostic: { host: "sap.internal", port: 50000, phase: "tls" },
+    });
+  });
+});

@@ -189,7 +189,7 @@ export async function getEncryptedSecret(
       name,
     },
     select: { encryptedValue: true },
-  })) as { encryptedValue: string } | null;
+  })) as { encryptedValue: string | null } | null;
   return row?.encryptedValue ?? null;
 }
 
@@ -205,7 +205,7 @@ export async function getEncryptedSecretById(
       environmentId: endpoint.environment.id,
     },
     select: { encryptedValue: true },
-  })) as { encryptedValue: string } | null;
+  })) as { encryptedValue: string | null } | null;
   return row?.encryptedValue ?? null;
 }
 

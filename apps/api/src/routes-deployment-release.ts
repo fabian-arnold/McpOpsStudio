@@ -70,7 +70,11 @@ export async function registerDeploymentReleaseRoutes(
         },
       });
     const productionSecrets = await prisma.secret.findMany({
-      where: { projectId: session.projectId, environmentId: production.id },
+      where: {
+        projectId: session.projectId,
+        environmentId: production.id,
+        encryptedValue: { not: null },
+      },
       select: { id: true, name: true },
     });
     const productionConnections = await prisma.databaseConnection.findMany({

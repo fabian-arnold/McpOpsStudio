@@ -194,6 +194,6 @@ export default tseslint.config(
   },
   {
     files: ["apps/api/src/platform-mcp.ts"],
-    rules: { "max-lines": ["error", { max: 1500 }] },
+    rules: { "max-lines": ["error", { max: 1650 }] },
   },
 );

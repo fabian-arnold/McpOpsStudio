@@ -15,17 +15,29 @@ export type SafeRuntimeErrorShape = {
   requestId: string;
   retryable?: boolean;
 };
+export type RuntimeDiagnostic = {
+  code: "HTTP_CONNECT_FAILED";
+  host: string;
+  port: number;
+  phase: "dns" | "connect" | "tls" | "timeout";
+  cause: string;
+};
+export type InternalRuntimeErrorShape = SafeRuntimeErrorShape & {
+  diagnostic?: RuntimeDiagnostic;
+};
 
 export class SafeRuntimeError extends Error {
   readonly code: SafeRuntimeErrorCode;
   readonly requestId: string;
   readonly retryable?: boolean;
-  constructor(shape: SafeRuntimeErrorShape, options?: ErrorOptions) {
+  readonly diagnostic?: RuntimeDiagnostic;
+  constructor(shape: InternalRuntimeErrorShape, options?: ErrorOptions) {
     super(shape.message, options);
     this.name = "SafeRuntimeError";
     this.code = shape.code;
     this.requestId = shape.requestId;
     if (shape.retryable !== undefined) this.retryable = shape.retryable;
+    if (shape.diagnostic !== undefined) this.diagnostic = shape.diagnostic;
   }
   toJSON(): SafeRuntimeErrorShape {
     return {
@@ -33,6 +45,12 @@ export class SafeRuntimeError extends Error {
       message: this.message,
       requestId: this.requestId,
       ...(this.retryable === undefined ? {} : { retryable: this.retryable }),
+    };
+  }
+  toDiagnosticJSON(): InternalRuntimeErrorShape {
+    return {
+      ...this.toJSON(),
+      ...(this.diagnostic ? { diagnostic: this.diagnostic } : {}),
     };
   }
 }

@@ -136,9 +136,9 @@ export async function validatePolicySecretIfRequired(
   const secretRef = config.secretRef;
   const secret = await prisma.secret.findFirst({
     where: { projectId, environmentId, name: secretRef },
-    select: { id: true },
+    select: { id: true, encryptedValue: true },
   });
-  if (!secret)
+  if (!secret?.encryptedValue)
     throw Object.assign(
       new Error(
         "Authentication policy secretRef must name a secret in the endpoint environment",

@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import {
   asSafeRuntimeError,
   SafeRuntimeError,
+  type InternalRuntimeErrorShape,
   type RuntimeContext,
 } from "@mcpops/runtime-sdk";
 
@@ -20,7 +21,7 @@ export type FunctionExecutionRequest = {
 export type FunctionExecutionResult = {
   status: "success" | "error" | "timeout";
   output?: unknown;
-  error?: ReturnType<SafeRuntimeError["toJSON"]>;
+  error?: InternalRuntimeErrorShape;
   durationMs: number;
 };
 export type ExecutorMetadata = {
@@ -44,6 +45,7 @@ type ChildMessage =
         message?: string;
         requestId?: string;
         retryable?: boolean;
+        diagnostic?: InternalRuntimeErrorShape["diagnostic"];
       };
     }
   | { type: "rpc"; id: number; operation: string; args: unknown[] };
@@ -143,7 +145,7 @@ export class LocalChildProcessExecutor implements FunctionExecutor {
                 error: asSafeRuntimeError(
                   error,
                   request.context.invocation.requestId,
-                ).toJSON(),
+                ).toDiagnosticJSON(),
               }),
           );
         } else if (raw.type === "result") {
@@ -165,7 +167,7 @@ export class LocalChildProcessExecutor implements FunctionExecutor {
           );
           finish({
             status: error.code === "TIMEOUT" ? "timeout" : "error",
-            error: error.toJSON(),
+            error: error.toDiagnosticJSON(),
             durationMs: Math.round(performance.now() - startedAt),
           });
         }
@@ -305,6 +307,7 @@ function normalizeChildError(
     message?: string;
     requestId?: string;
     retryable?: boolean;
+    diagnostic?: InternalRuntimeErrorShape["diagnostic"];
   },
   fallbackRequestId: string,
 ): SafeRuntimeError {
@@ -330,5 +333,6 @@ function normalizeChildError(
     message,
     requestId: value.requestId ?? fallbackRequestId,
     ...(value.retryable === undefined ? {} : { retryable: value.retryable }),
+    ...(value.diagnostic === undefined ? {} : { diagnostic: value.diagnostic }),
   });
 }

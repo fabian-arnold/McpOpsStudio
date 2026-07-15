@@ -79,9 +79,14 @@ export async function assertAllowedUrl(
       message: "The outbound port is not allowed.",
       requestId,
     });
-  const addresses = isIP(host)
-    ? [{ address: host }]
-    : await lookup(host, { all: true, verbatim: true });
+  let addresses: { address: string }[];
+  try {
+    addresses = isIP(host)
+      ? [{ address: host }]
+      : await lookup(host, { all: true, verbatim: true });
+  } catch (error) {
+    throw connectionError(url, "dns", error, requestId);
+  }
   if (
     !addresses.length ||
     !privateResolutionAllowed(
@@ -201,18 +206,8 @@ export class PolicyHttpClient implements RestrictedHttpClient {
       } catch (error) {
         if (error instanceof SafeRuntimeError) throw error;
         if (signal.aborted)
-          throw new SafeRuntimeError({
-            code: "TIMEOUT",
-            message: "The upstream request timed out.",
-            requestId: this.requestId,
-            retryable: true,
-          });
-        throw new SafeRuntimeError({
-          code: "UPSTREAM_ERROR",
-          message: "The upstream service could not be reached.",
-          requestId: this.requestId,
-          retryable: true,
-        });
+          throw connectionError(url, "timeout", error, this.requestId);
+        throw connectionError(url, connectionPhase(error), error, this.requestId);
       }
     }
     throw new SafeRuntimeError({
@@ -221,6 +216,65 @@ export class PolicyHttpClient implements RestrictedHttpClient {
       requestId: this.requestId,
     });
   }
+}
+
+function connectionError(
+  url: URL,
+  phase: "dns" | "connect" | "tls" | "timeout",
+  error: unknown,
+  requestId: string,
+): SafeRuntimeError {
+  const cause = safeCause(error, phase);
+  return new SafeRuntimeError({
+    code: phase === "timeout" ? "TIMEOUT" : "UPSTREAM_ERROR",
+    message:
+      phase === "timeout"
+        ? "The upstream request timed out."
+        : "The upstream service could not be reached.",
+    requestId,
+    retryable: true,
+    diagnostic: {
+      code: "HTTP_CONNECT_FAILED",
+      host: url.hostname.toLowerCase(),
+      port: url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80,
+      phase,
+      cause,
+    },
+  });
+}
+
+function connectionPhase(error: unknown): "dns" | "connect" | "tls" {
+  const code = errorCode(error);
+  if (["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL", "ENODATA"].includes(code)) return "dns";
+  if (code.startsWith("CERT_") || code.includes("TLS") || code.includes("SSL"))
+    return "tls";
+  return "connect";
+}
+
+function safeCause(error: unknown, phase: string): string {
+  const code = errorCode(error);
+  if (code.startsWith("CERT_") || code.includes("SELF_SIGNED")) return "CERT_UNTRUSTED";
+  const allowed = new Set([
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "ETIMEDOUT",
+  ]);
+  return allowed.has(code)
+    ? code
+    : phase === "timeout"
+      ? "TIMEOUT"
+      : "CONNECTION_FAILED";
+}
+
+function errorCode(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const value = error as { code?: unknown; cause?: unknown };
+  if (typeof value.code === "string") return value.code.toUpperCase();
+  return value.cause === error ? "" : errorCode(value.cause);
 }
 
 async function readLimited(
