@@ -8,6 +8,10 @@ const lockRedis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
   lazyConnect: true,
 });
 
+export const CRON_INVOCATION_TIMEOUT_MS = 150_000;
+export const SCHEDULE_JOB_LOCK_DURATION_MS = 240_000;
+export const SCHEDULE_JOB_LOCK_RENEW_TIME_MS = 60_000;
+
 export async function closeSchedulerResources(): Promise<void> {
   if (lockRedis.status !== "wait" && lockRedis.status !== "end") await lockRedis.quit();
 }
@@ -158,7 +162,7 @@ export async function processScheduleJob(queue: Queue, job: Job): Promise<void> 
           : {}),
       },
       body: JSON.stringify({}),
-      signal: AbortSignal.timeout(150_000),
+      signal: AbortSignal.timeout(CRON_INVOCATION_TIMEOUT_MS),
     });
     const result = (await response.json().catch(() => ({}))) as {
       executionId?: string;
@@ -196,46 +200,46 @@ async function claimRun(input: {
   origin: "scheduled" | "manual";
   requestId: string;
 }) {
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const deployment = await tx.scheduleDeployment.findUnique({
-        where: { id: input.scheduleDeploymentId },
-        include: {
-          projectDeployment: {
-            select: { environment: { select: { activeProjectDeploymentId: true } } },
-          },
+  return prisma.$transaction(async (tx) => {
+    const deployment = await tx.scheduleDeployment.findUnique({
+      where: { id: input.scheduleDeploymentId },
+      include: {
+        projectDeployment: {
+          select: { environment: { select: { activeProjectDeploymentId: true } } },
         },
-      });
-      if (!deployment) return null;
-      const active =
-        deployment.projectDeployment.environment.activeProjectDeploymentId ===
-        deployment.projectDeploymentId;
-      return tx.scheduledRun.create({
-        data: {
-          projectId: deployment.projectId,
-          environmentId: deployment.environmentId,
-          cronBindingId: input.bindingId,
-          scheduleDeploymentId: deployment.id,
-          scheduledAt: input.scheduledAt,
-          origin: input.origin,
-          requestId: input.requestId,
-          status: active ? "scheduled" : "missed",
-          ...(!active
-            ? { completedAt: new Date(), reason: "stale_schedule_deployment" }
-            : {}),
-        },
-      });
+      },
     });
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    )
-      return null;
-    throw error;
-  }
+    if (!deployment) return null;
+    const active =
+      deployment.projectDeployment.environment.activeProjectDeploymentId ===
+      deployment.projectDeploymentId;
+    const inserted = await tx.scheduledRun.createMany({
+      data: {
+        projectId: deployment.projectId,
+        environmentId: deployment.environmentId,
+        cronBindingId: input.bindingId,
+        scheduleDeploymentId: deployment.id,
+        scheduledAt: input.scheduledAt,
+        origin: input.origin,
+        requestId: input.requestId,
+        status: active ? "scheduled" : "missed",
+        ...(!active
+          ? { completedAt: new Date(), reason: "stale_schedule_deployment" }
+          : {}),
+      },
+      skipDuplicates: true,
+    });
+    if (inserted.count === 0) return null;
+    return tx.scheduledRun.findUniqueOrThrow({
+      where: {
+        scheduleDeploymentId_cronBindingId_scheduledAt: {
+          scheduleDeploymentId: deployment.id,
+          cronBindingId: input.bindingId,
+          scheduledAt: input.scheduledAt,
+        },
+      },
+    });
+  });
 }
 
 function object(value: unknown): Record<string, unknown> {

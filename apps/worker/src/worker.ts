@@ -3,6 +3,8 @@ import { buildDeployment } from "./builder.js";
 import { buildScheduleDeployment } from "./schedule-builder.js";
 import {
   closeSchedulerResources,
+  SCHEDULE_JOB_LOCK_DURATION_MS,
+  SCHEDULE_JOB_LOCK_RENEW_TIME_MS,
   processScheduleJob,
   reconcileSchedulers,
 } from "./scheduler.js";
@@ -34,7 +36,12 @@ const scheduleQueue = new Queue("schedules", { connection });
 const scheduleWorker = new Worker(
   "schedules",
   (job) => processScheduleJob(scheduleQueue, job),
-  { connection, concurrency: Number(process.env.SCHEDULE_CONCURRENCY ?? 10) },
+  {
+    connection,
+    concurrency: Number(process.env.SCHEDULE_CONCURRENCY ?? 10),
+    lockDuration: SCHEDULE_JOB_LOCK_DURATION_MS,
+    lockRenewTime: SCHEDULE_JOB_LOCK_RENEW_TIME_MS,
+  },
 );
 worker.on("completed", (job) => {
   console.log(
