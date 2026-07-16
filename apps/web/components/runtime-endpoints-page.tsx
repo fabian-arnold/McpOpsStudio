@@ -196,14 +196,14 @@ export function RuntimeEndpointsPage({ kind }: { kind?: "mcp" | "http" }) {
                             {endpoint.description}
                           </p>
                         </div>
-                        <DisableEndpointAction
+                        <EndpointStatusAction
                           endpoint={endpoint}
-                          canDisable={roleAllows(user?.role, [
+                          canManage={roleAllows(user?.role, [
                             "owner",
                             "admin",
                             "operator",
                           ])}
-                          onDisabled={() => setAttempt((value) => value + 1)}
+                          onChanged={() => setAttempt((value) => value + 1)}
                         />
                       </div>
                       <div className="mt-5 grid grid-cols-2 divide-x rounded-lg border bg-muted/20 py-3 text-center">
@@ -290,20 +290,61 @@ export function RuntimeEndpointsPage({ kind }: { kind?: "mcp" | "http" }) {
   );
 }
 
-function DisableEndpointAction({
+function EndpointStatusAction({
   endpoint,
-  onDisabled,
-  canDisable,
+  onChanged,
+  canManage,
 }: {
   endpoint: RuntimeEndpoint;
-  onDisabled: () => void;
-  canDisable: boolean;
+  onChanged: () => void;
+  canManage: boolean;
 }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mutationError, setMutationError] = useState<string>();
-  if (endpoint.status === "disabled") return <Badge>Disabled</Badge>;
+  async function enable() {
+    setBusy(true);
+    try {
+      await api(`/api/runtime-endpoints/${endpoint.id}/enable`, {
+        method: "POST",
+        body: "{}",
+      });
+      toast({
+        title: "RuntimeEndpoint enabled",
+        description: endpoint.activeDeployment
+          ? `${endpoint.name} is active again.`
+          : `${endpoint.name} is enabled as a draft and must be deployed before it serves traffic.`,
+        tone: "success",
+      });
+      onChanged();
+    } catch (error) {
+      toast({
+        title: "Unable to enable RuntimeEndpoint",
+        description: errorMessage(error),
+        tone: "error",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (endpoint.status === "disabled") {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!canManage}
+        loading={busy}
+        onClick={enable}
+        aria-label={`Enable ${endpoint.name}`}
+        title={
+          canManage ? `Enable ${endpoint.name}` : "Your role cannot enable endpoints"
+        }
+      >
+        <Power size={15} />
+      </Button>
+    );
+  }
   async function disable() {
     setBusy(true);
     setMutationError(undefined);
@@ -318,7 +359,7 @@ function DisableEndpointAction({
         tone: "success",
       });
       setOpen(false);
-      onDisabled();
+      onChanged();
     } catch (error) {
       setMutationError(errorMessage(error));
     } finally {
@@ -333,10 +374,10 @@ function DisableEndpointAction({
         <Button
           variant="ghost"
           size="icon"
-          disabled={!canDisable}
+          disabled={!canManage}
           aria-label={`Disable ${endpoint.name}`}
           title={
-            canDisable
+            canManage
               ? `Disable ${endpoint.name}`
               : "Your role cannot disable endpoints"
           }
