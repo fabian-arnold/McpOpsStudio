@@ -79,8 +79,11 @@ export function ConnectDialog({
       <div className="space-y-4">
         {endpoint.kind === "http" && (
           <div>
-            <label className="label">Method</label>
+            <label className="label" htmlFor="binding-map-method">
+              Method
+            </label>
             <select
+              id="binding-map-method"
               className="field"
               value={method}
               onChange={(event) => setMethod(event.target.value)}

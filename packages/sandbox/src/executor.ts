@@ -204,53 +204,15 @@ export async function dispatchCapability(
   operation: string,
   args: unknown[],
 ): Promise<unknown> {
+  if (operation.startsWith("logger."))
+    return dispatchLoggerCapability(context, operation, args);
+  if (operation.startsWith("storage.") || operation.startsWith("cache."))
+    return dispatchStorageCapability(context, operation, args);
   switch (operation) {
-    case "logger.debug":
-      context.logger.debug(String(args[0]), record(args[1]));
-      return null;
-    case "logger.info":
-      context.logger.info(String(args[0]), record(args[1]));
-      return null;
-    case "logger.warn":
-      context.logger.warn(String(args[0]), record(args[1]));
-      return null;
-    case "logger.error":
-      context.logger.error(String(args[0]), record(args[1]));
-      return null;
     case "http.request":
       return context.http.request(
         args[0] as Parameters<RuntimeContext["http"]["request"]>[0],
       );
-    case "storage.get":
-      return storageFor(context, args[1]).get(String(args[0]));
-    case "storage.list":
-      return storageFor(context, args[2]).list(
-        String(args[0]),
-        args[1] as { limit?: number } | undefined,
-      );
-    case "storage.set":
-      return storageFor(context, args[3]).set(
-        String(args[0]),
-        args[1],
-        args[2] as { ttlSeconds?: number } | undefined,
-      );
-    case "storage.delete":
-      return storageFor(context, args[1]).delete(String(args[0]));
-    case "storage.deleteMany":
-      return storageFor(context, args[2]).deleteMany(
-        String(args[0]),
-        args[1] as { limit?: number } | undefined,
-      );
-    case "cache.get":
-      return cacheFor(context, args[1]).get(String(args[0]));
-    case "cache.set":
-      return cacheFor(context, args[3]).set(
-        String(args[0]),
-        args[1],
-        args[2] as { ttlSeconds?: number } | undefined,
-      );
-    case "cache.delete":
-      return cacheFor(context, args[1]).delete(String(args[0]));
     case "audit.write":
       return context.audit.write(
         args[0] as Parameters<RuntimeContext["audit"]["write"]>[0],
@@ -295,6 +257,72 @@ export async function dispatchCapability(
         .delete(String(args[1]), args[2] as { revision: number });
     case "functions.call":
       return context.functions.call(String(args[0]), args[1]);
+    default:
+      throw new Error("Unknown execution capability");
+  }
+}
+
+function dispatchLoggerCapability(
+  context: RuntimeContext,
+  operation: string,
+  args: unknown[],
+): null {
+  const message = String(args[0]);
+  const metadata = record(args[1]);
+  switch (operation) {
+    case "logger.debug":
+      context.logger.debug(message, metadata);
+      return null;
+    case "logger.info":
+      context.logger.info(message, metadata);
+      return null;
+    case "logger.warn":
+      context.logger.warn(message, metadata);
+      return null;
+    case "logger.error":
+      context.logger.error(message, metadata);
+      return null;
+    default:
+      throw new Error("Unknown execution capability");
+  }
+}
+
+function dispatchStorageCapability(
+  context: RuntimeContext,
+  operation: string,
+  args: unknown[],
+): Promise<unknown> {
+  switch (operation) {
+    case "storage.get":
+      return storageFor(context, args[1]).get(String(args[0]));
+    case "storage.list":
+      return storageFor(context, args[2]).list(
+        String(args[0]),
+        args[1] as { limit?: number } | undefined,
+      );
+    case "storage.set":
+      return storageFor(context, args[3]).set(
+        String(args[0]),
+        args[1],
+        args[2] as { ttlSeconds?: number } | undefined,
+      );
+    case "storage.delete":
+      return storageFor(context, args[1]).delete(String(args[0]));
+    case "storage.deleteMany":
+      return storageFor(context, args[2]).deleteMany(
+        String(args[0]),
+        args[1] as { limit?: number } | undefined,
+      );
+    case "cache.get":
+      return cacheFor(context, args[1]).get(String(args[0]));
+    case "cache.set":
+      return cacheFor(context, args[3]).set(
+        String(args[0]),
+        args[1],
+        args[2] as { ttlSeconds?: number } | undefined,
+      );
+    case "cache.delete":
+      return cacheFor(context, args[1]).delete(String(args[0]));
     default:
       throw new Error("Unknown execution capability");
   }

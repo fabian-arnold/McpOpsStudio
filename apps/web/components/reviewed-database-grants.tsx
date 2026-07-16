@@ -71,8 +71,11 @@ export function GrantDialog({
     >
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <label className="label">Function</label>
+          <label className="label" htmlFor="reviewed-grant-function">
+            Function
+          </label>
           <select
+            id="reviewed-grant-function"
             className="field"
             value={functionId}
             onChange={(event) => setFunctionId(event.target.value)}
@@ -85,8 +88,11 @@ export function GrantDialog({
           </select>
         </div>
         <div>
-          <label className="label">Reviewed version</label>
+          <label className="label" htmlFor="reviewed-grant-version">
+            Reviewed version
+          </label>
           <select
+            id="reviewed-grant-version"
             className="field"
             value={queryVersionId}
             onChange={(event) => setQueryVersionId(event.target.value)}

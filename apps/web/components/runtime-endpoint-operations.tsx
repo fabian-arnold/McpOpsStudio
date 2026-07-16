@@ -303,24 +303,33 @@ export function Settings({
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div>
-          <label className="label">Name</label>
+          <label className="label" htmlFor="endpoint-settings-name">
+            Name
+          </label>
           <input
+            id="endpoint-settings-name"
             className="field"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
         </div>
         <div>
-          <label className="label">Slug</label>
+          <label className="label" htmlFor="endpoint-settings-slug">
+            Slug
+          </label>
           <input
+            id="endpoint-settings-slug"
             className="field font-mono"
             value={slug}
             onChange={(event) => setSlug(event.target.value)}
           />
         </div>
         <div className="md:col-span-2">
-          <label className="label">Description</label>
+          <label className="label" htmlFor="endpoint-settings-description">
+            Description
+          </label>
           <textarea
+            id="endpoint-settings-description"
             className="field min-h-28"
             value={description}
             onChange={(event) => setDescription(event.target.value)}

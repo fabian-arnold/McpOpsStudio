@@ -288,8 +288,11 @@ export function QueryDialog({
         {!query && (
           <>
             <div>
-              <label className="label">Connection</label>
+              <label className="label" htmlFor="reviewed-query-connection">
+                Connection
+              </label>
               <select
+                id="reviewed-query-connection"
                 className="field"
                 value={connectionId}
                 onChange={(event) => setConnectionId(event.target.value)}
@@ -304,8 +307,11 @@ export function QueryDialog({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="label">Query ID</label>
+                <label className="label" htmlFor="reviewed-query-id">
+                  Query ID
+                </label>
                 <input
+                  id="reviewed-query-id"
                   className="field font-mono"
                   value={queryId}
                   onChange={(event) => setQueryId(event.target.value)}
@@ -313,8 +319,11 @@ export function QueryDialog({
                 />
               </div>
               <div>
-                <label className="label">Display name</label>
+                <label className="label" htmlFor="reviewed-query-name">
+                  Display name
+                </label>
                 <input
+                  id="reviewed-query-name"
                   className="field"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -322,8 +331,11 @@ export function QueryDialog({
               </div>
             </div>
             <div>
-              <label className="label">Description</label>
+              <label className="label" htmlFor="reviewed-query-description">
+                Description
+              </label>
               <input
+                id="reviewed-query-description"
                 className="field"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -332,8 +344,11 @@ export function QueryDialog({
           </>
         )}
         <div>
-          <label className="label">Reviewed SELECT</label>
+          <label className="label" htmlFor="reviewed-query-sql">
+            Reviewed SELECT
+          </label>
           <textarea
+            id="reviewed-query-sql"
             className="field min-h-28 font-mono text-xs"
             value={sql}
             onChange={(event) => setSql(event.target.value)}
@@ -345,8 +360,11 @@ export function QueryDialog({
           </p>
         </div>
         <div>
-          <label className="label">Parameter order</label>
+          <label className="label" htmlFor="reviewed-query-parameter-order">
+            Parameter order
+          </label>
           <input
+            id="reviewed-query-parameter-order"
             className="field font-mono"
             value={parameterOrder}
             onChange={(event) => setParameterOrder(event.target.value)}

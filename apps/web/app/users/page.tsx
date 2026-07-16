@@ -172,8 +172,11 @@ function UserDialog({ onSaved }: { onSaved: () => void }) {
     >
       <form className="space-y-4" onSubmit={submit}>
         <div>
-          <label className="label">Email</label>
+          <label className="label" htmlFor="new-user-email">
+            Email
+          </label>
           <input
+            id="new-user-email"
             className="field"
             type="email"
             value={email}
@@ -182,8 +185,11 @@ function UserDialog({ onSaved }: { onSaved: () => void }) {
           />
         </div>
         <div>
-          <label className="label">Temporary password</label>
+          <label className="label" htmlFor="new-user-password">
+            Temporary password
+          </label>
           <input
+            id="new-user-password"
             className="field"
             type="password"
             minLength={12}
@@ -193,8 +199,11 @@ function UserDialog({ onSaved }: { onSaved: () => void }) {
           />
         </div>
         <div>
-          <label className="label">Role</label>
+          <label className="label" htmlFor="new-user-role">
+            Role
+          </label>
           <select
+            id="new-user-role"
             className="field"
             value={role}
             onChange={(e) => setRole(e.target.value as UserSummary["role"])}

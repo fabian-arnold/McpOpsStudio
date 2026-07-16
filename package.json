@@ -11,7 +11,7 @@
     "dev": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up --build --watch",
     "dev:local": "pnpm db:generate && pnpm --filter \"./packages/*\" build && turbo dev --parallel",
     "dev:down": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml down --remove-orphans",
-    "lint": "eslint . --max-warnings=51",
+    "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

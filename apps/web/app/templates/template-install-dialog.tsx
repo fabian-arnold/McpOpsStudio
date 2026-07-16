@@ -153,8 +153,11 @@ export function TemplateInstallDialog({
             </div>
           ))}
           <div>
-            <label className="label">Route authentication policy</label>
+            <label className="label" htmlFor="template-auth-policy">
+              Route authentication policy
+            </label>
             <select
+              id="template-auth-policy"
               className="field"
               value={authPolicyId}
               onChange={(event) => {

@@ -167,8 +167,11 @@ export function BindingEditorDialog({
       <div className="space-y-4">
         {!binding && !fixedEndpointId && (
           <div>
-            <label className="label">Binding type</label>
+            <label className="label" htmlFor="binding-type">
+              Binding type
+            </label>
             <select
+              id="binding-type"
               className="field"
               value={kind}
               onChange={(event) => {
@@ -185,8 +188,11 @@ export function BindingEditorDialog({
           </div>
         )}
         <div>
-          <label className="label">Endpoint</label>
+          <label className="label" htmlFor="binding-endpoint">
+            Endpoint
+          </label>
           <select
+            id="binding-endpoint"
             className="field"
             value={endpointId}
             disabled={Boolean(binding || fixedEndpointId)}
@@ -203,8 +209,11 @@ export function BindingEditorDialog({
           </select>
         </div>
         <div>
-          <label className="label">Function</label>
+          <label className="label" htmlFor="binding-function">
+            Function
+          </label>
           <select
+            id="binding-function"
             className="field"
             value={functionId}
             disabled={Boolean(binding || fixedFunctionId)}
@@ -220,8 +229,11 @@ export function BindingEditorDialog({
         {kind === "mcp" ? (
           <>
             <div>
-              <label className="label">Tool name</label>
+              <label className="label" htmlFor="binding-tool-name">
+                Tool name
+              </label>
               <input
+                id="binding-tool-name"
                 className="field font-mono"
                 value={toolName}
                 onChange={(event) => setToolName(event.target.value)}
@@ -229,8 +241,11 @@ export function BindingEditorDialog({
               />
             </div>
             <div>
-              <label className="label">Title</label>
+              <label className="label" htmlFor="binding-title">
+                Title
+              </label>
               <input
+                id="binding-title"
                 className="field"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -238,8 +253,11 @@ export function BindingEditorDialog({
               />
             </div>
             <div>
-              <label className="label">Description</label>
+              <label className="label" htmlFor="binding-description">
+                Description
+              </label>
               <textarea
+                id="binding-description"
                 className="field min-h-20"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -250,8 +268,11 @@ export function BindingEditorDialog({
           <>
             <div className="grid grid-cols-[110px_1fr] gap-3">
               <div>
-                <label className="label">Method</label>
+                <label className="label" htmlFor="binding-method">
+                  Method
+                </label>
                 <select
+                  id="binding-method"
                   className="field"
                   value={method}
                   onChange={(event) => setMethod(event.target.value)}
@@ -262,8 +283,11 @@ export function BindingEditorDialog({
                 </select>
               </div>
               <div>
-                <label className="label">Route path</label>
+                <label className="label" htmlFor="binding-route-path">
+                  Route path
+                </label>
                 <input
+                  id="binding-route-path"
                   className="field font-mono"
                   value={path}
                   onChange={(event) => setPath(event.target.value)}
@@ -272,8 +296,11 @@ export function BindingEditorDialog({
               </div>
             </div>
             <div>
-              <label className="label">Input mapping · JSON object</label>
+              <label className="label" htmlFor="binding-input-mapping">
+                Input mapping · JSON object
+              </label>
               <textarea
+                id="binding-input-mapping"
                 className="field min-h-24 font-mono text-[11px]"
                 value={inputMapping}
                 onChange={(event) => setInputMapping(event.target.value)}
@@ -281,8 +308,11 @@ export function BindingEditorDialog({
               />
             </div>
             <div>
-              <label className="label">Response mapping · JSON object</label>
+              <label className="label" htmlFor="binding-response-mapping">
+                Response mapping · JSON object
+              </label>
               <textarea
+                id="binding-response-mapping"
                 className="field min-h-24 font-mono text-[11px]"
                 value={responseMapping}
                 onChange={(event) => setResponseMapping(event.target.value)}

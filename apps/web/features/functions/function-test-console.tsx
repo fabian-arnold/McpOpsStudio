@@ -89,8 +89,11 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
         {testConsoleTab === "setup" ? (
           <div className="grid gap-3 lg:grid-cols-[220px_180px_1fr]">
             <div>
-              <label className="label">Capability endpoint</label>
+              <label className="label" htmlFor="function-test-endpoint">
+                Capability endpoint
+              </label>
               <select
+                id="function-test-endpoint"
                 className="field"
                 value={endpointId}
                 onChange={(event) => setEndpointId(event.target.value)}
@@ -108,8 +111,11 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
                     </option>
                   ))}
               </select>
-              <label className="label mt-2">Simulated source</label>
+              <label className="label mt-2" htmlFor="function-test-source">
+                Simulated source
+              </label>
               <select
+                id="function-test-source"
                 className="field"
                 value={testSource}
                 onChange={(event) =>
@@ -123,8 +129,11 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
               </select>
               {testSource === "cron" && (
                 <>
-                  <label className="label mt-2">Draft cron binding</label>
+                  <label className="label mt-2" htmlFor="function-test-cron-binding">
+                    Draft cron binding
+                  </label>
                   <select
+                    id="function-test-cron-binding"
                     className="field"
                     value={cronBindingId}
                     onChange={(event) => setCronBindingId(event.target.value)}
@@ -144,14 +153,20 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
               )}
             </div>
             <div>
-              <label className="label">Caller subject</label>
+              <label className="label" htmlFor="function-test-subject">
+                Caller subject
+              </label>
               <input
+                id="function-test-subject"
                 className="field font-mono"
                 value={testSubject}
                 onChange={(event) => setTestSubject(event.target.value)}
               />
-              <label className="label mt-2">Caller permissions</label>
+              <label className="label mt-2" htmlFor="function-test-permissions">
+                Caller permissions
+              </label>
               <PermissionAutocomplete
+                inputId="function-test-permissions"
                 value={testPermissions}
                 suggestions={[
                   ...new Set([...permissionSuggestions, ...(draft?.permissions ?? [])]),
@@ -163,7 +178,7 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
             </div>
             <div>
               <div className="mb-1 flex items-center gap-1">
-                <label className="label mb-0 mr-auto">Function input</label>
+                <span className="label mb-0 mr-auto">Function input</span>
                 <button
                   type="button"
                   className={`rounded px-2 py-1 text-[10px] ${testInputMode === "form" ? "bg-muted" : "text-muted-foreground"}`}
@@ -199,6 +214,7 @@ export function FunctionTestConsole({ model }: { model: FunctionWorkbenchModel }
                 />
               ) : (
                 <textarea
+                  aria-label="Function input"
                   className="field min-h-32 font-mono text-[11px]"
                   value={testInput}
                   onChange={(event) => setTestInput(event.target.value)}

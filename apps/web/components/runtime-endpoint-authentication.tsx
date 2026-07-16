@@ -287,8 +287,11 @@ export function CreateAuthPolicy({
     >
       <div className="space-y-4">
         <div>
-          <label className="label">Authentication type</label>
+          <label className="label" htmlFor="endpoint-auth-type">
+            Authentication type
+          </label>
           <select
+            id="endpoint-auth-type"
             className="field"
             value={type}
             onChange={(event) => setType(event.target.value as typeof type)}
@@ -307,8 +310,11 @@ export function CreateAuthPolicy({
           </p>
         )}
         <div>
-          <label className="label">Policy name</label>
+          <label className="label" htmlFor="endpoint-auth-name">
+            Policy name
+          </label>
           <input
+            id="endpoint-auth-name"
             className="field"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -317,8 +323,11 @@ export function CreateAuthPolicy({
         </div>
         {type === "basic_auth" && (
           <div>
-            <label className="label">Username</label>
+            <label className="label" htmlFor="endpoint-auth-username">
+              Username
+            </label>
             <input
+              id="endpoint-auth-username"
               className="field"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -328,8 +337,11 @@ export function CreateAuthPolicy({
         {type !== "public" && (
           <>
             <div>
-              <label className="label">Credential Secret name</label>
+              <label className="label" htmlFor="endpoint-auth-secret-name">
+                Credential Secret name
+              </label>
               <input
+                id="endpoint-auth-secret-name"
                 className="field font-mono"
                 list={`auth-secrets-${endpoint.id}`}
                 value={secretName}
@@ -367,8 +379,11 @@ export function CreateAuthPolicy({
           </>
         )}
         <div>
-          <label className="label">Granted Function permissions</label>
+          <label className="label" htmlFor="endpoint-auth-permissions">
+            Granted Function permissions
+          </label>
           <input
+            id="endpoint-auth-permissions"
             className="field font-mono"
             value={permissions}
             onChange={(event) => setPermissions(event.target.value)}

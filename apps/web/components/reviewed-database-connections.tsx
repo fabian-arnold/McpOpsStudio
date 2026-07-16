@@ -179,8 +179,11 @@ export function ConnectionDialog({
     >
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <label className="label">Name</label>
+          <label className="label" htmlFor="reviewed-connection-name">
+            Name
+          </label>
           <input
+            id="reviewed-connection-name"
             className="field font-mono"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -188,8 +191,11 @@ export function ConnectionDialog({
           />
         </div>
         <div>
-          <label className="label">Environment secret</label>
+          <label className="label" htmlFor="reviewed-connection-secret">
+            Environment secret
+          </label>
           <select
+            id="reviewed-connection-secret"
             className="field"
             value={secretId}
             onChange={(event) => setSecretId(event.target.value)}
@@ -208,8 +214,11 @@ export function ConnectionDialog({
           </p>
         </div>
         <div>
-          <label className="label">Description</label>
+          <label className="label" htmlFor="reviewed-connection-description">
+            Description
+          </label>
           <textarea
+            id="reviewed-connection-description"
             className="field min-h-20"
             value={description}
             onChange={(event) => setDescription(event.target.value)}

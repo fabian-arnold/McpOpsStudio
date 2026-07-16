@@ -9,12 +9,14 @@ export function PermissionAutocomplete({
   onChange,
   placeholder = "Search or add a permission",
   allowWildcard = false,
+  inputId,
 }: {
   value: string[];
   suggestions: string[];
   onChange: (permissions: string[]) => void;
   placeholder?: string;
   allowWildcard?: boolean;
+  inputId?: string;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -59,6 +61,7 @@ export function PermissionAutocomplete({
           </span>
         ))}
         <input
+          id={inputId}
           className="min-w-32 flex-1 bg-transparent px-1 text-xs outline-none"
           value={query}
           placeholder={value.length ? "Add permission" : placeholder}
