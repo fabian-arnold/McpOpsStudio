@@ -70,6 +70,29 @@ type RuntimeOptions = {
   runtimeConcurrency?: number;
   executor?: FunctionExecutor;
 };
+
+export function createRuntimeRequestCapacity(limit: number) {
+  const activeRequests = new WeakSet<object>();
+  const capacity = Math.max(1, limit);
+  let activeCount = 0;
+
+  return {
+    acquire(request: object) {
+      if (activeCount >= capacity) return false;
+      activeRequests.add(request);
+      activeCount += 1;
+      return true;
+    },
+    release(request: object) {
+      if (!activeRequests.delete(request)) return;
+      activeCount = Math.max(0, activeCount - 1);
+    },
+    activeCount() {
+      return activeCount;
+    },
+  };
+}
+
 export async function buildRuntimeApp(
   options: RuntimeOptions,
 ): Promise<FastifyInstance> {
@@ -89,9 +112,8 @@ export async function buildRuntimeApp(
     bodyLimit: 1_048_576,
   });
   const rawBodies = new WeakMap<object, Buffer>();
-  const activeRuntimeRequests = new WeakSet<object>();
   const runtimeConcurrency = Math.max(1, options.runtimeConcurrency ?? 40);
-  let activeRuntimeRequestCount = 0;
+  const runtimeCapacity = createRuntimeRequestCapacity(runtimeConcurrency);
   app.removeContentTypeParser("application/json");
   app.addContentTypeParser(
     /^application\/(?:json|[a-z0-9.+-]+\+json)$/i,
@@ -150,7 +172,7 @@ export async function buildRuntimeApp(
     // The hop credential authenticates Caddy, not the caller. Never expose it
     // to input mappings, user functions, persisted payloads, or request logs.
     delete request.headers["x-internal-token"];
-    if (activeRuntimeRequestCount >= runtimeConcurrency) {
+    if (!runtimeCapacity.acquire(request)) {
       return sendError(reply, {
         code: "RATE_LIMITED",
         message: "The runtime worker is at capacity. Retry the request shortly.",
@@ -158,11 +180,15 @@ export async function buildRuntimeApp(
         retryable: true,
       });
     }
-    activeRuntimeRequestCount += 1;
-    activeRuntimeRequests.add(request);
   });
   app.addHook("onResponse", async (request) => {
-    if (activeRuntimeRequests.delete(request)) activeRuntimeRequestCount -= 1;
+    runtimeCapacity.release(request);
+  });
+  app.addHook("onError", async (request) => {
+    runtimeCapacity.release(request);
+  });
+  app.addHook("onRequestAbort", async (request) => {
+    runtimeCapacity.release(request);
   });
   app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-request-id", request.id);

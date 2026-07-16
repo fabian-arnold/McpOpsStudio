@@ -9,6 +9,7 @@ import {
 import {
   applyHttpResponseMapping,
   buildRuntimeApp,
+  createRuntimeRequestCapacity,
   isPublicRuntimePath,
   mapHttpInput,
   normalizeTestSource,
@@ -17,6 +18,22 @@ import type { FastifyRequest } from "fastify";
 import { deploymentSnapshotSchema } from "./domain.js";
 
 describe("runtime contracts", () => {
+  it("releases runtime capacity exactly once after aborted or failed requests", () => {
+    const capacity = createRuntimeRequestCapacity(1);
+    const first = {};
+    const second = {};
+
+    expect(capacity.acquire(first)).toBe(true);
+    expect(capacity.acquire(second)).toBe(false);
+    expect(capacity.activeCount()).toBe(1);
+
+    capacity.release(first);
+    capacity.release(first);
+
+    expect(capacity.activeCount()).toBe(0);
+    expect(capacity.acquire(second)).toBe(true);
+  });
+
   it("refuses an implicit local executor in production", async () => {
     const previous = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
