@@ -113,7 +113,6 @@ describe("ordered endpoint authentication", () => {
     const invokeCustomFunction = vi.fn(async () => ({
       authenticated: true,
       subject: "custom-user",
-      tenantId: "tenant-1",
       permissions: ["orders.read"],
     }));
     await expect(
@@ -142,7 +141,6 @@ describe("ordered endpoint authentication", () => {
       ),
     ).resolves.toMatchObject({
       subject: "custom-user",
-      tenantId: "tenant-1",
       permissions: ["orders.read"],
       claims: { authenticationPolicyId: "custom" },
     });

@@ -37,7 +37,6 @@ export async function authenticateCustomFunction(
   return {
     subject: result.data.subject as string,
     permissions: result.data.permissions,
-    ...(result.data.tenantId ? { tenantId: result.data.tenantId } : {}),
     ...(result.data.name ? { name: result.data.name } : {}),
     ...(result.data.email ? { email: result.data.email } : {}),
     claims: {

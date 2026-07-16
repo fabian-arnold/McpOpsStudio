@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authPolicyMutationSchema } from "./contracts.js";
+import { authPolicyMutationSchema, customAuthResultSchema } from "./contracts.js";
 
 describe("runtime authentication policy contracts", () => {
   it("requires an explicit policy for public unauthenticated access", () => {
@@ -85,5 +85,13 @@ describe("runtime authentication policy contracts", () => {
       type: "custom_function",
       config: { functionId: "11111111-1111-4111-8111-111111111111" },
     });
+    expect(
+      customAuthResultSchema.safeParse({
+        authenticated: true,
+        subject: "caller",
+        tenantId: "tenant-1",
+        permissions: [],
+      }).success,
+    ).toBe(false);
   });
 });

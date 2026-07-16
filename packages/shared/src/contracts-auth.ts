@@ -113,7 +113,6 @@ export const customAuthResultSchema = z
   .object({
     authenticated: z.boolean(),
     subject: z.string().min(1).max(256).optional(),
-    tenantId: z.string().min(1).max(256).optional(),
     name: z.string().min(1).max(256).optional(),
     email: z.string().email().max(320).optional(),
     permissions: z.array(z.string().min(1).max(256)).max(256).default([]),

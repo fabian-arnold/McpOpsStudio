@@ -35,7 +35,6 @@ export default async function handler(ctx, input) {
   return {
     authenticated: true,
     subject: "service:orders",
-    tenantId: "tenant-1",
     permissions: ["orders.read"],
   };
 }
@@ -43,8 +42,8 @@ export default async function handler(ctx, input) {
 
 `input.request` contains `method`, `path`, `headers`, `query`, and the
 parsed JSON `body` when present. An authenticated result requires `subject`;
-`tenantId`, `name`, `email`, and `permissions` are optional. The runtime
-does not accept arbitrary caller claims from custom authentication output.
+`name`, `email`, and `permissions` are optional. The runtime does not accept
+tenant context or arbitrary caller claims from custom authentication output.
 
 The Function runs through the normal isolated executor with its declared
 Secrets, network policy, timeout, schemas, and internal Function graph. Because
