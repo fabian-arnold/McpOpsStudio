@@ -260,6 +260,15 @@ export function compileWhere(
       " OR ",
     )})`;
   if ("not" in where) return Prisma.sql`NOT (${compileWhere(where.not, schema)})`;
+  return compileComparison(where, schema);
+}
+
+type CollectionComparison = Extract<SharedCollectionWhere, { field: string }>;
+
+function compileComparison(
+  where: CollectionComparison,
+  schema: Record<string, unknown>,
+): Prisma.Sql {
   assertField(where.field, schema);
   const json = jsonExpression(where.field);
   const text = textExpression(where.field);

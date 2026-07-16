@@ -194,8 +194,11 @@ function ProjectDialog({
     >
       <form className="space-y-4" onSubmit={submit}>
         <div>
-          <label className="label">Name</label>
+          <label className="label" htmlFor="project-name">
+            Name
+          </label>
           <input
+            id="project-name"
             className="field"
             value={name}
             onChange={(e) => {
@@ -206,8 +209,11 @@ function ProjectDialog({
           />
         </div>
         <div>
-          <label className="label">Slug</label>
+          <label className="label" htmlFor="project-slug">
+            Slug
+          </label>
           <input
+            id="project-slug"
             className="field font-mono"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
@@ -216,8 +222,11 @@ function ProjectDialog({
           />
         </div>
         <div>
-          <label className="label">Description</label>
+          <label className="label" htmlFor="project-description">
+            Description
+          </label>
           <textarea
+            id="project-description"
             className="field min-h-20"
             value={description}
             onChange={(e) => setDescription(e.target.value)}

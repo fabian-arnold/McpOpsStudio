@@ -1,4 +1,4 @@
 #!/bin/sh
 
-echo "Checking repository formatting..."
+echo "Checking repository formatting and lint rules..."
 exec corepack pnpm hooks:check

@@ -1,6 +1,7 @@
 import { resolveFunctionCallGraph } from "@mcpops/shared";
 import { prisma } from "@mcpops/db";
 import { finalizeProjectDeployment } from "./project-deployment.js";
+import { storeDeploymentArtifact } from "./builder-persistence.js";
 import {
   attachCurrentFunctionVersions,
   bundleFunction,
@@ -436,68 +437,19 @@ export async function buildDeployment(
         : {}),
     };
     const sum = deploymentChecksum(snapshot);
-    await prisma.$transaction(async (tx) => {
-      if (deployment.projectDeploymentId) {
-        await tx.deployment.update({
-          where: { id: deploymentId },
-          data: {
-            snapshot: snapshot as never,
-            checksum: sum,
-            status: "deploying",
-          },
-        });
-        await tx.deploymentLog.create({
-          data: {
-            deploymentId,
-            level: "info",
-            message: `Endpoint artifact ${deployment.version} built for project deployment`,
-            metadata: { checksum: sum },
-          },
-        });
-        return;
-      }
-      if (endpoint.activeDeploymentId)
-        await tx.deployment.update({
-          where: { id: endpoint.activeDeploymentId },
-          data: { status: "rolled_back" },
-        });
-      await tx.deployment.update({
-        where: { id: deploymentId },
-        data: {
-          snapshot: snapshot as never,
-          checksum: sum,
-          status: "active",
-          completedAt: new Date(),
-        },
-      });
-      await tx.runtimeEndpoint.update({
-        where: { id: endpoint.id },
-        data: { activeDeploymentId: deploymentId, status: "deployed" },
-      });
-      await tx.deploymentLog.create({
-        data: {
-          deploymentId,
-          level: "info",
-          message: `Deployment ${deployment.version} activated`,
-          metadata: { checksum: sum },
-        },
-      });
-      await tx.auditEvent.create({
-        data: {
-          projectId: endpoint.projectId,
-          environmentId: endpoint.environmentId,
-          endpointId: endpoint.id,
-          actorType: actorId ? "user" : "system",
-          actorId,
-          action: "deployment.activated",
-          targetType: "deployment",
-          targetId: deploymentId,
-          metadata: { version: deployment.version, checksum: sum },
-        },
-      });
+    activated = await storeDeploymentArtifact({
+      deploymentId,
+      projectDeploymentId: deployment.projectDeploymentId,
+      activeDeploymentId: endpoint.activeDeploymentId,
+      endpointId: endpoint.id,
+      projectId: endpoint.projectId,
+      environmentId: endpoint.environmentId,
+      actorId,
+      deploymentVersion: deployment.version,
+      snapshot,
+      checksum: sum,
     });
     artifactStored = true;
-    activated = !deployment.projectDeploymentId;
     if (deployment.projectDeploymentId) {
       await finalizeProjectDeployment(deployment.projectDeploymentId);
       activated = true;

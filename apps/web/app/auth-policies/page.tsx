@@ -343,8 +343,11 @@ function PolicyDialog({
     >
       <div className="space-y-4">
         <div>
-          <label className="label">Policy name</label>
+          <label className="label" htmlFor="auth-policy-name">
+            Policy name
+          </label>
           <input
+            id="auth-policy-name"
             className="field"
             value={name}
             disabled={readOnly}
@@ -352,8 +355,11 @@ function PolicyDialog({
           />
         </div>
         <div>
-          <label className="label">Provider type</label>
+          <label className="label" htmlFor="auth-policy-type">
+            Provider type
+          </label>
           <select
+            id="auth-policy-type"
             className="field"
             value={type}
             disabled={readOnly}
@@ -367,8 +373,11 @@ function PolicyDialog({
           </select>
         </div>
         <div>
-          <label className="label">Configuration JSON</label>
+          <label className="label" htmlFor="auth-policy-config">
+            Configuration JSON
+          </label>
           <textarea
+            id="auth-policy-config"
             className="field min-h-64 font-mono text-xs"
             value={config}
             disabled={readOnly}

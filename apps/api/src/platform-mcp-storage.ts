@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import { z } from "zod";
-import { Prisma, prisma } from "@mcpops/db";
+import { prisma, type Prisma } from "@mcpops/db";
 import {
   collectionDefinitionSchema,
   collectionPermissionsSchema,
@@ -373,15 +373,13 @@ async function createCollection(
         checksum: definitionChecksum(input.definition.schema, input.definition.indexes),
       },
     });
-    await writeAudit(
-      tx,
-      actor,
+    await writeAudit(tx, actor, {
       projectId,
-      "data_collection.created",
-      "data_collection",
-      collection.id,
-      { slug: collection.slug, version: 1 },
-    );
+      action: "data_collection.created",
+      targetType: "data_collection",
+      targetId: collection.id,
+      metadata: { slug: collection.slug, version: 1 },
+    });
     return { ...collection, latestVersion: version };
   });
   return output(`Created ${result.name}`, { collection: result });
@@ -429,15 +427,13 @@ async function createVersion(
         checksum: definitionChecksum(parsed.schema, parsed.indexes),
       },
     });
-    await writeAudit(
-      tx,
-      actor,
+    await writeAudit(tx, actor, {
       projectId,
-      "data_collection.version_created",
-      "data_collection",
-      collection.id,
-      { slug: collection.slug, version: created.version },
-    );
+      action: "data_collection.version_created",
+      targetType: "data_collection",
+      targetId: collection.id,
+      metadata: { slug: collection.slug, version: created.version },
+    });
     return created;
   });
   return output(`Created ${collection.slug} version ${version.version}`, { version });
@@ -470,15 +466,17 @@ async function setGrant(
     },
     update: { permissions: input.permissions, enabled: true },
   });
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "data_collection.granted",
-    "data_collection",
-    grant.id,
-    { collectionId: collection.id, functionId: fn.id, permissions: input.permissions },
-  );
+    action: "data_collection.granted",
+    targetType: "data_collection",
+    targetId: grant.id,
+    metadata: {
+      collectionId: collection.id,
+      functionId: fn.id,
+      permissions: input.permissions,
+    },
+  });
   return output(`Granted ${fn.slug} access to ${collection.slug}`, { grant });
 }
 
@@ -507,15 +505,13 @@ async function deleteGrant(
       function: reference(fn),
     });
   await prisma.functionCollectionGrant.delete({ where: { id: grant.id } });
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "data_collection.revoked",
-    "data_collection",
-    grant.id,
-    { collectionId: collection.id, functionId: fn.id },
-  );
+    action: "data_collection.revoked",
+    targetType: "data_collection",
+    targetId: grant.id,
+    metadata: { collectionId: collection.id, functionId: fn.id },
+  });
   return output(`Revoked ${fn.slug} access to ${collection.slug}`, {
     grantId: grant.id,
     deleted: true,
@@ -586,20 +582,18 @@ async function createRecord(
       data: input.record.data as Prisma.InputJsonValue,
     },
   });
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "collection_record.created",
-    "collection_record",
-    row.id,
-    {
+    action: "collection_record.created",
+    targetType: "collection_record",
+    targetId: row.id,
+    metadata: {
       collectionId: collection.id,
       environmentId: input.record.environmentId,
       tenantId: input.record.tenantId,
     },
-    input.record.environmentId,
-  );
+    environmentId: input.record.environmentId,
+  });
   return output("Created collection record", { record: redactSensitive(row, secrets) });
 }
 
@@ -642,16 +636,14 @@ async function updateRecord(
   const row = await prisma.collectionRecord.findUniqueOrThrow({
     where: { id: input.recordId },
   });
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "collection_record.updated",
-    "collection_record",
-    row.id,
-    { collectionId: collection.id, revision: row.revision },
-    input.record.environmentId,
-  );
+    action: "collection_record.updated",
+    targetType: "collection_record",
+    targetId: row.id,
+    metadata: { collectionId: collection.id, revision: row.revision },
+    environmentId: input.record.environmentId,
+  });
   return output("Updated collection record", { record: redactSensitive(row, secrets) });
 }
 
@@ -679,16 +671,14 @@ async function deleteRecord(
     },
   });
   if (!deleted.count) throw conflict();
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "collection_record.deleted",
-    "collection_record",
-    input.recordId,
-    { collectionId: collection.id, tenantId: input.scope.tenantId },
-    input.scope.environmentId,
-  );
+    action: "collection_record.deleted",
+    targetType: "collection_record",
+    targetId: input.recordId,
+    metadata: { collectionId: collection.id, tenantId: input.scope.tenantId },
+    environmentId: input.scope.environmentId,
+  });
   return output("Deleted collection record", {
     recordId: input.recordId,
     deleted: true,
@@ -756,16 +746,14 @@ async function revealCache(
     JSON.parse(raw) as unknown,
     await knownSecrets(projectId, environment.id),
   );
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "function_cache.value_revealed",
-    "function_cache",
-    cacheKeyDigest(key),
-    { environmentId: environment.id, sizeBytes },
-    environment.id,
-  );
+    action: "function_cache.value_revealed",
+    targetType: "function_cache",
+    targetId: cacheKeyDigest(key),
+    metadata: { environmentId: environment.id, sizeBytes },
+    environmentId: environment.id,
+  });
   return output("Revealed redacted cache value", {
     value,
     sizeBytes,
@@ -789,16 +777,14 @@ async function deleteCache(
     });
   if (cacheInspector.status === "wait") await cacheInspector.connect();
   const deleted = await cacheInspector.unlink(key);
-  await writeAudit(
-    prisma,
-    actor,
+  await writeAudit(prisma, actor, {
     projectId,
-    "function_cache.key_deleted",
-    "function_cache",
-    cacheKeyDigest(key),
-    { environmentId: environment.id, deleted },
-    environment.id,
-  );
+    action: "function_cache.key_deleted",
+    targetType: "function_cache",
+    targetId: cacheKeyDigest(key),
+    metadata: { environmentId: environment.id, deleted },
+    environmentId: environment.id,
+  });
   return output("Deleted cache key", { deleted: Boolean(deleted) });
 }
 
@@ -859,23 +845,28 @@ function requireRole(actor: Actor, roles: string[]) {
 async function writeAudit(
   client: Pick<typeof prisma, "auditEvent">,
   actor: Actor,
-  projectId: string,
-  action: string,
-  targetType: string,
-  targetId: string,
-  metadata: Record<string, unknown>,
-  environmentId?: string,
+  event: {
+    projectId: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    metadata: Record<string, unknown>;
+    environmentId?: string;
+  },
 ) {
   await client.auditEvent.create({
     data: {
-      projectId,
-      ...(environmentId ? { environmentId } : {}),
+      projectId: event.projectId,
+      ...(event.environmentId ? { environmentId: event.environmentId } : {}),
       actorType: "user",
       actorId: actor.userId,
-      action,
-      targetType,
-      targetId,
-      metadata: { ...metadata, source: "platform_mcp" } as Prisma.InputJsonValue,
+      action: event.action,
+      targetType: event.targetType,
+      targetId: event.targetId,
+      metadata: {
+        ...event.metadata,
+        source: "platform_mcp",
+      } as Prisma.InputJsonValue,
     },
   });
 }

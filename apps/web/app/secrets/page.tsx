@@ -293,8 +293,11 @@ function SecretValuesDialog({
     >
       <div className="space-y-4">
         <div>
-          <label className="label">Secret name</label>
+          <label className="label" htmlFor="secret-name">
+            Secret name
+          </label>
           <input
+            id="secret-name"
             className="field font-mono"
             value={name}
             disabled={Boolean(pair)}

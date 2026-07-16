@@ -48,8 +48,11 @@ export default function ChangePasswordPage() {
         </p>
         <form className="mt-6 space-y-4" onSubmit={submit}>
           <div>
-            <label className="label">Current password</label>
+            <label className="label" htmlFor="current-password">
+              Current password
+            </label>
             <input
+              id="current-password"
               className="field"
               type="password"
               value={currentPassword}
@@ -58,8 +61,11 @@ export default function ChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="label">New password</label>
+            <label className="label" htmlFor="new-password">
+              New password
+            </label>
             <input
+              id="new-password"
               className="field"
               type="password"
               minLength={12}
@@ -69,8 +75,11 @@ export default function ChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="label">Confirm new password</label>
+            <label className="label" htmlFor="confirm-password">
+              Confirm new password
+            </label>
             <input
+              id="confirm-password"
               className="field"
               type="password"
               value={confirm}
