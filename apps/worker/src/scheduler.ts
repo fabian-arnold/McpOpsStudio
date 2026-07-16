@@ -36,7 +36,38 @@ export function isCronMisfire(scheduledAt: Date, now = Date.now()): boolean {
   return now - scheduledAt.getTime() > 60_000;
 }
 
+export function staleRunCutoff(now = Date.now()): Date {
+  return new Date(now - SCHEDULE_JOB_LOCK_DURATION_MS);
+}
+
+export async function recoverStaleRuns(now = Date.now()): Promise<{
+  missed: number;
+  failed: number;
+}> {
+  const cutoff = staleRunCutoff(now);
+  const [scheduled, running] = await prisma.$transaction([
+    prisma.scheduledRun.updateMany({
+      where: { status: "scheduled", createdAt: { lt: cutoff } },
+      data: {
+        status: "missed",
+        completedAt: new Date(now),
+        reason: "scheduler_claim_abandoned",
+      },
+    }),
+    prisma.scheduledRun.updateMany({
+      where: { status: "running", triggeredAt: { lt: cutoff } },
+      data: {
+        status: "failed",
+        completedAt: new Date(now),
+        reason: "worker_lease_expired",
+      },
+    }),
+  ]);
+  return { missed: scheduled.count, failed: running.count };
+}
+
 export async function reconcileSchedulers(queue: Queue): Promise<void> {
+  await recoverStaleRuns();
   const active = await prisma.scheduleDeployment.findMany({
     where: {
       status: "active",
@@ -124,8 +155,8 @@ export async function processScheduleJob(queue: Queue, job: Job): Promise<void> 
   });
   if (!claim || claim.status !== "scheduled") return;
   if (origin === "scheduled" && isCronMisfire(scheduledAt)) {
-    await prisma.scheduledRun.update({
-      where: { id: claim.id },
+    await prisma.scheduledRun.updateMany({
+      where: { id: claim.id, status: "running" },
       data: {
         status: "missed",
         completedAt: new Date(),
@@ -183,6 +214,19 @@ export async function processScheduleJob(queue: Queue, job: Job): Promise<void> 
           : {}),
       },
     });
+  } catch (error) {
+    await prisma.scheduledRun.updateMany({
+      where: { id: claim.id, status: "running" },
+      data: {
+        status: "failed",
+        completedAt: new Date(),
+        reason:
+          error instanceof Error && error.name === "TimeoutError"
+            ? "runtime_invocation_timeout"
+            : "runtime_invocation_error",
+      },
+    });
+    throw error;
   } finally {
     await lockRedis.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",

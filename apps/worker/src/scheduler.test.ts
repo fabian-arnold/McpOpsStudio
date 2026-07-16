@@ -6,6 +6,7 @@ import {
   SCHEDULE_JOB_LOCK_DURATION_MS,
   SCHEDULE_JOB_LOCK_RENEW_TIME_MS,
   schedulerId,
+  staleRunCutoff,
 } from "./scheduler.js";
 
 describe("cron scheduler identity", () => {
@@ -30,5 +31,10 @@ describe("cron scheduler identity", () => {
     expect(SCHEDULE_JOB_LOCK_RENEW_TIME_MS).toBeLessThan(
       SCHEDULE_JOB_LOCK_DURATION_MS / 2,
     );
+  });
+
+  it("recovers stale durable runs after one full job lease", () => {
+    const now = Date.parse("2026-07-16T16:30:00.000Z");
+    expect(staleRunCutoff(now).toISOString()).toBe("2026-07-16T16:26:00.000Z");
   });
 });
