@@ -30,6 +30,7 @@ describe("control-plane policy validation", () => {
 
   it("does not imply deferred authentication providers are operational", () => {
     expect(providerStatus("api_key")).toBe("enabled");
+    expect(providerStatus("custom_function")).toBe("enabled");
     expect(providerStatus("jwt", { ENABLE_JWT_AUTH: "true" })).toBe("enabled");
     expect(providerStatus("entra_id", {})).toBe("deferred");
   });

@@ -21,6 +21,8 @@ import {
 } from "./webhook-auth.js";
 import { getEncryptedSecret } from "./repository.js";
 import { verifyBasicAuthorization, verifyStaticCredential } from "./static-auth.js";
+import { authenticateCustomFunction } from "./custom-auth.js";
+import { assertAuthFeatureEnabled } from "./auth-features.js";
 
 export {
   assertWebhookEndpoint,
@@ -28,6 +30,7 @@ export {
   type ReplayStore,
 } from "./webhook-auth.js";
 export { verifyBasicAuthorization, verifyStaticCredential } from "./static-auth.js";
+export { runtimeAuthFeatureEnabled } from "./auth-features.js";
 
 const remoteJwks = new Map<string, JWTVerifyGetKey>();
 export type AuthenticationOptions = {
@@ -35,6 +38,7 @@ export type AuthenticationOptions = {
   rawBody?: Buffer;
   replayStore?: ReplayStore;
   now?: Date;
+  invokeCustomFunction?: (functionId: string, input: unknown) => Promise<unknown>;
 };
 
 export async function authenticate(
@@ -110,7 +114,7 @@ export async function authenticate(
     return identityFromPolicy(policy, `basic:${username}`);
   }
   if (policy.type === "jwt") {
-    assertFeatureEnabled("ENABLE_JWT_AUTH", "JWT", requestId);
+    assertAuthFeatureEnabled("ENABLE_JWT_AUTH", "JWT", requestId);
     const parsed = jwtPolicyConfigSchema.safeParse(policy.config);
     if (!parsed.success)
       configuration("The JWT authentication policy is invalid.", requestId);
@@ -124,7 +128,7 @@ export async function authenticate(
     return verifyJwtAccessToken(token, parsed.data, key, requestId);
   }
   if (policy.type === "entra_id") {
-    assertFeatureEnabled("ENABLE_ENTRA_AUTH", "Microsoft Entra", requestId);
+    assertAuthFeatureEnabled("ENABLE_ENTRA_AUTH", "Microsoft Entra", requestId);
     const parsed = entraPolicyConfigSchema.safeParse(policy.config);
     if (!parsed.success)
       configuration("The Microsoft Entra authentication policy is invalid.", requestId);
@@ -168,6 +172,13 @@ export async function authenticate(
       now: options.now ?? new Date(),
     });
   }
+  if (policy.type === "custom_function")
+    return authenticateCustomFunction(
+      request,
+      endpoint,
+      policy,
+      options.invokeCustomFunction,
+    );
   throw new SafeRuntimeError({
     code: "CONFIGURATION_ERROR",
     message: `${policy.type} authentication is configured but not enabled in this deployment.`,
@@ -471,23 +482,6 @@ function assertMicrosoftJwksUrl(rawUrl: string, requestId: string): void {
   if (url.protocol !== "https:" || url.hostname !== "login.microsoftonline.com")
     configuration(
       "Microsoft Entra JWKS must use login.microsoftonline.com.",
-      requestId,
-    );
-}
-export function runtimeAuthFeatureEnabled(
-  environment: NodeJS.ProcessEnv,
-  name: "ENABLE_JWT_AUTH" | "ENABLE_ENTRA_AUTH",
-): boolean {
-  return environment[name] === "true";
-}
-function assertFeatureEnabled(
-  name: "ENABLE_JWT_AUTH" | "ENABLE_ENTRA_AUTH",
-  label: string,
-  requestId: string,
-): void {
-  if (!runtimeAuthFeatureEnabled(process.env, name))
-    configuration(
-      `${label} runtime authentication is disabled by configuration.`,
       requestId,
     );
 }

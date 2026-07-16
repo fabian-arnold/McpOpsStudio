@@ -160,7 +160,26 @@ export function validateAuthPolicyConfig(type: string, value: unknown): void {
       throw new Error("Webhook timestamp tolerance must be 30 through 900 seconds");
     return;
   }
+  if (type === "custom_function") {
+    requiredString(config, "functionId");
+    if (!isUuid(String(config.functionId)))
+      throw new Error("Custom authentication functionId must be a UUID");
+    return;
+  }
   throw new Error(`Unsupported authentication policy type: ${type}`);
+}
+export function referencedAuthFunctionIds(
+  policies: ReadonlyArray<{ type: string; config: unknown }>,
+): string[] {
+  return [
+    ...new Set(
+      policies.flatMap((policy) => {
+        if (policy.type !== "custom_function") return [];
+        const functionId = asRecord(policy.config).functionId;
+        return typeof functionId === "string" ? [functionId] : [];
+      }),
+    ),
+  ];
 }
 function requiredString(config: Record<string, unknown>, name: string): void {
   if (typeof config[name] !== "string" || !String(config[name]).trim())

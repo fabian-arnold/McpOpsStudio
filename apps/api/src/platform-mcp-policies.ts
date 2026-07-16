@@ -5,6 +5,7 @@ import { authPolicyMutationSchema, networkPolicyUpdateSchema } from "@mcpops/sha
 import {
   networkPolicyView,
   policyView,
+  validatePolicyFunctionIfRequired,
   validatePolicySecretIfRequired,
 } from "./api-operation-helpers.js";
 import { networkPolicyWarnings } from "./control-plane-validation.js";
@@ -120,6 +121,7 @@ async function createPolicy(
   actor: Actor,
   definition: z.infer<typeof authPolicyMutationSchema>,
 ) {
+  await validatePolicyFunctionIfRequired(projectId, definition.config);
   if (await prisma.authPolicy.count({ where: { projectId, name: definition.name } }))
     throw error("AUTH_POLICY_NAME_CONFLICT", "Policy name already exists", 409);
   const policy = await prisma.$transaction(async (tx) => {
@@ -151,6 +153,7 @@ async function editPolicy(
   input: z.infer<typeof editSchema>,
 ) {
   const current = await findPolicy(projectId, input.policy);
+  await validatePolicyFunctionIfRequired(projectId, input.definition.config);
   const assignments = await prisma.endpointAuthPolicy.findMany({
     where: { authPolicyId: current.id },
     select: { endpoint: { select: { environmentId: true } } },
@@ -239,6 +242,7 @@ async function assignEndpointPolicies(
       endpoint.environmentId,
       record(policy.config),
     );
+    await validatePolicyFunctionIfRequired(projectId, record(policy.config));
     policies.push(policy);
   }
   await prisma.$transaction(async (tx) => {

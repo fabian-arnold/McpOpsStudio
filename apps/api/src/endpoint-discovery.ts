@@ -248,20 +248,27 @@ function securityDescription(auth: EndpointDiscoverySource["auth"]) {
   const config = record(auth.config);
   const type = auth.type;
   const scheme =
-    type === "api_key" || type === "webhook_hmac"
+    type === "custom_function"
       ? {
-          type: "apiKey",
-          in: "header",
-          name:
-            typeof config.header === "string"
-              ? config.header
-              : type === "api_key"
-                ? "x-api-key"
-                : "x-signature",
+          type: "http",
+          scheme: "custom",
+          description:
+            "Credentials are interpreted by the endpoint's custom authentication Function.",
         }
-      : type === "basic"
-        ? { type: "http", scheme: "basic" }
-        : { type: "http", scheme: "bearer" };
+      : type === "api_key" || type === "webhook_hmac"
+        ? {
+            type: "apiKey",
+            in: "header",
+            name:
+              typeof config.header === "string"
+                ? config.header
+                : type === "api_key"
+                  ? "x-api-key"
+                  : "x-signature",
+          }
+        : type === "basic"
+          ? { type: "http", scheme: "basic" }
+          : { type: "http", scheme: "bearer" };
   return {
     security: [{ endpointAuth: [] }],
     components: { securitySchemes: { endpointAuth: scheme } },
@@ -324,6 +331,7 @@ function mcpClientConfiguration(source: EndpointDiscoverySource) {
 
 function exampleAuthHeaders(auth: EndpointDiscoverySource["auth"]) {
   if (!auth) return [];
+  if (auth.type === "custom_function") return [];
   const config = record(auth.config);
   if (auth.type === "api_key")
     return [

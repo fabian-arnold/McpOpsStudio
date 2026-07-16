@@ -111,9 +111,14 @@ export function providerStatus(
   flags: Record<string, string | undefined> = process.env,
 ) {
   if (
-    ["public", "api_key", "bearer_token", "basic_auth", "webhook_signature"].includes(
-      type,
-    )
+    [
+      "public",
+      "api_key",
+      "bearer_token",
+      "basic_auth",
+      "webhook_signature",
+      "custom_function",
+    ].includes(type)
   )
     return "enabled" as const;
   if (type === "jwt")

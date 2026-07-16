@@ -28,6 +28,7 @@ import {
 import { verifyApiKey } from "@mcpops/shared";
 import { authenticateWithPolicies, authorizeEndpointAccess } from "./auth.js";
 import { RuntimeInvoker } from "./invoke.js";
+import { customAuthenticationInvoker } from "./custom-auth-invoker.js";
 import { RuntimeMetrics } from "./metrics.js";
 import { registerInternalRoutes } from "./internal-routes.js";
 import {
@@ -213,7 +214,10 @@ export async function buildRuntimeApp(
         endpoint,
         endpoint.snapshot.authPolicies,
         options.masterKey,
-        { endpoint: "mcp" },
+        {
+          endpoint: "mcp",
+          invokeCustomFunction: customAuthenticationInvoker(request, endpoint, invoker),
+        },
       );
     } catch (error) {
       await auditAuthDenial(endpoint, request.id);
@@ -375,6 +379,7 @@ export async function buildRuntimeApp(
           replayStore: {
             claim: (key, ttlSeconds) => invoker.claimReplay(key, ttlSeconds),
           },
+          invokeCustomFunction: customAuthenticationInvoker(request, endpoint, invoker),
         },
       );
     } catch (error) {

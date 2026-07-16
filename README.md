@@ -261,6 +261,7 @@ Implemented policies:
 - JWT using remote JWKS
 - Microsoft Entra access-token validation
 - HMAC-SHA256 webhook signatures
+- Custom project Function authentication
 
 Static credentials are stored as AES-256-GCM encrypted environment Secrets and
 referenced by name. Secret values are never returned after creation or included

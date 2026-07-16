@@ -21,6 +21,7 @@ import {
 } from "./builder-validation.js";
 import {
   collectRequiredAuthPolicyIds,
+  referencedAuthFunctionIds,
   referencedAuthSecretNames,
   snapshotReferencedAuthPolicies,
   validateAuthSecretReferences,
@@ -82,6 +83,24 @@ export async function buildDeployment(
       projectFunctions,
       currentVersions,
     );
+    const requiredPolicyIds = collectRequiredAuthPolicyIds(
+      endpoint.authPolicyAssignments.map((item) => item.authPolicyId),
+      endpoint.mcpToolBindings,
+      endpoint.httpRouteBindings,
+    );
+    const policyRows = requiredPolicyIds.length
+      ? await prisma.authPolicy.findMany({
+          where: {
+            id: { in: requiredPolicyIds },
+            projectId: endpoint.projectId,
+          },
+        })
+      : [];
+    const authPolicies = snapshotReferencedAuthPolicies(
+      endpoint.projectId,
+      requiredPolicyIds,
+      policyRows,
+    );
     const entryFunctionIds = new Set([
       ...(endpoint.kind === "mcp" ? endpoint.mcpToolBindings : [])
         .filter((binding) => binding.enabled)
@@ -89,6 +108,7 @@ export async function buildDeployment(
       ...(endpoint.kind === "http" ? endpoint.httpRouteBindings : [])
         .filter((binding) => binding.enabled)
         .map((binding) => binding.functionId),
+      ...referencedAuthFunctionIds(authPolicies),
     ]);
     const { functions: selectedFunctions, calls: functionCalls } =
       resolveFunctionCallGraph(versionedProjectFunctions, entryFunctionIds);
@@ -137,24 +157,6 @@ export async function buildDeployment(
         message: `Building ${selectedFunctions.length} reusable functions`,
       },
     });
-    const requiredPolicyIds = collectRequiredAuthPolicyIds(
-      endpoint.authPolicyAssignments.map((item) => item.authPolicyId),
-      endpoint.mcpToolBindings,
-      endpoint.httpRouteBindings,
-    );
-    const policyRows = requiredPolicyIds.length
-      ? await prisma.authPolicy.findMany({
-          where: {
-            id: { in: requiredPolicyIds },
-            projectId: endpoint.projectId,
-          },
-        })
-      : [];
-    const authPolicies = snapshotReferencedAuthPolicies(
-      endpoint.projectId,
-      requiredPolicyIds,
-      policyRows,
-    );
     const authSecretNames = referencedAuthSecretNames(authPolicies);
     const availableAuthSecrets = authSecretNames.length
       ? await prisma.secret.findMany({

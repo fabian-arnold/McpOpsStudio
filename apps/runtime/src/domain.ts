@@ -68,6 +68,7 @@ export const authPolicySchema = z.object({
     "oidc",
     "entra_id",
     "webhook_signature",
+    "custom_function",
   ]),
   config: z.record(z.unknown()),
 });

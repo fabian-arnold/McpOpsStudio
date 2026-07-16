@@ -183,6 +183,24 @@ export async function validatePolicySecretIfRequired(
     );
 }
 
+export async function validatePolicyFunctionIfRequired(
+  projectId: string,
+  config: object,
+): Promise<void> {
+  if (!("functionId" in config) || typeof config.functionId !== "string") return;
+  const fn = await prisma.function.findFirst({
+    where: { id: config.functionId, projectId, enabled: true },
+    select: { id: true },
+  });
+  if (!fn)
+    throw Object.assign(
+      new Error(
+        "Custom authentication functionId must reference an enabled Function in the selected project",
+      ),
+      { statusCode: 400, code: "INVALID_POLICY_FUNCTION_REF" },
+    );
+}
+
 export async function validateBindingReferences(
   projectId: string,
   endpointId: string,

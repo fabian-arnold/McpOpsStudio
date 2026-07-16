@@ -86,6 +86,43 @@ export const webhookSignaturePolicyConfigSchema = z
     permissions: z.array(z.string().min(1).max(256)).default([]),
   })
   .strict();
+export const customFunctionPolicyConfigSchema = z
+  .object({ functionId: z.string().uuid() })
+  .strict();
+export const customAuthInputSchema = z
+  .object({
+    request: z
+      .object({
+        method: z.string().min(1).max(32),
+        path: z.string().min(1).max(4_096),
+        headers: z.record(z.union([z.string(), z.array(z.string())])),
+        query: z.record(z.union([z.string(), z.array(z.string())])),
+        body: z.unknown().optional(),
+      })
+      .strict(),
+    endpoint: z
+      .object({
+        id: z.string().min(1),
+        kind: z.enum(["mcp", "http"]),
+        slug: z.string().min(1),
+      })
+      .strict(),
+  })
+  .strict();
+export const customAuthResultSchema = z
+  .object({
+    authenticated: z.boolean(),
+    subject: z.string().min(1).max(256).optional(),
+    tenantId: z.string().min(1).max(256).optional(),
+    name: z.string().min(1).max(256).optional(),
+    email: z.string().email().max(320).optional(),
+    permissions: z.array(z.string().min(1).max(256)).max(256).default([]),
+  })
+  .strict()
+  .refine((result) => !result.authenticated || Boolean(result.subject), {
+    message: "An authenticated result requires a subject",
+    path: ["subject"],
+  });
 export const authPolicyMutationSchema = z.discriminatedUnion("type", [
   z
     .object({
@@ -156,6 +193,13 @@ export const authPolicyMutationSchema = z.discriminatedUnion("type", [
       config: webhookSignaturePolicyConfigSchema,
     })
     .strict(),
+  z
+    .object({
+      name: z.string().min(2).max(120),
+      type: z.literal("custom_function"),
+      config: customFunctionPolicyConfigSchema,
+    })
+    .strict(),
 ]);
 export const authPolicySchema = z.object({
   name: z.string().min(2),
@@ -168,6 +212,7 @@ export const authPolicySchema = z.object({
     "oidc",
     "entra_id",
     "webhook_signature",
+    "custom_function",
   ]),
   config: z.record(z.unknown()),
 });

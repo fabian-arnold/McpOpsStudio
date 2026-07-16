@@ -3,7 +3,11 @@ import { prisma } from "@mcpops/db";
 import { authPolicyMutationSchema } from "@mcpops/shared";
 import { requireRole } from "./auth.js";
 import { sessionContext, parse, requestId } from "./helpers.js";
-import { policyView, validatePolicySecretIfRequired } from "./api-operation-helpers.js";
+import {
+  policyView,
+  validatePolicyFunctionIfRequired,
+  validatePolicySecretIfRequired,
+} from "./api-operation-helpers.js";
 import { providerStatus } from "./control-plane-validation.js";
 
 export async function registerAuthPoliciesRoutes(app: FastifyInstance): Promise<void> {
@@ -38,6 +42,7 @@ export async function registerAuthPoliciesRoutes(app: FastifyInstance): Promise<
     const session = sessionContext(request);
     requireRole(session, ["owner", "admin"]);
     const input = parse(authPolicyMutationSchema, request.body);
+    await validatePolicyFunctionIfRequired(session.projectId, input.config);
     const conflict = await prisma.authPolicy.findFirst({
       where: { projectId: session.projectId, name: input.name },
       select: { id: true },
@@ -130,6 +135,7 @@ export async function registerAuthPoliciesRoutes(app: FastifyInstance): Promise<
           requestId: requestId(request),
         },
       });
+    await validatePolicyFunctionIfRequired(session.projectId, input.config);
     const conflict = await prisma.authPolicy.findFirst({
       where: {
         projectId: session.projectId,
@@ -225,6 +231,7 @@ export async function registerAuthPoliciesRoutes(app: FastifyInstance): Promise<
       "oidc",
       "entra_id",
       "webhook_signature",
+      "custom_function",
     ].map((type) => ({
       type,
       status: providerStatus(type),

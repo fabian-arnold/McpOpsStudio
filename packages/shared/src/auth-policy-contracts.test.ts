@@ -74,4 +74,16 @@ describe("runtime authentication policy contracts", () => {
       }).success,
     ).toBe(false);
   });
+  it("defines a project Function reference for custom authentication", () => {
+    expect(
+      authPolicyMutationSchema.parse({
+        name: "Custom identity",
+        type: "custom_function",
+        config: { functionId: "11111111-1111-4111-8111-111111111111" },
+      }),
+    ).toMatchObject({
+      type: "custom_function",
+      config: { functionId: "11111111-1111-4111-8111-111111111111" },
+    });
+  });
 });

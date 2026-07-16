@@ -59,6 +59,7 @@ enum AuthPolicyType {
   oidc
   entra_id
   webhook_signature
+  custom_function
 }
 
 enum DeploymentStatus {

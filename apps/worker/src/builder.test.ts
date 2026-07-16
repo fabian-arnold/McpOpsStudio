@@ -8,6 +8,7 @@ import {
 } from "./builder-validation.js";
 import {
   collectRequiredAuthPolicyIds,
+  referencedAuthFunctionIds,
   snapshotReferencedAuthPolicies,
   validateAuthPolicyConfig,
   validateAuthSecretReferences,
@@ -240,6 +241,18 @@ describe("declarative deployment policy validation", () => {
         permissions: [],
       }),
     ).not.toThrow();
+  });
+  it("validates and selects custom authentication Functions as snapshot entries", () => {
+    const functionId = "11111111-1111-4111-8111-111111111111";
+    expect(() =>
+      validateAuthPolicyConfig("custom_function", { functionId }),
+    ).not.toThrow();
+    expect(
+      referencedAuthFunctionIds([
+        { type: "custom_function", config: { functionId } },
+        { type: "public", config: { permissions: [] } },
+      ]),
+    ).toEqual([functionId]);
   });
   it("preserves the ordered endpoint authentication chain for all bindings", () => {
     const ids = collectRequiredAuthPolicyIds(

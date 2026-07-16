@@ -23,7 +23,8 @@ type PolicyType =
   | "basic_auth"
   | "jwt"
   | "entra_id"
-  | "webhook_signature";
+  | "webhook_signature"
+  | "custom_function";
 
 type AuthPolicy = {
   id: string;
@@ -47,6 +48,7 @@ const policyTypes: Array<{ value: PolicyType; label: string }> = [
   { value: "jwt", label: "JWT / JWKS" },
   { value: "entra_id", label: "Microsoft Entra ID" },
   { value: "webhook_signature", label: "Webhook signature" },
+  { value: "custom_function", label: "Custom Function" },
 ];
 
 const defaultConfigs: Record<PolicyType, Record<string, unknown>> = {
@@ -98,6 +100,7 @@ const defaultConfigs: Record<PolicyType, Record<string, unknown>> = {
     replayProtection: true,
     permissions: [],
   },
+  custom_function: { functionId: "" },
 };
 
 export default function AuthenticationPoliciesPage() {

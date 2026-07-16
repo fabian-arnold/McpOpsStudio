@@ -8,6 +8,7 @@ import { projectRepository } from "./repository.js";
 import { record } from "./api-value-helpers.js";
 import {
   policyView,
+  validatePolicyFunctionIfRequired,
   validatePolicySecretIfRequired,
   writeControlAudit,
 } from "./api-operation-helpers.js";
@@ -33,6 +34,7 @@ export async function registerEndpointAuthRoutes(app: FastifyInstance): Promise<
           },
         });
       const input = parse(authPolicyMutationSchema, request.body);
+      await validatePolicyFunctionIfRequired(session.projectId, input.config);
       await validatePolicySecretIfRequired(
         session.projectId,
         endpoint.environmentId,
@@ -122,6 +124,7 @@ export async function registerEndpointAuthRoutes(app: FastifyInstance): Promise<
           },
         });
       const input = parse(authPolicyMutationSchema, request.body);
+      await validatePolicyFunctionIfRequired(session.projectId, input.config);
       await validatePolicySecretIfRequired(
         session.projectId,
         endpoint.environmentId,
@@ -192,6 +195,7 @@ export async function registerEndpointAuthRoutes(app: FastifyInstance): Promise<
         endpoint.environmentId,
         record(policy.config),
       );
+      await validatePolicyFunctionIfRequired(session.projectId, record(policy.config));
       const existing = await prisma.endpointAuthPolicy.findUnique({
         where: {
           endpointId_authPolicyId: { endpointId, authPolicyId: policyId },

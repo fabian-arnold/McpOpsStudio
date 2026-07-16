@@ -1526,6 +1526,8 @@ function credentialRequirement(auth: { type: string; config: unknown } | null) {
       in: "header",
       header: typeof config.header === "string" ? config.header : "x-signature",
     };
+  if (auth.type === "custom_function")
+    return { type: "custom_function", required: true };
   return { type: auth.type, required: true, scheme: "Bearer" };
 }
 

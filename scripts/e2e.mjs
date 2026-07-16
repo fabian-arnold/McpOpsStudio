@@ -825,6 +825,37 @@ const composedEntry = await ensureFunction({
   secretGrantIds: [],
   cachePolicy: null,
 });
+const customAuthFunction = await ensureFunction({
+  name: "e2e_custom_auth",
+  slug: "e2e_custom_auth",
+  description: "Stable E2E custom authentication fixture",
+  code: 'export default async function handler(_ctx, input) { return input.request.headers["x-e2e-auth"] === "allow" ? { authenticated: true, subject: "e2e-custom-caller", permissions: [] } : { authenticated: false, permissions: [] }; }',
+  inputSchema: {
+    type: "object",
+    properties: {
+      request: { type: "object" },
+      endpoint: { type: "object" },
+    },
+    required: ["request", "endpoint"],
+    additionalProperties: false,
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      authenticated: { type: "boolean" },
+      subject: { type: "string" },
+      permissions: { type: "array", items: { type: "string" } },
+    },
+    required: ["authenticated", "permissions"],
+    additionalProperties: false,
+  },
+  timeoutMs: 5000,
+  enabled: true,
+  riskLevel: "read",
+  requiredPermissions: [],
+  secretGrantIds: [],
+  cachePolicy: null,
+});
 const collectionProbe = await ensureFunction({
   name: "e2e_collection_probe",
   slug: "e2e_collection_probe",
@@ -1076,6 +1107,61 @@ await json(
     body: "{}",
   },
 );
+const latestPolicies = await json(`${control}/auth-policies`, {
+  headers: { cookie },
+});
+let customAuthPolicy = latestPolicies.body.find(
+  (policy) => policy.name === "E2E custom Function authentication",
+);
+if (!customAuthPolicy)
+  customAuthPolicy = (
+    await json(`${control}/runtime-endpoints/${reuseEndpoint.id}/auth-policies`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "x-csrf-token": csrf,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "E2E custom Function authentication",
+        type: "custom_function",
+        config: { functionId: customAuthFunction.id },
+      }),
+    })
+  ).body;
+else
+  await json(
+    `${control}/runtime-endpoints/${reuseEndpoint.id}/auth-policies/${customAuthPolicy.id}/default`,
+    {
+      method: "POST",
+      headers: {
+        cookie,
+        "x-csrf-token": csrf,
+        "content-type": "application/json",
+      },
+      body: "{}",
+    },
+  );
+const customAuthEndpoint = await json(
+  `${control}/runtime-endpoints/${reuseEndpoint.id}`,
+  { headers: { cookie } },
+);
+await json(`${control}/runtime-endpoints/${reuseEndpoint.id}/auth-policies/order`, {
+  method: "PUT",
+  headers: {
+    cookie,
+    "x-csrf-token": csrf,
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    policyIds: [
+      customAuthPolicy.id,
+      ...customAuthEndpoint.body.assignedAuthPolicies
+        .map((policy) => policy.id)
+        .filter((id) => id !== customAuthPolicy.id),
+    ],
+  }),
+});
 const composedDeployment = await json(`${control}/deployments`, {
   method: "POST",
   headers: {
@@ -1086,6 +1172,21 @@ const composedDeployment = await json(`${control}/deployments`, {
   body: "{}",
 });
 await waitForDeployment(composedDeployment.body.id, cookie);
+const customAuthenticatedCall = await json(`${runtime}/mcp-dev/acme/${reuseSlug}`, {
+  method: "POST",
+  headers: { ...mcpHeaders, "x-e2e-auth": "allow" },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 40,
+    method: "tools/call",
+    params: { name: "e2e_composed_value", arguments: { value: 5 } },
+  }),
+});
+assert.equal(
+  customAuthenticatedCall.body.result.structuredContent.value,
+  10,
+  "custom authentication executes a pinned project Function",
+);
 await json(`${control}/cron-bindings/${cronBinding.id}/run`, {
   method: "POST",
   headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },

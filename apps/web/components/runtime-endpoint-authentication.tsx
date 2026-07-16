@@ -201,13 +201,16 @@ export function CreateAuthPolicy({
 }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<
-    "public" | "api_key" | "bearer_token" | "basic_auth"
+    "public" | "api_key" | "bearer_token" | "basic_auth" | "custom_function"
   >("api_key");
   const [name, setName] = useState("");
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
   const [username, setUsername] = useState("");
   const [permissions, setPermissions] = useState("");
+  const [functionId, setFunctionId] = useState(
+    endpoint.functions.find((fn) => fn.enabled)?.id ?? "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const toast = useToast();
@@ -216,9 +219,10 @@ export function CreateAuthPolicy({
     setBusy(true);
     setError(undefined);
     try {
-      if (type !== "public" && !existingSecret && !secretValue)
+      const usesSecret = !["public", "custom_function"].includes(type);
+      if (usesSecret && !existingSecret && !secretValue)
         throw new Error("Enter a credential value for the new Secret.");
-      if (type !== "public" && !existingSecret)
+      if (usesSecret && !existingSecret)
         await api("/api/secrets", {
           method: "POST",
           body: JSON.stringify({
@@ -232,28 +236,30 @@ export function CreateAuthPolicy({
         .map((value) => value.trim())
         .filter(Boolean);
       const config =
-        type === "public"
-          ? { permissions: permissionList }
-          : type === "api_key"
-            ? {
-                header: "x-api-key",
-                secretRef: secretName,
-                permissions: permissionList,
-              }
-            : type === "bearer_token"
+        type === "custom_function"
+          ? { functionId }
+          : type === "public"
+            ? { permissions: permissionList }
+            : type === "api_key"
               ? {
-                  header: "authorization",
-                  scheme: "Bearer",
+                  header: "x-api-key",
                   secretRef: secretName,
                   permissions: permissionList,
                 }
-              : {
-                  header: "authorization",
-                  scheme: "Basic",
-                  username,
-                  secretRef: secretName,
-                  permissions: permissionList,
-                };
+              : type === "bearer_token"
+                ? {
+                    header: "authorization",
+                    scheme: "Bearer",
+                    secretRef: secretName,
+                    permissions: permissionList,
+                  }
+                : {
+                    header: "authorization",
+                    scheme: "Basic",
+                    username,
+                    secretRef: secretName,
+                    permissions: permissionList,
+                  };
       await api(`/api/runtime-endpoints/${endpoint.id}/auth-policies`, {
         method: "POST",
         body: JSON.stringify({ name, type, config }),
@@ -300,6 +306,7 @@ export function CreateAuthPolicy({
             <option value="api_key">API key</option>
             <option value="bearer_token">Bearer token</option>
             <option value="basic_auth">HTTP Basic</option>
+            <option value="custom_function">Custom Function</option>
           </select>
         </div>
         {type === "public" && (
@@ -334,7 +341,33 @@ export function CreateAuthPolicy({
             />
           </div>
         )}
-        {type !== "public" && (
+        {type === "custom_function" && (
+          <div>
+            <label className="label" htmlFor="endpoint-auth-function">
+              Authentication Function
+            </label>
+            <select
+              id="endpoint-auth-function"
+              className="field"
+              value={functionId}
+              onChange={(event) => setFunctionId(event.target.value)}
+            >
+              <option value="">Select an enabled Function</option>
+              {endpoint.functions
+                .filter((fn) => fn.enabled)
+                .map((fn) => (
+                  <option key={fn.id} value={fn.id}>
+                    {fn.name} ({fn.slug})
+                  </option>
+                ))}
+            </select>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Receives request metadata and returns authenticated, subject, and
+              permissions. Its immutable version is pinned when the Project deploys.
+            </p>
+          </div>
+        )}
+        {!["public", "custom_function"].includes(type) && (
           <>
             <div>
               <label className="label" htmlFor="endpoint-auth-secret-name">
@@ -358,12 +391,13 @@ export function CreateAuthPolicy({
               </p>
             </div>
             <div>
-              <label className="label">
+              <label className="label" htmlFor="endpoint-auth-secret-value">
                 {existingSecret
                   ? "Credential value (already stored)"
                   : "Credential value"}
               </label>
               <input
+                id="endpoint-auth-secret-value"
                 className="field"
                 type="password"
                 value={secretValue}
@@ -378,24 +412,27 @@ export function CreateAuthPolicy({
             </div>
           </>
         )}
-        <div>
-          <label className="label" htmlFor="endpoint-auth-permissions">
-            Granted Function permissions
-          </label>
-          <input
-            id="endpoint-auth-permissions"
-            className="field font-mono"
-            value={permissions}
-            onChange={(event) => setPermissions(event.target.value)}
-            placeholder="customers.read, customers.write"
-          />
-        </div>
+        {type !== "custom_function" && (
+          <div>
+            <label className="label" htmlFor="endpoint-auth-permissions">
+              Granted Function permissions
+            </label>
+            <input
+              id="endpoint-auth-permissions"
+              className="field font-mono"
+              value={permissions}
+              onChange={(event) => setPermissions(event.target.value)}
+              placeholder="customers.read, customers.write"
+            />
+          </div>
+        )}
         {error && <p className="text-xs text-red-500">{error}</p>}
         <Button
           loading={busy}
           disabled={
             !name ||
-            (type !== "public" && !secretName) ||
+            (!["public", "custom_function"].includes(type) && !secretName) ||
+            (type === "custom_function" && !functionId) ||
             (type === "basic_auth" && !username)
           }
           onClick={() => void save()}

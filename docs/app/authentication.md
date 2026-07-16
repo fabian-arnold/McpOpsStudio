@@ -15,7 +15,41 @@ Endpoints and HTTP APIs in the selected Project.
 
 MCP Ops Studio supports public access, API keys, static bearer tokens, HTTP
 Basic, JWT with remote JWKS, Microsoft Entra access tokens, and HMAC-SHA256
-webhook signatures.
+webhook signatures. A custom Function policy can implement a project-specific
+credential exchange or identity lookup.
+
+## Custom Function authentication
+
+Select an enabled project Function when creating a custom Function policy. Its
+current version and every literal `ctx.functions.call()` dependency are pinned
+into the endpoint's immutable deployment snapshot.
+
+The Function receives JSON request metadata:
+
+```ts
+export default async function handler(ctx, input) {
+  const credential = input.request.headers["x-custom-token"];
+  if (credential !== (await ctx.secrets.get("CUSTOM_AUTH_TOKEN")))
+    return { authenticated: false, permissions: [] };
+
+  return {
+    authenticated: true,
+    subject: "service:orders",
+    tenantId: "tenant-1",
+    permissions: ["orders.read"],
+  };
+}
+```
+
+`input.request` contains `method`, `path`, `headers`, `query`, and the
+parsed JSON `body` when present. An authenticated result requires `subject`;
+`tenantId`, `name`, `email`, and `permissions` are optional. The runtime
+does not accept arbitrary caller claims from custom authentication output.
+
+The Function runs through the normal isolated executor with its declared
+Secrets, network policy, timeout, schemas, and internal Function graph. Because
+its input can contain credentials, auth invocation payloads and Function logs
+are not persisted.
 
 ## Create a policy
 

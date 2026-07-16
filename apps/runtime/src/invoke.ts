@@ -90,6 +90,8 @@ export type InvokeRequest = {
   internalDepth?: number;
   deadlineAt?: number;
   skipPermissionAuthorization?: boolean;
+  suppressPayloadCapture?: boolean;
+  suppressLogs?: boolean;
 };
 export type RuntimeLogEvent = {
   timestamp: string;
@@ -429,6 +431,8 @@ export class RuntimeInvoker {
             internalDepth: depth + 1,
             deadlineAt: request.deadlineAt ?? Date.now() + request.fn.timeoutMs,
             skipPermissionAuthorization: true,
+            ...(request.suppressPayloadCapture ? { suppressPayloadCapture: true } : {}),
+            ...(request.suppressLogs ? { suppressLogs: true } : {}),
             rootTrigger: trigger,
             ...(request.cronBinding ? { cronBinding: request.cronBinding } : {}),
           });
@@ -451,7 +455,9 @@ export class RuntimeInvoker {
     secrets: readonly string[],
     logs: readonly RuntimeLogEvent[],
   ): Promise<void> {
-    const capturePayloads = shouldCapturePayloads(request.endpoint.environment);
+    const capturePayloads =
+      !request.suppressPayloadCapture &&
+      shouldCapturePayloads(request.endpoint.environment);
     await saveExecution({
       id: executionId,
       projectId: request.endpoint.project.id,
@@ -490,9 +496,10 @@ export class RuntimeInvoker {
         : {}),
       rootExecutionId: request.rootExecutionId ?? executionId,
     });
-    await saveRuntimeLogs(request.endpoint, logs, request.cronBinding).catch(() => {
-      process.stderr.write("Runtime log persistence failed.\n");
-    });
+    if (!request.suppressLogs)
+      await saveRuntimeLogs(request.endpoint, logs, request.cronBinding).catch(() => {
+        process.stderr.write("Runtime log persistence failed.\n");
+      });
     if (status === "denied" || status === "success")
       await saveAudit({
         projectId: request.endpoint.project.id,

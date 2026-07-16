@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import {
@@ -107,6 +107,88 @@ describe("ordered endpoint authentication", () => {
         { endpoint: "http" },
       ),
     ).rejects.toMatchObject({ code: "CONFIGURATION_ERROR" });
+  });
+
+  it("executes custom authentication and maps only bounded caller identity fields", async () => {
+    const invokeCustomFunction = vi.fn(async () => ({
+      authenticated: true,
+      subject: "custom-user",
+      tenantId: "tenant-1",
+      permissions: ["orders.read"],
+    }));
+    await expect(
+      authenticateWithPolicies(
+        {
+          id: "request-custom",
+          method: "POST",
+          url: "/http/project/api/orders?expand=lines",
+          headers: {
+            authorization: "Custom credential",
+            "x-internal-token": "must-not-cross-boundary",
+          },
+        } as never,
+        endpoint,
+        [
+          {
+            id: "custom",
+            type: "custom_function",
+            config: {
+              functionId: "11111111-1111-4111-8111-111111111111",
+            },
+          },
+        ],
+        Buffer.alloc(32),
+        { endpoint: "http", invokeCustomFunction },
+      ),
+    ).resolves.toMatchObject({
+      subject: "custom-user",
+      tenantId: "tenant-1",
+      permissions: ["orders.read"],
+      claims: { authenticationPolicyId: "custom" },
+    });
+    expect(invokeCustomFunction).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      expect.objectContaining({
+        request: expect.objectContaining({
+          headers: { authorization: "Custom credential" },
+          query: { expand: "lines" },
+        }),
+      }),
+    );
+  });
+
+  it("continues to the next policy when custom authentication rejects a caller", async () => {
+    await expect(
+      authenticateWithPolicies(
+        {
+          id: "request-custom-denied",
+          method: "GET",
+          url: "/mcp/project/endpoint",
+          headers: {},
+        } as never,
+        endpoint,
+        [
+          {
+            id: "custom",
+            type: "custom_function",
+            config: {
+              functionId: "11111111-1111-4111-8111-111111111111",
+            },
+          },
+          { id: "public", type: "public", config: { permissions: [] } },
+        ],
+        Buffer.alloc(32),
+        {
+          endpoint: "http",
+          invokeCustomFunction: async () => ({
+            authenticated: false,
+            permissions: [],
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      claims: { authenticationPolicyId: "public" },
+    });
   });
 });
 
