@@ -8,6 +8,7 @@ import {
   cronRunsQuerySchema,
 } from "@mcpops/shared";
 import { requireRole } from "./auth.js";
+import { snapshotHasEnabledCronBinding } from "./cron-snapshot.js";
 import { parse, requestId, sessionContext } from "./helpers.js";
 import { stringList } from "./api-value-helpers.js";
 import { networkPolicyView } from "./api-operation-helpers.js";
@@ -189,7 +190,7 @@ export async function registerCronBindingRoutes(app: FastifyInstance): Promise<v
       },
       select: { id: true, snapshot: true },
     });
-    if (!active || !snapshotHasBinding(active.snapshot, id))
+    if (!active || !snapshotHasEnabledCronBinding(active.snapshot, id))
       return reply.status(409).send({
         error: {
           code: "CRON_BINDING_NOT_ACTIVE",
@@ -361,23 +362,6 @@ async function loadSchedulerState(): Promise<{
   } catch {
     return { status: "unavailable" };
   }
-}
-
-function snapshotHasBinding(snapshot: unknown, bindingId: string): boolean {
-  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot))
-    return false;
-  const bindings = (snapshot as { bindings?: unknown }).bindings;
-  return (
-    Array.isArray(bindings) &&
-    bindings.some((item) =>
-      Boolean(
-        item &&
-        typeof item === "object" &&
-        (item as { id?: unknown }).id === bindingId &&
-        (item as { enabled?: unknown }).enabled !== false,
-      ),
-    )
-  );
 }
 
 function audit(

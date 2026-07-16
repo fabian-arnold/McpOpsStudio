@@ -6,6 +6,7 @@ import { prisma } from "@mcpops/db";
 import { cronBindingSchema, cronBindingUpdateSchema } from "@mcpops/shared";
 import { networkPolicyView } from "./api-operation-helpers.js";
 import { stringList } from "./api-value-helpers.js";
+import { snapshotHasEnabledCronBinding } from "./cron-snapshot.js";
 import type { PlatformScope } from "./oauth.js";
 import { scheduleQueue } from "./resources.js";
 
@@ -566,28 +567,12 @@ async function activeSchedule(
     },
     select: { id: true, snapshot: true },
   });
-  if (!active || !snapshotHasBinding(active.snapshot, bindingId))
+  if (!active || !snapshotHasEnabledCronBinding(active.snapshot, bindingId))
     throw toolError(
       "CRON_BINDING_NOT_ACTIVE",
       "Deploy this cron binding before running it",
     );
   return active;
-}
-
-function snapshotHasBinding(snapshot: unknown, bindingId: string) {
-  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot))
-    return false;
-  const bindings = (snapshot as { bindings?: unknown }).bindings;
-  return (
-    Array.isArray(bindings) &&
-    bindings.some(
-      (item) =>
-        item &&
-        typeof item === "object" &&
-        (item as { id?: unknown }).id === bindingId &&
-        (item as { enabled?: unknown }).enabled !== false,
-    )
-  );
 }
 
 function audit(
