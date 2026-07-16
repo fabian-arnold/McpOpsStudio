@@ -386,7 +386,6 @@ export class RuntimeInvoker {
       collections: new SnapshotCollections(
         request.endpoint,
         request.fn.functionId,
-        request.tenantId,
         request.requestId,
         secrets.values(),
       ),

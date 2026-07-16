@@ -859,7 +859,7 @@ const customAuthFunction = await ensureFunction({
 const collectionProbe = await ensureFunction({
   name: "e2e_collection_probe",
   slug: "e2e_collection_probe",
-  description: "Stable E2E tenant collection fixture",
+  description: "Stable E2E project collection fixture",
   code: 'export default async function handler(ctx, input) { const collection = ctx.collections.collection("e2e_customers"); const created = await collection.create({ name: input.name, score: input.score }); const page = await collection.query({ where: { field: "score", op: "gte", value: input.minimum }, orderBy: [{ field: "score", direction: "desc" }], limit: 20 }); return { createdId: created.id, count: await collection.count({ where: { field: "score", op: "gte", value: input.minimum } }), names: page.items.map((item) => item.data.name) }; }',
   inputSchema: {
     type: "object",
@@ -1028,7 +1028,7 @@ if (
       functionId: collectionProbe.id,
       toolName: "e2e_collection_probe",
       title: "E2E collection probe",
-      description: "Exercises tenant-scoped PostgreSQL collection queries",
+      description: "Exercises environment-scoped PostgreSQL collection queries",
       enabled: true,
     }),
   });
@@ -1239,7 +1239,7 @@ assert.equal(
 );
 const collectionCall = await json(`${runtime}/mcp-dev/acme/customer-operations`, {
   method: "POST",
-  headers: { ...mcpHeaders, "x-tenant-id": "e2e-tenant" },
+  headers: mcpHeaders,
   body: JSON.stringify({
     jsonrpc: "2.0",
     id: 5,
@@ -1253,11 +1253,11 @@ const collectionCall = await json(`${runtime}/mcp-dev/acme/customer-operations`,
 assert.equal(
   collectionCall.body.result.structuredContent.count >= 1,
   true,
-  "ctx.collections executes bounded tenant-scoped PostgreSQL queries",
+  "ctx.collections executes bounded environment-scoped PostgreSQL queries",
 );
 assert.ok(
   collectionCall.body.result.structuredContent.names.includes("Ada"),
-  "collection query returns the created tenant record",
+  "collection query returns the created project record",
 );
 const inspectedCollectionRecords = await json(
   `${control}/data-collections/${e2eCollection.id}/records/query`,
@@ -1266,7 +1266,6 @@ const inspectedCollectionRecords = await json(
     headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },
     body: JSON.stringify({
       environmentId: developmentEnvironment.id,
-      tenantId: "e2e-tenant",
       where: { field: "score", op: "gte", value: 40 },
       orderBy: [{ field: "score", direction: "desc" }],
       limit: 20,
@@ -1275,7 +1274,7 @@ const inspectedCollectionRecords = await json(
 );
 assert.ok(
   inspectedCollectionRecords.body.items.some((record) => record.data.name === "Ada"),
-  "Storage inspector queries persisted tenant records without fetch-all filtering",
+  "Storage inspector queries persisted collection records without fetch-all filtering",
 );
 const internalExecutions = await json(
   `${control}/executions?functionId=${composedLeaf.id}`,

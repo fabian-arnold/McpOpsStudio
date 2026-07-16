@@ -32,7 +32,6 @@ function useCollectionDetailState({
   environmentId,
   onChanged,
 }: CollectionDetailProps) {
-  const [tenantId, setTenantId] = useState("default");
   const [queryText, setQueryText] = useState(
     JSON.stringify(
       { orderBy: [{ field: "createdAt", direction: "desc" }], limit: 50 },
@@ -65,7 +64,6 @@ function useCollectionDetailState({
         method: "POST",
         body: JSON.stringify({
           environmentId,
-          tenantId,
           ...query,
           ...(cursor ? { cursor } : {}),
         }),
@@ -90,7 +88,6 @@ function useCollectionDetailState({
           method: editing ? "PUT" : "POST",
           body: JSON.stringify({
             environmentId,
-            tenantId,
             data: JSON.parse(recordText),
             ...(editing ? { revision: editing.revision } : {}),
           }),
@@ -111,7 +108,7 @@ function useCollectionDetailState({
     try {
       await api(`/api/data-collections/${collection.id}/records/${record.id}`, {
         method: "DELETE",
-        body: JSON.stringify({ environmentId, tenantId, revision: record.revision }),
+        body: JSON.stringify({ environmentId, revision: record.revision }),
       });
       await runQuery();
       onChanged();
@@ -147,8 +144,6 @@ function useCollectionDetailState({
     }
   }
   return {
-    tenantId,
-    setTenantId,
     queryText,
     setQueryText,
     records,
@@ -310,8 +305,6 @@ function RecordsPanel({
   state,
 }: CollectionDetailProps & { state: DetailState }) {
   const {
-    tenantId,
-    setTenantId,
     busy,
     runQuery,
     setEditing,
@@ -329,17 +322,6 @@ function RecordsPanel({
     <section className="panel overflow-hidden">
       <div className="border-b p-5">
         <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="label" htmlFor="collection-tenant-id">
-              Tenant ID
-            </label>
-            <input
-              id="collection-tenant-id"
-              className="field w-56 font-mono"
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-            />
-          </div>
           <Button loading={busy} onClick={() => void runQuery()} disabled={!canInspect}>
             <Search size={13} /> Query PostgreSQL
           </Button>
@@ -381,19 +363,19 @@ function RecordsPanel({
         <EmptyState
           icon={<Database />}
           title="Record access restricted"
-          description="Only project owners and admins may inspect or mutate tenant records."
+          description="Only project owners and admins may inspect or mutate collection records."
         />
       ) : !records ? (
         <EmptyState
           icon={<Search />}
-          title="Run a tenant query"
+          title="Run a collection query"
           description="No records are loaded until an explicit bounded query is executed."
         />
       ) : !records.length ? (
         <EmptyState
           icon={<Database />}
           title="No matching records"
-          description="Adjust the tenant or query predicates."
+          description="Adjust the query predicates."
         />
       ) : (
         <div className="divide-y">
@@ -457,7 +439,7 @@ function RecordEditor({ state }: { state: DetailState }) {
       open={recordOpen}
       onOpenChange={setRecordOpen}
       trigger={<span />}
-      title={editing ? "Edit tenant record" : "Create tenant record"}
+      title={editing ? "Edit collection record" : "Create collection record"}
       description="Writes are validated against the active deployed schema and use optimistic revisions."
     >
       <textarea

@@ -29,7 +29,6 @@ export async function ensureCollectionIndexes(
           ? `${jsonExpression(index.fields[0]!)}`
           : [
               '"environmentId"',
-              '"tenantScope"',
               ...index.fields.map((field) =>
                 sortableExpression(field, collection.schema),
               ),

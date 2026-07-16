@@ -14,7 +14,6 @@ export async function queryRecords(
   projectId: string,
   environmentId: string,
   collectionId: string,
-  tenantId: string,
   query: CollectionQuery,
   schema: unknown,
   indexes: unknown,
@@ -27,7 +26,6 @@ export async function queryRecords(
     Prisma.sql`"projectId" = ${projectId}::uuid`,
     Prisma.sql`"environmentId" = ${environmentId}::uuid`,
     Prisma.sql`"collectionId" = ${collectionId}::uuid`,
-    Prisma.sql`"tenantScope" = ${tenantId}`,
     ...(query.where ? [compileWhere(query.where, schema)] : []),
     ...(cursor ? [compileRecordCursor(order, cursor, schema)] : []),
   ];

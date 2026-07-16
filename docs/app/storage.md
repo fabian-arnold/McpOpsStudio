@@ -9,7 +9,11 @@ The existing `ctx.storage` key/value API remains available for simple Function-p
 
 ## Typed collections
 
-A collection is a Project resource with immutable JSON Schema versions and declared PostgreSQL indexes. Records are separated by environment and always require a tenant identity. Schema versions and Function grants affect runtime traffic only after a Project deployment; production receives them through the normal immutable release process.
+A collection is a Project resource with immutable JSON Schema versions and
+declared PostgreSQL indexes. Records are separated by environment; there is no
+tenant partition inside a collection. Schema versions and Function grants affect
+runtime traffic only after a Project deployment; production receives them through
+the normal immutable release process.
 
 Functions access granted collections through `ctx.collections`:
 
@@ -34,13 +38,17 @@ const page = await customers.query({
 
 Available operations are `create`, `get`, `query`, `count`, `update`, and `delete`. Updates and deletes require the current record revision. Filtering, ordering, counting, limits, and cursor predicates execute in PostgreSQL; records are never fetched wholesale for application-side filtering.
 
-Collections support explicit `read`, `write`, and `delete` Function grants. Calls without `ctx.tenant.id`, calls without the needed grant, invalid schemas, and stale revisions fail safely.
+Collections support explicit `read`, `write`, and `delete` Function grants.
+Calls without the needed grant, invalid schemas, and stale revisions fail safely.
 
 Declared B-tree indexes support scalar/composite filtering and sorting. GIN indexes support JSON or array containment. Unindexed queries remain bounded and database-side but may scan, so the Storage page displays declared index coverage for review.
 
 ## Record inspector
 
-Owners and admins can select an environment and tenant, run the same bounded query DSL, create or edit schema-validated JSON records, and permanently delete records with revision checks. Developers can manage collection schemas but cannot inspect tenant values. Every mutation creates an immutable audit event.
+Owners and admins can select an environment, run the same bounded query DSL,
+create or edit schema-validated JSON records, and permanently delete records with
+revision checks. Developers can manage collection schemas but cannot inspect
+record values. Every mutation creates an immutable audit event.
 
 ## Cache inspector
 

@@ -175,11 +175,11 @@ export const storageTools = [
   ),
   platformTool(
     "storage_records_query",
-    "Run a bounded tenant-scoped collection query in PostgreSQL.",
+    "Run a bounded environment-scoped collection query in PostgreSQL.",
     {
       collection: stringField("Collection ID or slug"),
       query: objectField(
-        "Environment ID, tenant ID, filters, ordering, projection, limit, and cursor",
+        "Environment ID, filters, ordering, projection, limit, and cursor",
       ),
     },
     ["collection", "query"],
@@ -187,10 +187,10 @@ export const storageTools = [
   ),
   platformTool(
     "storage_record_create",
-    "Preview or create a schema-validated tenant record.",
+    "Preview or create a schema-validated collection record.",
     {
       collection: stringField("Collection ID or slug"),
-      record: objectField("Environment ID, tenant ID, and data"),
+      record: objectField("Environment ID and data"),
       dryRun: booleanField("Preview without creating", true),
     },
     ["collection", "record"],
@@ -198,11 +198,11 @@ export const storageTools = [
   ),
   platformTool(
     "storage_record_update",
-    "Preview or update a tenant record using its optimistic revision.",
+    "Preview or update a collection record using its optimistic revision.",
     {
       collection: stringField("Collection ID or slug"),
       recordId: stringField("Record UUID"),
-      record: objectField("Environment ID, tenant ID, revision, and replacement data"),
+      record: objectField("Environment ID, revision, and replacement data"),
       dryRun: booleanField("Preview without updating", true),
     },
     ["collection", "recordId", "record"],
@@ -210,11 +210,11 @@ export const storageTools = [
   ),
   platformTool(
     "storage_record_delete",
-    "Preview or permanently delete a tenant record using its optimistic revision.",
+    "Preview or permanently delete a collection record using its optimistic revision.",
     {
       collection: stringField("Collection ID or slug"),
       recordId: stringField("Record UUID"),
-      scope: objectField("Environment ID, tenant ID, and revision"),
+      scope: objectField("Environment ID and revision"),
       dryRun: booleanField("Preview without deleting", true),
     },
     ["collection", "recordId", "scope"],
@@ -530,12 +530,11 @@ async function recordsQuery(
     collection.id,
     input.query.environmentId,
   );
-  const { environmentId, tenantId, ...query } = input.query;
+  const { environmentId, ...query } = input.query;
   const result = await queryRecords(
     projectId,
     environmentId,
     collection.id,
-    tenantId,
     query,
     definition.schema,
     definition.indexes,
@@ -569,7 +568,6 @@ async function createRecord(
       collection: reference(collection),
       scope: {
         environmentId: input.record.environmentId,
-        tenantId: input.record.tenantId,
       },
     });
   const row = await prisma.collectionRecord.create({
@@ -578,7 +576,6 @@ async function createRecord(
       environmentId: input.record.environmentId,
       collectionId: collection.id,
       schemaVersionId: definition.id,
-      tenantScope: input.record.tenantId,
       data: input.record.data as Prisma.InputJsonValue,
     },
   });
@@ -590,7 +587,6 @@ async function createRecord(
     metadata: {
       collectionId: collection.id,
       environmentId: input.record.environmentId,
-      tenantId: input.record.tenantId,
     },
     environmentId: input.record.environmentId,
   });
@@ -623,7 +619,6 @@ async function updateRecord(
       projectId,
       environmentId: input.record.environmentId,
       collectionId: collection.id,
-      tenantScope: input.record.tenantId,
       revision: input.record.revision,
     },
     data: {
@@ -666,7 +661,6 @@ async function deleteRecord(
       projectId,
       environmentId: input.scope.environmentId,
       collectionId: collection.id,
-      tenantScope: input.scope.tenantId,
       revision: input.scope.revision,
     },
   });
@@ -676,7 +670,7 @@ async function deleteRecord(
     action: "collection_record.deleted",
     targetType: "collection_record",
     targetId: input.recordId,
-    metadata: { collectionId: collection.id, tenantId: input.scope.tenantId },
+    metadata: { collectionId: collection.id },
     environmentId: input.scope.environmentId,
   });
   return output("Deleted collection record", {

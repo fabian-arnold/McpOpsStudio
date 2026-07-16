@@ -143,7 +143,7 @@ export default function StoragePage() {
             <EmptyState
               icon={<Database />}
               title="Select a collection"
-              description="Schema, indexes, grants, and tenant records appear here."
+              description="Schema, indexes, grants, and collection records appear here."
             />
           )}
         </div>

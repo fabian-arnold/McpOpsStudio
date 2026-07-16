@@ -29,7 +29,6 @@ export class SnapshotCollections implements ProjectCollections {
   constructor(
     private readonly endpoint: LoadedEndpoint,
     private readonly functionId: string,
-    private readonly tenantId: string | undefined,
     private readonly requestId: string,
     private readonly knownSecrets: readonly string[] = [],
   ) {}
@@ -44,15 +43,9 @@ export class SnapshotCollections implements ProjectCollections {
         "FORBIDDEN",
         `Collection '${slug}' is not granted to this Function.`,
       );
-    if (!this.tenantId)
-      throw this.error(
-        "CONFIGURATION_ERROR",
-        "Collection access requires an authenticated tenant identity.",
-      );
     return new DatabaseCollection<T>(
       this.endpoint,
       grant,
-      this.tenantId,
       this.requestId,
       this.knownSecrets,
     );
@@ -69,7 +62,6 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
   constructor(
     private readonly endpoint: LoadedEndpoint,
     private readonly grant: CollectionGrantSnapshot,
-    private readonly tenantId: string,
     private readonly requestId: string,
     private readonly knownSecrets: readonly string[],
   ) {
@@ -85,7 +77,6 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
         environmentId: this.endpoint.environment.id,
         collectionId: this.grant.collectionId,
         schemaVersionId: this.grant.schemaVersionId,
-        tenantScope: this.tenantId,
         data: data as Prisma.InputJsonValue,
       },
     });
@@ -117,7 +108,6 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
       Prisma.sql`"projectId" = ${this.endpoint.project.id}::uuid`,
       Prisma.sql`"environmentId" = ${this.endpoint.environment.id}::uuid`,
       Prisma.sql`"collectionId" = ${this.grant.collectionId}::uuid`,
-      Prisma.sql`"tenantScope" = ${this.tenantId}`,
       ...(parsed.where ? [compileWhere(parsed.where, this.grant.schema)] : []),
       ...(cursor ? [compileCursor(order, cursor, this.grant.schema)] : []),
     ];
@@ -165,7 +155,6 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
       Prisma.sql`"projectId" = ${this.endpoint.project.id}::uuid`,
       Prisma.sql`"environmentId" = ${this.endpoint.environment.id}::uuid`,
       Prisma.sql`"collectionId" = ${this.grant.collectionId}::uuid`,
-      Prisma.sql`"tenantScope" = ${this.tenantId}`,
       ...(where ? [compileWhere(where, this.grant.schema)] : []),
     ];
     const [result] = await prisma.$transaction(async (tx) => {
@@ -211,7 +200,6 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
       projectId: this.endpoint.project.id,
       environmentId: this.endpoint.environment.id,
       collectionId: this.grant.collectionId,
-      tenantScope: this.tenantId,
     };
   }
   private require(permission: "read" | "write" | "delete") {

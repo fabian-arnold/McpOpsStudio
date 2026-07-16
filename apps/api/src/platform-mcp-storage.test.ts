@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("./resources.js", () => ({ cacheInspector: {} }));
 
 import { callStorageTool, storageTools } from "./platform-mcp-storage.js";
+import { recordCreateSchema, recordQuerySchema } from "./routes-storage.js";
 
 const definition = {
   name: "Customers",
   slug: "customers",
-  description: "Tenant customer records",
+  description: "Project customer records",
   schema: {
     type: "object",
     additionalProperties: false,
@@ -57,5 +58,20 @@ describe("Platform MCP storage tools", () => {
       storageTools.find((tool) => tool.name === "storage_record_delete")?.inputSchema
         .properties,
     ).toMatchObject({ dryRun: { default: true } });
+  });
+
+  it("scopes collection records by environment without accepting tenant fields", () => {
+    expect(
+      recordCreateSchema.safeParse({
+        environmentId: "11111111-1111-4111-8111-111111111111",
+        data: { name: "Ada" },
+      }).success,
+    ).toBe(true);
+    expect(
+      recordQuerySchema.safeParse({
+        environmentId: "11111111-1111-4111-8111-111111111111",
+        tenantId: "tenant-1",
+      }).success,
+    ).toBe(false);
   });
 });

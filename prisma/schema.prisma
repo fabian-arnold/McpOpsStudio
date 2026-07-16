@@ -712,7 +712,6 @@ model CollectionRecord {
   environmentId   String                @db.Uuid
   collectionId    String                @db.Uuid
   schemaVersionId String                @db.Uuid
-  tenantScope     String
   data            Json
   revision        Int                   @default(1)
   createdAt       DateTime              @default(now())
@@ -722,7 +721,7 @@ model CollectionRecord {
   collection      DataCollection        @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   schemaVersion   DataCollectionVersion @relation(fields: [schemaVersionId], references: [id], onDelete: Restrict)
 
-  @@index([collectionId, environmentId, tenantScope, createdAt, id])
+  @@index([collectionId, environmentId, createdAt, id])
   @@index([projectId, environmentId])
   @@index([data], type: Gin)
   @@map("collection_records")

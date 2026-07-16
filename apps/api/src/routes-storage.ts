@@ -31,26 +31,21 @@ import {
 
 export * from "./storage-support.js";
 
-export const environmentTenantSchema = z
+export const environmentScopeSchema = z
   .object({
     environmentId: z.string().uuid(),
-    tenantId: z
-      .string()
-      .min(1)
-      .max(128)
-      .regex(/^[A-Za-z0-9._-]+$/),
   })
   .strict();
-export const recordCreateSchema = environmentTenantSchema.extend({
+export const recordCreateSchema = environmentScopeSchema.extend({
   data: z.record(z.unknown()),
 });
 export const recordUpdateSchema = recordCreateSchema.extend({
   revision: z.number().int().positive(),
 });
-export const recordDeleteSchema = environmentTenantSchema.extend({
+export const recordDeleteSchema = environmentScopeSchema.extend({
   revision: z.number().int().positive(),
 });
-export const recordQuerySchema = environmentTenantSchema.extend(
+export const recordQuerySchema = environmentScopeSchema.extend(
   collectionQuerySchema.shape,
 );
 export const collectionGrantInputSchema = z
@@ -259,12 +254,11 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
       collectionId,
       input.environmentId,
     );
-    const { environmentId, tenantId, ...query } = input;
+    const { environmentId, ...query } = input;
     const result = await queryRecords(
       session.projectId,
       environmentId,
       collectionId,
-      tenantId,
       query,
       definition.schema,
       definition.indexes,
@@ -294,14 +288,12 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
         environmentId: input.environmentId,
         collectionId,
         schemaVersionId: definition.id,
-        tenantScope: input.tenantId,
         data: input.data as Prisma.InputJsonValue,
       },
     });
     await audit(prisma, session, "collection_record.created", row.id, {
       collectionId,
       environmentId: input.environmentId,
-      tenantId: input.tenantId,
     });
     return reply.status(201).send(redactSensitive(row, secrets));
   });
@@ -328,7 +320,6 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
         projectId: session.projectId,
         environmentId: input.environmentId,
         collectionId,
-        tenantScope: input.tenantId,
         revision: input.revision,
       },
       data: {
@@ -365,7 +356,6 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
           projectId: session.projectId,
           environmentId: input.environmentId,
           collectionId,
-          tenantScope: input.tenantId,
           revision: input.revision,
         },
       });
@@ -373,7 +363,6 @@ export async function registerStorageRoutes(app: FastifyInstance): Promise<void>
       await audit(prisma, session, "collection_record.deleted", recordId, {
         collectionId,
         environmentId: input.environmentId,
-        tenantId: input.tenantId,
       });
       return reply.status(204).send();
     },
