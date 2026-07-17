@@ -24,7 +24,7 @@ Use the MCP Ops Studio platform tools to configure and operate the selected proj
 
 ## Operating procedure
 
-1. Start with \`projects_list\`, then call \`project_select\` before project-scoped work.
+1. Start with \`projects_list\`, then call \`project_select\` before project-scoped work. The last selection is restored after reconnecting.
 2. Inspect the current Function, endpoint, binding, Secret grants, and policies before changing them.
 3. Use dry-run or preview modes for durable mutations when the tool provides one. Review the proposed change before applying it.
 4. Create and rotate Secret values only with \`secret_set_value\`. Never repeat Secret values in chat, source, logs, execution input, or summaries.

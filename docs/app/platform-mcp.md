@@ -14,9 +14,11 @@ rotating refresh token, so browser sign-in is not required again for 90 days
 unless the authorization is revoked. Active MCP sessions use an eight-hour idle
 timeout; each valid request renews that idle window.
 
-Each MCP session starts without a Project. Call `projects_list` and then
-`project_select` before using project-scoped tools. Project selection is isolated to
-that MCP session and does not change the browser UI selection.
+The first MCP session starts without a Project. Call `projects_list` and then
+`project_select` before using project-scoped tools. The selected Project is remembered
+for that installation-wide user and restored in later IDE sessions, including after
+OAuth reauthorization. It does not change the browser UI selection. If the remembered
+Project is no longer active, it is cleared and another Project must be selected.
 
 Function and library edits support unified patches or full source replacement.
 Durable tools default to `dryRun: true`; repeat a successful preview with

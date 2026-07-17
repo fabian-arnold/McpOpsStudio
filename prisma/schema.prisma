@@ -145,26 +145,30 @@ model Project {
   cronBindings             CronBinding[]
   scheduleDeployments      ScheduleDeployment[]
   scheduledRuns            ScheduledRun[]
+  platformMcpUsers         User[]                    @relation("PlatformMcpProject")
 
   @@map("projects")
 }
 
 model User {
-  id                      String                   @id @default(uuid()) @db.Uuid
-  email                   String                   @unique
-  passwordHash            String
-  role                    UserRole                 @default(viewer)
-  active                  Boolean                  @default(true)
-  mustChangePassword      Boolean                  @default(false)
-  sessionVersion          Int                      @default(1)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  sessions                Session[]
-  functionVersions        FunctionVersion[]        @relation("FunctionVersionCreator")
-  reviewedQueryVersions   ReviewedQueryVersion[]
-  oauthAuthorizationCodes OAuthAuthorizationCode[]
-  oauthGrants             OAuthGrant[]
+  id                       String                   @id @default(uuid()) @db.Uuid
+  email                    String                   @unique
+  passwordHash             String
+  role                     UserRole                 @default(viewer)
+  active                   Boolean                  @default(true)
+  mustChangePassword       Boolean                  @default(false)
+  sessionVersion           Int                      @default(1)
+  lastPlatformMcpProjectId String?                  @db.Uuid
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  sessions                 Session[]
+  functionVersions         FunctionVersion[]        @relation("FunctionVersionCreator")
+  reviewedQueryVersions    ReviewedQueryVersion[]
+  oauthAuthorizationCodes  OAuthAuthorizationCode[]
+  oauthGrants              OAuthGrant[]
+  lastPlatformMcpProject   Project?                 @relation("PlatformMcpProject", fields: [lastPlatformMcpProjectId], references: [id], onDelete: SetNull)
 
+  @@index([lastPlatformMcpProjectId])
   @@map("users")
 }
 

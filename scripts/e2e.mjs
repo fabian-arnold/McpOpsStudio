@@ -203,13 +203,44 @@ async function platformTool(id, name, args = {}) {
   return response;
 }
 const platformProjects = await platformTool(3, "projects_list");
-assert.ok(
-  platformProjects.body.result.structuredContent.data.projects.some(
+const platformAcmeProject =
+  platformProjects.body.result.structuredContent.data.projects.find(
     (project) => project.slug === "acme",
-  ),
-  "platform MCP lists installation projects",
-);
+  );
+assert.ok(platformAcmeProject, "platform MCP lists installation projects");
 await platformTool(4, "project_select", { project: "acme" });
+const resumedPlatformInitialize = await json(`${runtime}/platform/mcp`, {
+  method: "POST",
+  headers: platformHeaders,
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 401,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "mcpops-e2e-resumed", version: "1.0.0" },
+    },
+  }),
+});
+const resumedPlatformSessionId =
+  resumedPlatformInitialize.response.headers.get("mcp-session-id");
+assert.ok(resumedPlatformSessionId, "platform MCP creates a resumed session");
+const resumedPlatformProjects = await json(`${runtime}/platform/mcp`, {
+  method: "POST",
+  headers: { ...platformHeaders, "mcp-session-id": resumedPlatformSessionId },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 402,
+    method: "tools/call",
+    params: { name: "projects_list", arguments: {} },
+  }),
+});
+assert.equal(
+  resumedPlatformProjects.body.result.structuredContent.data.selectedProjectId,
+  platformAcmeProject.id,
+  "platform MCP restores the user's selected project in a new session",
+);
 const platformSecrets = await platformTool(5, "secrets_list");
 assert.equal(
   platformSecrets.body.result.structuredContent.data.containsSecretValues,

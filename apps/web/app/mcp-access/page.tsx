@@ -54,8 +54,8 @@ export default function McpAccessPage() {
             {endpoint}
           </code>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Durable mutations preview by default. Use <code>project_select</code> once
-            after every MCP initialization.
+            Durable mutations preview by default. Your last <code>project_select</code>
+            choice is restored when the IDE reconnects.
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">
             Access tokens refresh automatically. IDE authorization remains valid for 90

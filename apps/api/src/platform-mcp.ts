@@ -49,6 +49,10 @@ import {
 } from "./platform-mcp-observability.js";
 import { callCronTool, cronToolNames, cronTools } from "./platform-mcp-cron.js";
 import {
+  activeRememberedPlatformMcpProjectId,
+  rememberPlatformMcpProject,
+} from "./platform-mcp-project-selection.js";
+import {
   callStorageTool,
   storageToolNames,
   storageTools,
@@ -60,6 +64,7 @@ type McpIdentity = {
   email: string;
   role: string;
   scopes: PlatformScope[];
+  lastProjectId?: string;
 };
 type McpSession = { userId: string; projectId?: string };
 type Rpc = {
@@ -485,7 +490,11 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
             .status(400)
             .send(rpcError(rpc.id ?? null, -32602, "Invalid initialize parameters"));
         const id = randomUUID();
-        await saveSession(id, { userId: identity.userId });
+        const projectId = await activeRememberedPlatformMcpProjectId(
+          identity.userId,
+          identity.lastProjectId,
+        );
+        await saveSession(id, { userId: identity.userId, projectId });
         reply.header("mcp-session-id", id);
         const requested = object(rpc.params).protocolVersion;
         const protocolVersion =
@@ -596,6 +605,7 @@ async function authenticateMcp(
     email: grant.user.email,
     role: grant.user.role,
     scopes: grant.scopes as PlatformScope[],
+    lastProjectId: grant.user.lastPlatformMcpProjectId ?? undefined,
   };
 }
 
@@ -631,6 +641,7 @@ async function callTool(
       select: { id: true, name: true, slug: true },
     });
     if (!project) throw toolError("NOT_FOUND", "Active project not found");
+    await rememberPlatformMcpProject(identity.userId, project.id);
     await saveSession(sessionId, { userId: identity.userId, projectId: project.id });
     return output(`Selected ${project.name}`, { project }, [
       { tool: "functions_list", reason: "Browse Functions in the selected project." },
