@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_FUNCTION_TIMEOUT_MS, MIN_FUNCTION_TIMEOUT_MS } from "./limits.js";
 import { slugSchema } from "./contracts-core.js";
 
 export const projectLibrarySchema = z
@@ -229,7 +230,11 @@ export const endpointSettingsUpdateSchema = z
     runtimeVersion: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/),
     runtime: z
       .object({
-        timeoutMs: z.number().int().min(100).max(120_000),
+        timeoutMs: z
+          .number()
+          .int()
+          .min(MIN_FUNCTION_TIMEOUT_MS)
+          .max(MAX_FUNCTION_TIMEOUT_MS),
         maxConcurrentRequests: z.number().int().min(1).max(500),
       })
       .strict(),

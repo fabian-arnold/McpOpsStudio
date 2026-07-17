@@ -50,4 +50,19 @@ describe("endpoint manifest network policy", () => {
       ),
     ).toThrow(/method is required/);
   });
+
+  it("accepts a one-hour endpoint execution window", () => {
+    expect(
+      parseManifest(
+        JSON.stringify({
+          ...manifest,
+          endpoint: {
+            ...manifest.endpoint,
+            runtime: { timeoutMs: 3_600_000 },
+          },
+        }),
+        "json",
+      ).endpoint.runtime.timeoutMs,
+    ).toBe(3_600_000);
+  });
 });

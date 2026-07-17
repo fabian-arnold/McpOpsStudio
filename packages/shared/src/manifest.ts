@@ -5,6 +5,11 @@ import {
   endpointAccessPolicySchema,
   slugSchema,
 } from "./contracts.js";
+import {
+  DEFAULT_FUNCTION_TIMEOUT_MS,
+  MAX_FUNCTION_TIMEOUT_MS,
+  MIN_FUNCTION_TIMEOUT_MS,
+} from "./limits.js";
 
 const manifestNetworkSchema = z
   .object({
@@ -61,7 +66,12 @@ export const manifestSchema = z
           .default("1"),
         runtime: z
           .object({
-            timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
+            timeoutMs: z
+              .number()
+              .int()
+              .min(MIN_FUNCTION_TIMEOUT_MS)
+              .max(MAX_FUNCTION_TIMEOUT_MS)
+              .default(DEFAULT_FUNCTION_TIMEOUT_MS),
             maxConcurrentRequests: z.number().int().min(1).max(500).default(20),
             env: runtimeEnvironmentSchema.default({}),
             endpointAccessPolicy: endpointAccessPolicySchema.default({

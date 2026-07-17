@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { deploymentRuntimeConfigSchema } from "./contracts.js";
+import {
+  deploymentRuntimeConfigSchema,
+  endpointSettingsUpdateSchema,
+} from "./contracts.js";
 
 describe("deployment runtime configuration", () => {
   it("accepts reviewed non-secret environment and access configuration", () => {
@@ -24,5 +27,28 @@ describe("deployment runtime configuration", () => {
         endpointAccessPolicy: { mode: "restricted", allowedSubjects: [] },
       }),
     ).toThrow("Restricted endpoint access requires at least one rule");
+  });
+
+  it("allows endpoint execution windows up to one hour", () => {
+    const base = {
+      name: "Long-running endpoint",
+      slug: "long-running-endpoint",
+      description: "",
+      runtimeVersion: "1",
+      env: {},
+      endpointAccessPolicy: { mode: "authenticated", allowedSubjects: [] },
+    } as const;
+    expect(
+      endpointSettingsUpdateSchema.parse({
+        ...base,
+        runtime: { timeoutMs: 3_600_000, maxConcurrentRequests: 1 },
+      }).runtime.timeoutMs,
+    ).toBe(3_600_000);
+    expect(() =>
+      endpointSettingsUpdateSchema.parse({
+        ...base,
+        runtime: { timeoutMs: 3_600_001, maxConcurrentRequests: 1 },
+      }),
+    ).toThrow();
   });
 });

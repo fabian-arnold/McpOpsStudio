@@ -1,0 +1,3 @@
+export const MIN_FUNCTION_TIMEOUT_MS = 100;
+export const DEFAULT_FUNCTION_TIMEOUT_MS = 30_000;
+export const MAX_FUNCTION_TIMEOUT_MS = 60 * 60_000;

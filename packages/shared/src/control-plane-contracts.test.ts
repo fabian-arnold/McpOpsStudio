@@ -52,6 +52,15 @@ describe("control-plane mutation contracts", () => {
     ).toBe("search_customers");
   });
 
+  it("allows function executions up to one hour", () => {
+    expect(
+      functionCreateSchema.parse({ ...draft, timeoutMs: 3_600_000 }).timeoutMs,
+    ).toBe(3_600_000);
+    expect(() =>
+      functionCreateSchema.parse({ ...draft, timeoutMs: 3_600_001 }),
+    ).toThrow();
+  });
+
   it("accepts an empty input or output schema as an explicit allow-any contract", () => {
     expect(
       functionCreateSchema.parse({

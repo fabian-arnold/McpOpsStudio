@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateReviewedReadQuery } from "@mcpops/shared";
+import { MAX_FUNCTION_TIMEOUT_MS, validateReviewedReadQuery } from "@mcpops/shared";
 
 const jsonSchema = z.record(z.unknown());
 export const cachePolicySchema = z
@@ -34,7 +34,7 @@ export const snapshotFunctionSchema = z.object({
   riskLevel: z.enum(["read", "write", "destructive"]),
   requiredPermissions: z.array(z.string()).default([]),
   secretGrants: z.array(z.string()).default([]),
-  timeoutMs: z.number().int().positive().max(120_000),
+  timeoutMs: z.number().int().positive().max(MAX_FUNCTION_TIMEOUT_MS),
   inputSchema: jsonSchema,
   outputSchema: jsonSchema.optional(),
   cachePolicy: cachePolicySchema.nullable().default(null),

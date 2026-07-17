@@ -111,6 +111,9 @@ export function FunctionInspector({ model }: { model: FunctionWorkbenchModel }) 
                 <input
                   className="field"
                   type="number"
+                  min={100}
+                  max={3_600_000}
+                  step={1_000}
                   value={draft.timeoutMs}
                   onChange={(event) =>
                     update({ timeoutMs: Number(event.target.value) })

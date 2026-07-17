@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  DEFAULT_FUNCTION_TIMEOUT_MS,
+  MAX_FUNCTION_TIMEOUT_MS,
+  MIN_FUNCTION_TIMEOUT_MS,
+} from "./limits.js";
 
 export const slugSchema = z
   .string()
@@ -136,7 +141,12 @@ export const functionCreateSchema = z
     code: z.string().min(1).max(200_000),
     inputSchema: jsonSchemaSchema,
     outputSchema: jsonSchemaSchema,
-    timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
+    timeoutMs: z
+      .number()
+      .int()
+      .min(MIN_FUNCTION_TIMEOUT_MS)
+      .max(MAX_FUNCTION_TIMEOUT_MS)
+      .default(DEFAULT_FUNCTION_TIMEOUT_MS),
     enabled: z.boolean().default(true),
     riskLevel: riskLevelSchema.default("read"),
     requiredPermissions: z.array(z.string()).default([]),
