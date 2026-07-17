@@ -34,11 +34,17 @@ export async function ensureCollectionIndexes(
               ),
             ].join(", ");
       const using = index.kind === "gin" ? " USING GIN" : "";
-      await prisma.$executeRaw(
-        Prisma.raw(
-          `CREATE ${uniqueSql}INDEX IF NOT EXISTS "${name}" ON "collection_records"${using} (${expression}) ${predicate}`,
-        ),
-      );
+      await prisma.$transaction(async (tx) => {
+        // Endpoint and schedule deployments can materialize the same project
+        // collection concurrently. PostgreSQL's IF NOT EXISTS does not protect
+        // concurrent CREATE INDEX calls from a pg_class uniqueness race.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${name}))`;
+        await tx.$executeRaw(
+          Prisma.raw(
+            `CREATE ${uniqueSql}INDEX IF NOT EXISTS "${name}" ON "collection_records"${using} (${expression}) ${predicate}`,
+          ),
+        );
+      });
     }
   }
 }
