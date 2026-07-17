@@ -2,15 +2,17 @@ import { randomUUID } from "node:crypto";
 import type { Job, Queue } from "bullmq";
 import { Redis } from "ioredis";
 import { prisma } from "@mcpops/db";
+import { MAX_FUNCTION_TIMEOUT_MS } from "@mcpops/shared";
 
 const lockRedis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
   maxRetriesPerRequest: 1,
   lazyConnect: true,
 });
 
-export const CRON_INVOCATION_TIMEOUT_MS = 150_000;
-export const SCHEDULE_JOB_LOCK_DURATION_MS = 240_000;
+export const CRON_INVOCATION_TIMEOUT_MS = MAX_FUNCTION_TIMEOUT_MS + 30_000;
+export const SCHEDULE_JOB_LOCK_DURATION_MS = CRON_INVOCATION_TIMEOUT_MS + 60_000;
 export const SCHEDULE_JOB_LOCK_RENEW_TIME_MS = 60_000;
+export const SCHEDULE_OVERLAP_LOCK_MS = CRON_INVOCATION_TIMEOUT_MS + 60_000;
 
 export async function closeSchedulerResources(): Promise<void> {
   if (lockRedis.status !== "wait" && lockRedis.status !== "end") await lockRedis.quit();
@@ -167,7 +169,13 @@ export async function processScheduleJob(queue: Queue, job: Job): Promise<void> 
   }
   const lockKey = `mcpops:cron-lock:${data.bindingId}`;
   const lockToken = randomUUID();
-  const acquired = await lockRedis.set(lockKey, lockToken, "PX", 180_000, "NX");
+  const acquired = await lockRedis.set(
+    lockKey,
+    lockToken,
+    "PX",
+    SCHEDULE_OVERLAP_LOCK_MS,
+    "NX",
+  );
   if (acquired !== "OK") {
     await prisma.scheduledRun.update({
       where: { id: claim.id },
