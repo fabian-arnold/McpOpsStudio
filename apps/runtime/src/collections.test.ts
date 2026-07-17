@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { compileWhere, SnapshotCollections } from "./collections.js";
+import {
+  compileWhere,
+  containsPlatformSecret,
+  SnapshotCollections,
+} from "./collections.js";
 
 const schema = {
   type: "object",
@@ -51,5 +55,27 @@ describe("PostgreSQL collection query compilation", () => {
     expect(() =>
       compileWhere({ field: "missing", op: "eq", value: true }, schema),
     ).toThrow(/Unknown collection field/);
+  });
+
+  it("does not treat a short secret embedded in an ordinary word as persisted", () => {
+    expect(
+      containsPlatformSecret(
+        {
+          mode: "incremental",
+          message: "Platform secret values cannot be persisted in a data collection.",
+        },
+        ["form"],
+      ),
+    ).toBe(false);
+  });
+
+  it("detects direct, token-delimited, and long embedded secret values", () => {
+    expect(containsPlatformSecret({ value: "abc" }, ["abc"])).toBe(true);
+    expect(containsPlatformSecret({ value: "Bearer form" }, ["form"])).toBe(true);
+    expect(
+      containsPlatformSecret({ value: "prefix-super-secret-value-suffix" }, [
+        "super-secret-value",
+      ]),
+    ).toBe(true);
   });
 });

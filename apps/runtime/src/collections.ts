@@ -211,7 +211,7 @@ class DatabaseCollection<T> implements ScopedCollection<T> {
       });
   }
   private validateData(data: unknown) {
-    if (containsSecret(data, this.knownSecrets))
+    if (containsPlatformSecret(data, this.knownSecrets))
       throw new SafeRuntimeError({
         code: "VALIDATION_ERROR",
         message: "Platform secret values cannot be persisted in a data collection.",
@@ -435,9 +435,31 @@ function decodeCursor(cursor: string): Cursor {
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&");
 }
-function containsSecret(value: unknown, secrets: readonly string[]): boolean {
+export function containsPlatformSecret(
+  value: unknown,
+  secrets: readonly string[],
+): boolean {
   if (typeof value === "string")
-    return secrets.some((secret) => secret.length >= 4 && value.includes(secret));
+    return secrets.some((secret) => stringContainsSecret(value, secret));
   if (!value || typeof value !== "object") return false;
-  return Object.values(value).some((item) => containsSecret(item, secrets));
+  return Object.values(value).some((item) => containsPlatformSecret(item, secrets));
+}
+
+function stringContainsSecret(value: string, secret: string): boolean {
+  if (!secret) return false;
+  if (value === secret) return true;
+  if (secret.length >= 8) return value.includes(secret);
+  let offset = value.indexOf(secret);
+  while (offset >= 0) {
+    const before = value[offset - 1];
+    const after = value[offset + secret.length];
+    if ((!before || !isTokenCharacter(before)) && (!after || !isTokenCharacter(after)))
+      return true;
+    offset = value.indexOf(secret, offset + 1);
+  }
+  return false;
+}
+
+function isTokenCharacter(value: string): boolean {
+  return /[A-Za-z0-9_]/.test(value);
 }
