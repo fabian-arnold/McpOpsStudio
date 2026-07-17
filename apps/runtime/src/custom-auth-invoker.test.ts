@@ -9,7 +9,7 @@ describe("custom authentication invocation", () => {
       enabled: true,
     };
     const endpoint = { snapshot: { functions: [fn] } };
-    const invoke = vi.fn(async () => ({
+    const invoke = vi.fn(async (_request: unknown) => ({
       ok: true,
       output: {
         authenticated: true,
@@ -31,11 +31,15 @@ describe("custom authentication invocation", () => {
         request: { headers: { authorization: "credential" } },
       }),
     ).resolves.toMatchObject({ authenticated: true });
+    const invocation = invoke.mock.calls[0]?.[0] as { requestId?: string };
+    expect(invocation.requestId).not.toBe("request-1");
     expect(invoke).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint,
         fn,
         source: "internal",
+        requestId: expect.any(String),
+        correlationId: "request-1",
         skipPermissionAuthorization: true,
         suppressPayloadCapture: true,
         suppressLogs: true,

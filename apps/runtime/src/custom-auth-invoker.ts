@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { SafeRuntimeError } from "@mcpops/runtime-sdk";
 import type { LoadedEndpoint } from "./domain.js";
@@ -26,7 +27,8 @@ export function customAuthenticationInvoker(
         permissions: [],
         claims: { authentication: "platform" },
       },
-      requestId: request.id,
+      requestId: randomUUID(),
+      correlationId: request.id,
       abortSignal: requestAbortSignal(request),
       skipPermissionAuthorization: true,
       suppressPayloadCapture: true,
