@@ -21,6 +21,7 @@ import { checksum } from "./helpers.js";
 import {
   hashToken,
   platformResource,
+  platformMcpSessionIdleTtlSeconds,
   publicOrigin,
   type PlatformScope,
 } from "./oauth.js";
@@ -511,6 +512,10 @@ export async function registerPlatformMcpRoutes(app: FastifyInstance): Promise<v
         return reply
           .status(404)
           .send(rpcError(rpc.id ?? null, -32001, "MCP session expired"));
+      await controlPlaneState.expire(
+        `mcp:session:${sessionId}`,
+        platformMcpSessionIdleTtlSeconds,
+      );
       if (rpc.method === "notifications/initialized") return reply.status(202).send();
       if (rpc.method === "tools/list") {
         if (!ListToolsRequestSchema.safeParse(rpc).success)
@@ -860,7 +865,7 @@ async function saveSession(id: string, session: McpSession) {
     `mcp:session:${id}`,
     JSON.stringify(session),
     "EX",
-    8 * 60 * 60,
+    platformMcpSessionIdleTtlSeconds,
   );
 }
 

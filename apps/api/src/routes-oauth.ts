@@ -11,6 +11,8 @@ import {
   oauthError,
   opaqueToken,
   parseScopes,
+  platformAccessTokenTtlSeconds,
+  platformOAuthExpirations,
   platformResource,
   platformScopes,
   publicOrigin,
@@ -214,6 +216,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
         throw oauthError("invalid_grant", "PKCE verification failed");
       const access = opaqueToken();
       const refresh = opaqueToken();
+      const expirations = platformOAuthExpirations();
       await prisma.$transaction(async (tx) => {
         const consumed = await tx.oAuthAuthorizationCode.updateMany({
           where: { id: record.id, consumedAt: null, expiresAt: { gt: new Date() } },
@@ -229,8 +232,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
             resource: record.resource,
             accessTokenHash: hashToken(access),
             refreshTokenHash: hashToken(refresh),
-            accessExpiresAt: new Date(Date.now() + 15 * 60_000),
-            refreshExpiresAt: new Date(Date.now() + 8 * 60 * 60_000),
+            ...expirations,
           },
         });
       });
@@ -238,7 +240,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
         access_token: access,
         refresh_token: refresh,
         token_type: "Bearer",
-        expires_in: 900,
+        expires_in: platformAccessTokenTtlSeconds,
         scope: record.scopes.join(" "),
       };
     }
@@ -257,12 +259,13 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
         throw oauthError("invalid_grant", "Refresh token is invalid or expired");
       const access = opaqueToken();
       const refresh = opaqueToken();
+      const { accessExpiresAt } = platformOAuthExpirations();
       const rotated = await prisma.oAuthGrant.updateMany({
         where: { id: grant.id, refreshTokenHash: refreshHash, revokedAt: null },
         data: {
           accessTokenHash: hashToken(access),
           refreshTokenHash: hashToken(refresh),
-          accessExpiresAt: new Date(Date.now() + 15 * 60_000),
+          accessExpiresAt,
         },
       });
       if (!rotated.count)
@@ -271,7 +274,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
         access_token: access,
         refresh_token: refresh,
         token_type: "Bearer",
-        expires_in: 900,
+        expires_in: platformAccessTokenTtlSeconds,
         scope: grant.scopes.join(" "),
       };
     }

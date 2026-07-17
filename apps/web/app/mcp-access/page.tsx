@@ -57,6 +57,10 @@ export default function McpAccessPage() {
             Durable mutations preview by default. Use <code>project_select</code> once
             after every MCP initialization.
           </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Access tokens refresh automatically. IDE authorization remains valid for 90
+            days unless you revoke it here.
+          </p>
         </section>
         <section className="panel p-5">
           <h2 className="text-sm font-semibold">Authorized clients</h2>

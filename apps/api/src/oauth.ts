@@ -6,6 +6,16 @@ import { prisma } from "@mcpops/db";
 
 export const platformScopes = ["mcpops:read", "mcpops:write", "mcpops:deploy"] as const;
 export type PlatformScope = (typeof platformScopes)[number];
+export const platformAccessTokenTtlSeconds = 15 * 60;
+export const platformRefreshTokenTtlSeconds = 90 * 24 * 60 * 60;
+export const platformMcpSessionIdleTtlSeconds = 8 * 60 * 60;
+
+export function platformOAuthExpirations(now = new Date()) {
+  return {
+    accessExpiresAt: new Date(now.getTime() + platformAccessTokenTtlSeconds * 1000),
+    refreshExpiresAt: new Date(now.getTime() + platformRefreshTokenTtlSeconds * 1000),
+  };
+}
 
 export type OAuthRequestState = {
   clientId: string;

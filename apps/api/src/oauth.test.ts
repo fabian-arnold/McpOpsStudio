@@ -4,6 +4,10 @@ import {
   configuredPublicOrigin,
   hashToken,
   parseScopes,
+  platformAccessTokenTtlSeconds,
+  platformMcpSessionIdleTtlSeconds,
+  platformOAuthExpirations,
+  platformRefreshTokenTtlSeconds,
   validPublicOrigin,
   validRedirectUri,
 } from "./oauth.js";
@@ -57,5 +61,15 @@ describe("platform MCP OAuth safety", () => {
   it("stores stable hashes rather than opaque token values", () => {
     expect(hashToken("secret-token")).toMatch(/^[0-9a-f]{64}$/);
     expect(hashToken("secret-token")).not.toContain("secret-token");
+  });
+
+  it("keeps access short-lived while making IDE authorization durable", () => {
+    const now = new Date("2026-07-17T00:00:00.000Z");
+    const expirations = platformOAuthExpirations(now);
+    expect(platformAccessTokenTtlSeconds).toBe(15 * 60);
+    expect(platformRefreshTokenTtlSeconds).toBe(90 * 24 * 60 * 60);
+    expect(platformMcpSessionIdleTtlSeconds).toBe(8 * 60 * 60);
+    expect(expirations.accessExpiresAt.toISOString()).toBe("2026-07-17T00:15:00.000Z");
+    expect(expirations.refreshExpiresAt.toISOString()).toBe("2026-10-15T00:00:00.000Z");
   });
 });

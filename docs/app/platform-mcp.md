@@ -9,6 +9,11 @@ MCP Ops Studio exposes an OAuth-protected Streamable HTTP control-plane server a
 coding client. The client opens the browser for local platform sign-in and consent;
 runtime endpoint API keys are not used for control-plane access.
 
+Access tokens expire after 15 minutes. Compatible clients renew them with a
+rotating refresh token, so browser sign-in is not required again for 90 days
+unless the authorization is revoked. Active MCP sessions use an eight-hour idle
+timeout; each valid request renews that idle window.
+
 Each MCP session starts without a Project. Call `projects_list` and then
 `project_select` before using project-scoped tools. Project selection is isolated to
 that MCP session and does not change the browser UI selection.

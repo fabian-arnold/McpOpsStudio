@@ -115,8 +115,34 @@ const token = await json(`${runtime}/oauth/token`, {
     code_verifier: verifier,
   }),
 });
+const refreshedToken = await json(`${runtime}/oauth/token`, {
+  method: "POST",
+  headers: { "content-type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: token.body.refresh_token,
+    client_id: oauthClient.body.client_id,
+    resource: `${runtime}/platform/mcp`,
+  }),
+});
+assert.notEqual(
+  refreshedToken.body.refresh_token,
+  token.body.refresh_token,
+  "platform MCP rotates refresh tokens",
+);
+const reusedRefresh = await fetch(`${runtime}/oauth/token`, {
+  method: "POST",
+  headers: { "content-type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: token.body.refresh_token,
+    client_id: oauthClient.body.client_id,
+    resource: `${runtime}/platform/mcp`,
+  }),
+});
+assert.equal(reusedRefresh.status, 400, "platform MCP rejects a used refresh token");
 const platformHeaders = {
-  authorization: `Bearer ${token.body.access_token}`,
+  authorization: `Bearer ${refreshedToken.body.access_token}`,
   "content-type": "application/json",
 };
 const platformInitialize = await json(`${runtime}/platform/mcp`, {
