@@ -3,16 +3,16 @@
 	auto_https off
 }
 
-:8080 {
+{$CADDY_ADDRESS::8080} {
 	encode gzip zstd
 
 	handle /api/* {
-		reverse_proxy 127.0.0.1:3001
+		reverse_proxy {$CONTROL_PLANE_API_UPSTREAM:127.0.0.1:3001}
 	}
 
 	@platform_control path /platform/mcp /.well-known/oauth-protected-resource* /.well-known/oauth-authorization-server /oauth/authorize /oauth/token /oauth/register
 	handle @platform_control {
-		reverse_proxy 127.0.0.1:3001
+		reverse_proxy {$CONTROL_PLANE_API_UPSTREAM:127.0.0.1:3001}
 	}
 
 	handle /mcp/* {
@@ -83,7 +83,7 @@
 	}
 
 	handle {
-		reverse_proxy 127.0.0.1:3000
+		reverse_proxy {$CONTROL_PLANE_WEB_UPSTREAM:127.0.0.1:3000}
 	}
 
 	header {
@@ -91,5 +91,39 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
+	}
+
+	handle_errors {
+		header {
+			-Server
+			Cache-Control "no-store"
+			Retry-After "5"
+			X-Content-Type-Options nosniff
+			Referrer-Policy no-referrer
+			X-Frame-Options DENY
+			Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		}
+
+		@html_502 {
+			header Accept *text/html*
+			expression {err.status_code} == 502
+		}
+		handle @html_502 {
+			root * {$CADDY_ERROR_ROOT:/srv/caddy-errors}
+			rewrite * /502.html
+			file_server
+		}
+
+		@html header Accept *text/html*
+		handle @html {
+			root * {$CADDY_ERROR_ROOT:/srv/caddy-errors}
+			rewrite * /error.html
+			file_server
+		}
+
+		handle {
+			header Content-Type application/json
+			respond "{\"error\":{\"code\":\"GATEWAY_UNAVAILABLE\",\"message\":\"MCP Ops Studio services are starting. Retry shortly.\"}}" {err.status_code}
+		}
 	}
 }

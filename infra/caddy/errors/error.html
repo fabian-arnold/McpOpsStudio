@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MCP Ops Studio is temporarily unavailable</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        --bg: #f6f7fb;
+        --card: rgba(255, 255, 255, 0.9);
+        --text: #182033;
+        --muted: #667085;
+        --border: rgba(102, 112, 133, 0.2);
+        --primary: #7357e8;
+        --primary-soft: rgba(115, 87, 232, 0.12);
+        --shadow: 0 24px 80px rgba(40, 32, 76, 0.14);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0d101a;
+          --card: rgba(22, 26, 40, 0.92);
+          --text: #eef0f7;
+          --muted: #a3a9b9;
+          --border: rgba(255, 255, 255, 0.1);
+          --primary: #a895ff;
+          --primary-soft: rgba(168, 149, 255, 0.14);
+          --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 10%, var(--primary-soft), transparent 30rem),
+          radial-gradient(circle at 85% 90%, var(--primary-soft), transparent 28rem),
+          var(--bg);
+      }
+      main {
+        width: min(100%, 620px);
+        padding: clamp(28px, 6vw, 52px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 38px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .mark {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        color: white;
+        background: linear-gradient(145deg, #8b72f2, #6041d8);
+      }
+      .status {
+        display: inline-flex;
+        padding: 7px 11px;
+        border-radius: 999px;
+        color: var(--primary);
+        background: var(--primary-soft);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 20px 0 12px;
+        font-size: clamp(30px, 7vw, 46px);
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.7;
+      }
+      .details {
+        margin-top: 28px;
+        padding-top: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border-top: 1px solid var(--border);
+      }
+      .retry-copy {
+        font-size: 13px;
+      }
+      button {
+        flex: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 15px;
+        color: white;
+        background: var(--primary);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      @media (max-width: 480px) {
+        .details {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">M</span>
+        <span>MCP Ops Studio</span>
+      </div>
+      <span class="status">Service unavailable</span>
+      <h1>We hit a gateway problem.</h1>
+      <p>
+        MCP Ops Studio could not complete this request. The service may be restarting;
+        wait a moment and try again.
+      </p>
+      <div class="details">
+        <p class="retry-copy">If this continues, check the control-plane logs.</p>
+        <button type="button" onclick="location.reload()">Try again</button>
+      </div>
+    </main>
+  </body>
+</html>

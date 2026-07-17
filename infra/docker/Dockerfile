@@ -33,7 +33,9 @@ COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY infra/docker/start-control-plane.sh /usr/local/bin/start-control-plane
 COPY infra/docker/start-worker.sh /usr/local/bin/start-worker
 COPY infra/caddy/Caddyfile /etc/caddy/Caddyfile
-RUN chmod +x /usr/local/bin/start-control-plane /usr/local/bin/start-worker
+COPY infra/caddy/errors /srv/caddy-errors
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile \
+    && chmod +x /usr/local/bin/start-control-plane /usr/local/bin/start-worker
 ENV NODE_ENV=development
 
 FROM dependencies AS build
@@ -61,7 +63,9 @@ COPY infra/docker/start-worker.sh /usr/local/bin/start-worker
 COPY infra/docker/start-with-generated-config.sh /usr/local/bin/start-with-generated-config
 COPY infra/postgres-init/00-security.sh /usr/local/share/mcpops/00-security.sh
 COPY infra/caddy/Caddyfile /etc/caddy/Caddyfile
-RUN chmod +x /usr/local/bin/start-control-plane /usr/local/bin/start-worker /usr/local/bin/start-with-generated-config \
+COPY infra/caddy/errors /srv/caddy-errors
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile \
+    && chmod +x /usr/local/bin/start-control-plane /usr/local/bin/start-worker /usr/local/bin/start-with-generated-config \
     && if [ "$APP" = "worker" ]; then apk add --no-cache docker-cli; fi
 ENTRYPOINT ["/usr/local/bin/start-with-generated-config"]
 CMD ["sh", "-c", "pnpm config:validate && exec /usr/local/bin/start-${APP_NAME}"]
