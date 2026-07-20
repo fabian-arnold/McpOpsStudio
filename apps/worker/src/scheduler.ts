@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Job, Queue } from "bullmq";
 import { Redis } from "ioredis";
+import { Agent, fetch as undiciFetch } from "undici";
 import { prisma } from "@mcpops/db";
 import { MAX_FUNCTION_TIMEOUT_MS } from "@mcpops/shared";
 
@@ -13,9 +14,14 @@ export const CRON_INVOCATION_TIMEOUT_MS = MAX_FUNCTION_TIMEOUT_MS + 30_000;
 export const SCHEDULE_JOB_LOCK_DURATION_MS = CRON_INVOCATION_TIMEOUT_MS + 60_000;
 export const SCHEDULE_JOB_LOCK_RENEW_TIME_MS = 60_000;
 export const SCHEDULE_OVERLAP_LOCK_MS = CRON_INVOCATION_TIMEOUT_MS + 60_000;
+const runtimeInvocationAgent = new Agent({
+  headersTimeout: CRON_INVOCATION_TIMEOUT_MS,
+  bodyTimeout: CRON_INVOCATION_TIMEOUT_MS,
+});
 
 export async function closeSchedulerResources(): Promise<void> {
   if (lockRedis.status !== "wait" && lockRedis.status !== "end") await lockRedis.quit();
+  await runtimeInvocationAgent.close();
 }
 
 export type ScheduleJobData = {
@@ -192,17 +198,21 @@ export async function processScheduleJob(queue: Queue, job: Job): Promise<void> 
       /\/+$/,
       "",
     );
-    const response = await fetch(`${base}/internal/cron-runs/${claim.id}/invoke`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(process.env.INTERNAL_API_TOKEN
-          ? { "x-internal-token": process.env.INTERNAL_API_TOKEN }
-          : {}),
+    const response = await undiciFetch(
+      `${base}/internal/cron-runs/${claim.id}/invoke`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(process.env.INTERNAL_API_TOKEN
+            ? { "x-internal-token": process.env.INTERNAL_API_TOKEN }
+            : {}),
+        },
+        body: JSON.stringify({}),
+        signal: AbortSignal.timeout(CRON_INVOCATION_TIMEOUT_MS),
+        dispatcher: runtimeInvocationAgent,
       },
-      body: JSON.stringify({}),
-      signal: AbortSignal.timeout(CRON_INVOCATION_TIMEOUT_MS),
-    });
+    );
     const result = (await response.json().catch(() => ({}))) as {
       executionId?: string;
       status?: string;

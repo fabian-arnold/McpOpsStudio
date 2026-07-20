@@ -28,6 +28,7 @@ describe("cron scheduler identity", () => {
   });
 
   it("keeps the BullMQ lock beyond the maximum runtime invocation", () => {
+    expect(CRON_INVOCATION_TIMEOUT_MS).toBeGreaterThan(5 * 60_000);
     expect(SCHEDULE_JOB_LOCK_DURATION_MS).toBeGreaterThan(CRON_INVOCATION_TIMEOUT_MS);
     expect(SCHEDULE_JOB_LOCK_RENEW_TIME_MS).toBeLessThan(
       SCHEDULE_JOB_LOCK_DURATION_MS / 2,
