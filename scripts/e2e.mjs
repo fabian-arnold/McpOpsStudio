@@ -556,6 +556,76 @@ assert.equal(
   "execution records persist the tested Function version separately",
 );
 
+const liveObservabilityFunction = await ensureFunction({
+  name: "e2e_live_observability",
+  slug: "e2e_live_observability",
+  description: "Proves running executions and logs are visible before completion",
+  code: `export default async function handler(ctx) {
+    ctx.logger.info("e2e live execution started", { phase: "running" });
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    return { observed: true };
+  }`,
+  inputSchema: { type: "object", additionalProperties: false },
+  outputSchema: {
+    type: "object",
+    properties: { observed: { type: "boolean" } },
+    required: ["observed"],
+    additionalProperties: false,
+  },
+  timeoutMs: 10_000,
+  enabled: true,
+  riskLevel: "read",
+  requiredPermissions: [],
+  secretGrantIds: [],
+  cachePolicy: null,
+});
+const liveTestPromise = json(
+  `${control}/functions/${liveObservabilityFunction.id}/test`,
+  {
+    method: "POST",
+    headers: {
+      cookie,
+      "x-csrf-token": csrf,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      endpointId: mcpEndpoint.id,
+      input: {},
+      source: "test",
+      caller: { subject: "e2e-live", permissions: [], claims: {} },
+    }),
+  },
+);
+let runningExecution;
+let streamedLog;
+for (let attempt = 0; attempt < 20; attempt += 1) {
+  const [executions, logs] = await Promise.all([
+    json(`${control}/executions?functionId=${liveObservabilityFunction.id}`, {
+      headers: { cookie },
+    }),
+    json(`${control}/logs?functionId=${liveObservabilityFunction.id}`, {
+      headers: { cookie },
+    }),
+  ]);
+  runningExecution = executions.body.items.find((item) => item.status === "running");
+  streamedLog = logs.body.items.find(
+    (item) => item.message === "e2e live execution started",
+  );
+  if (runningExecution && streamedLog) break;
+  await new Promise((resolve) => setTimeout(resolve, 200));
+}
+assert.ok(
+  runningExecution,
+  "running Function execution is queryable before completion",
+);
+assert.equal(
+  streamedLog?.executionId,
+  runningExecution.id,
+  "redacted Function logs stream while their execution is running",
+);
+const liveTest = await liveTestPromise;
+assert.equal(liveTest.body.output.observed, true, "live test Function completes");
+
 const productionRelease = await json(`${control}/deployments/release`, {
   method: "POST",
   headers: { cookie, "x-csrf-token": csrf, "content-type": "application/json" },

@@ -239,6 +239,8 @@ export type Execution = {
   binding?: string;
   status: string;
   durationMs: number;
+  heartbeatAt?: string;
+  completedAt?: string;
   functionVersion: number;
   deploymentVersion: number;
   caller?: string;

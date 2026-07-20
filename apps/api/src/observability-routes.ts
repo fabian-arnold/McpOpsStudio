@@ -22,6 +22,8 @@ type ExecutionViewRow = {
   invocationSource: string;
   status: string;
   durationMs: number;
+  heartbeatAt?: Date | null;
+  completedAt?: Date | null;
   callerIdentity: unknown;
   input: unknown;
   output: unknown;
@@ -334,7 +336,12 @@ export function executionView(row: ExecutionViewRow) {
       typeof callerIdentity.subject === "string" ? callerIdentity.subject : undefined,
     callerIdentity,
     status: row.status,
-    durationMs: row.durationMs,
+    durationMs:
+      row.status === "running"
+        ? Math.max(row.durationMs, Date.now() - row.createdAt.getTime())
+        : row.durationMs,
+    heartbeatAt: row.heartbeatAt ?? undefined,
+    completedAt: row.completedAt ?? undefined,
     functionVersion: row.functionVersion?.version ?? 0,
     deploymentVersion:
       row.deployment?.version ?? row.scheduleDeployment?.projectDeployment.version ?? 0,

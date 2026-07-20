@@ -6,6 +6,9 @@ describe("control-plane list filters", () => {
     expect(
       executionListQuerySchema.parse({ limit: "25", source: "mcp" }),
     ).toMatchObject({ limit: 25, source: "mcp" });
+    expect(executionListQuerySchema.parse({ status: "running" })).toMatchObject({
+      status: "running",
+    });
     expect(() =>
       executionListQuerySchema.parse({
         from: "2026-07-11T00:00:00Z",

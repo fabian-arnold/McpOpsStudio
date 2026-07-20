@@ -94,7 +94,7 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
   });
   app.get("/api/notifications", async (request) => {
     const session = sessionContext(request);
-    const [audits, failedDeployments, projectFunctions] = await Promise.all([
+    const notificationResults = await Promise.all([
       prisma.auditEvent.findMany({
         where: {
           projectId: session.projectId,
@@ -142,6 +142,23 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
         orderBy: { completedAt: "desc" },
         take: 10,
       }),
+      prisma.projectDeployment.findMany({
+        where: {
+          projectId: session.projectId,
+          status: "failed",
+          failureCause: { not: null },
+        },
+        select: {
+          id: true,
+          version: true,
+          failureCause: true,
+          failureMetadata: true,
+          completedAt: true,
+          environment: { select: { name: true } },
+        },
+        orderBy: { completedAt: "desc" },
+        take: 10,
+      }),
       prisma.function.findMany({
         where: { projectId: session.projectId },
         select: {
@@ -156,6 +173,8 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
         },
       }),
     ]);
+    const [audits, failedDeployments, failedScheduleDeployments, projectFunctions] =
+      notificationResults;
     const functionSources: FunctionSource[] = projectFunctions.flatMap((fn) =>
       fn.versions[0]
         ? [
@@ -210,6 +229,32 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
             : deployment.projectDeployment
               ? `/deployments?deployment=${deployment.projectDeployment.id}`
               : `${deployment.endpoint.kind === "mcp" ? "/mcp-endpoints" : "/http-apis"}/${deployment.endpoint.id}`,
+          createdAt: deployment.completedAt,
+        };
+      }),
+      ...failedScheduleDeployments.map((deployment) => {
+        const metadata = record(deployment.failureMetadata);
+        const loggedFunctions = deploymentFailureFunctions(metadata);
+        const inferredFunction = inferFailedFunction(
+          deployment.failureCause ?? undefined,
+          functionSources,
+        );
+        const functions = loggedFunctions.length
+          ? loggedFunctions
+          : inferredFunction
+            ? [{ ...inferredFunction, inferred: true }]
+            : [];
+        return {
+          id: `project-deployment:${deployment.id}`,
+          kind: "deployment",
+          severity: "error",
+          title: `${deployment.environment.name} deployment v${deployment.version} failed`,
+          message: deployment.failureCause?.slice(0, 8_000),
+          projectDeploymentId: deployment.id,
+          functions,
+          href: functions[0]
+            ? `/functions/${functions[0].id}`
+            : `/deployments?deployment=${deployment.id}`,
           createdAt: deployment.completedAt,
         };
       }),

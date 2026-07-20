@@ -26,21 +26,28 @@ export default function ExecutionsPage() {
   const [source, setSource] = useState("");
   const [page, setPage] = useState(0);
   const pageSize = 25;
-  const load = useCallback(() => {
-    setItems(undefined);
-    setLoadError(undefined);
-    const params = new URLSearchParams({ limit: "500" });
-    if (requestId) params.set("requestId", requestId);
-    if (status) params.set("status", status);
-    if (source) params.set("source", source);
-    api<{ items: Execution[]; nextCursor?: string }>(`/api/executions?${params}`)
-      .then((result) => {
-        setItems(result.items);
-        setPage(0);
-      })
-      .catch((error) => setLoadError(errorMessage(error)));
-  }, [requestId, source, status]);
-  useEffect(load, [attempt, load]);
+  const load = useCallback(
+    (silent = false) => {
+      if (!silent) setItems(undefined);
+      setLoadError(undefined);
+      const params = new URLSearchParams({ limit: "500" });
+      if (requestId) params.set("requestId", requestId);
+      if (status) params.set("status", status);
+      if (source) params.set("source", source);
+      api<{ items: Execution[]; nextCursor?: string }>(`/api/executions?${params}`)
+        .then((result) => {
+          setItems(result.items);
+          if (!silent) setPage(0);
+        })
+        .catch((error) => setLoadError(errorMessage(error)));
+    },
+    [requestId, source, status],
+  );
+  useEffect(() => load(), [attempt, load]);
+  useEffect(() => {
+    const timer = window.setInterval(() => load(true), 5_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
   const visible = useMemo(
     () => items?.slice(page * pageSize, (page + 1) * pageSize),
     [items, page],
@@ -96,11 +103,16 @@ export default function ExecutionsPage() {
               onChange={(event) => setStatus(event.target.value)}
             >
               <option value="">All statuses</option>
-              {["success", "error", "denied", "timeout", "validation_error"].map(
-                (item) => (
-                  <option key={item}>{item}</option>
-                ),
-              )}
+              {[
+                "running",
+                "success",
+                "error",
+                "denied",
+                "timeout",
+                "validation_error",
+              ].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
             </select>
             <select
               className="field h-9 py-1 text-xs"
@@ -112,7 +124,7 @@ export default function ExecutionsPage() {
                 <option key={item}>{item}</option>
               ))}
             </select>
-            <Button variant="secondary" onClick={load}>
+            <Button variant="secondary" onClick={() => load()}>
               Refresh
             </Button>
           </div>
@@ -242,10 +254,27 @@ function ExecutionDetail({ execution }: { execution: Execution }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
-    api(`/api/executions/${execution.id}`)
-      .then(setDetail)
-      .catch((error) => setLoadError(errorMessage(error)));
-  }, [execution.id, open]);
+    let controller: AbortController | undefined;
+    const loadDetail = () => {
+      controller?.abort();
+      const requestController = new AbortController();
+      controller = requestController;
+      void api(`/api/executions/${execution.id}`, { signal: requestController.signal })
+        .then(setDetail)
+        .catch((error) => {
+          if (!requestController.signal.aborted) setLoadError(errorMessage(error));
+        });
+    };
+    loadDetail();
+    const timer =
+      execution.status === "running"
+        ? window.setInterval(loadDetail, 5_000)
+        : undefined;
+    return () => {
+      if (timer) window.clearInterval(timer);
+      controller?.abort();
+    };
+  }, [execution.id, execution.status, open]);
   return (
     <Dialog
       open={open}

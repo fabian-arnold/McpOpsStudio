@@ -75,7 +75,7 @@ export function StatusDot({ status }: { status: string }) {
     ? "bg-emerald-500"
     : ["error", "failed", "denied"].includes(status)
       ? "bg-red-500"
-      : ["building", "queued"].includes(status)
+      : ["building", "deploying", "queued", "running"].includes(status)
         ? "bg-amber-500"
         : "bg-slate-400";
   return <span className={cn("size-1.5 rounded-full", tone)} />;

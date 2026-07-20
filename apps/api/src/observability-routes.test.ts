@@ -53,6 +53,32 @@ describe("observability response views", () => {
     ).toMatchObject({ actor: "system", targetId: undefined });
   });
 
+  it("reports elapsed time for a running execution", () => {
+    const createdAt = new Date(Date.now() - 2_000);
+    const view = executionView({
+      id: "execution-running",
+      endpointId: "endpoint-1",
+      functionId: "function-1",
+      createdAt,
+      requestId: "request-running",
+      correlationId: null,
+      parentExecutionId: null,
+      rootExecutionId: null,
+      invocationSource: "cron",
+      status: "running",
+      durationMs: 0,
+      heartbeatAt: new Date(),
+      completedAt: null,
+      callerIdentity: { subject: "scheduler" },
+      input: { captured: false },
+      output: null,
+      error: null,
+    });
+
+    expect(view.durationMs).toBeGreaterThanOrEqual(1_900);
+    expect(view.completedAt).toBeUndefined();
+  });
+
   it("builds an inclusive date filter only for supplied bounds", () => {
     const from = new Date("2026-07-01T00:00:00.000Z");
     const to = new Date("2026-07-31T23:59:59.999Z");

@@ -3,8 +3,8 @@ import type { LoadedEndpoint } from "./domain.js";
 import { client } from "./repository-client.js";
 import { compact } from "./storage-repository.js";
 
-export type ExecutionRecord = {
-  id?: string;
+export type ExecutionStartRecord = {
+  id: string;
   projectId: string;
   endpointId?: string;
   cronBindingId?: string;
@@ -19,19 +19,111 @@ export type ExecutionRecord = {
   invocationSource: string;
   callerIdentity: unknown;
   input: unknown;
-  output?: unknown;
-  error?: unknown;
-  durationMs: number;
-  status: string;
   parentExecutionId?: string;
   rootExecutionId?: string;
 };
-export async function saveExecution(record: ExecutionRecord): Promise<{ id: string }> {
-  return client.functionExecution.create({ data: compact(record) }) as Promise<{
+export async function beginExecution(
+  record: ExecutionStartRecord,
+): Promise<{ id: string }> {
+  return client.functionExecution.create({
+    data: compact({
+      ...record,
+      status: "running",
+      durationMs: 0,
+      heartbeatAt: new Date(),
+    }),
+  }) as Promise<{
     id: string;
   }>;
 }
+
+export type ExecutionCompletion = {
+  callerIdentity: unknown;
+  input: unknown;
+  output?: unknown;
+  error?: unknown;
+  durationMs: number;
+  status: "success" | "error" | "denied" | "timeout" | "validation_error";
+};
+
+export async function completeExecution(
+  executionId: string,
+  completion: ExecutionCompletion,
+): Promise<void> {
+  if (!client.functionExecution.update)
+    throw new Error("Execution updates unavailable");
+  await client.functionExecution.update({
+    where: { id: executionId },
+    data: compact({
+      ...completion,
+      heartbeatAt: new Date(),
+      completedAt: new Date(),
+    }),
+  });
+}
+
+export async function heartbeatExecution(executionId: string): Promise<void> {
+  if (!client.functionExecution.updateMany) return;
+  await client.functionExecution.updateMany({
+    where: { id: executionId, status: "running" },
+    data: { heartbeatAt: new Date() },
+  });
+}
+
+export const EXECUTION_HEARTBEAT_INTERVAL_MS = 15_000;
+export const STALE_EXECUTION_AFTER_MS = 90_000;
+
+export function staleExecutionCutoff(now = Date.now()): Date {
+  return new Date(now - STALE_EXECUTION_AFTER_MS);
+}
+
+export async function recoverStaleExecutions(now = Date.now()): Promise<number> {
+  const stale = await prisma.functionExecution.findMany({
+    where: {
+      status: "running",
+      OR: [
+        { heartbeatAt: { lt: staleExecutionCutoff(now) } },
+        { heartbeatAt: null, createdAt: { lt: staleExecutionCutoff(now) } },
+      ],
+    },
+    select: { id: true, createdAt: true },
+  });
+  if (!stale.length) return 0;
+  const completedAt = new Date(now);
+  await prisma.$transaction(
+    stale.map((execution) =>
+      prisma.functionExecution.updateMany({
+        where: { id: execution.id, status: "running" },
+        data: {
+          status: "error",
+          durationMs: Math.max(0, now - execution.createdAt.getTime()),
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "The worker stopped before execution completed.",
+          },
+          heartbeatAt: completedAt,
+          completedAt,
+        },
+      }),
+    ),
+  );
+  return stale.length;
+}
+
+export async function startExecutionRecovery(): Promise<() => void> {
+  await recoverStaleExecutions();
+  const timer = setInterval(
+    () =>
+      void recoverStaleExecutions().catch(() => {
+        process.stderr.write("Stale execution recovery failed.\n");
+      }),
+    60_000,
+  );
+  timer.unref();
+  return () => clearInterval(timer);
+}
 export type RuntimeLogRecord = {
+  id: string;
   timestamp: string;
   level: "debug" | "info" | "warn" | "error";
   message: unknown;
@@ -45,6 +137,7 @@ export async function saveRuntimeLogs(
   endpoint: LoadedEndpoint,
   events: readonly RuntimeLogRecord[],
   cronBinding?: { id: string; scheduleDeploymentId: string },
+  options: { prune?: boolean } = {},
 ): Promise<void> {
   if (events.length)
     await prisma.runtimeLog.createMany({
@@ -52,6 +145,7 @@ export async function saveRuntimeLogs(
         const message = String(event.message).slice(0, 8_000);
         const metadata = boundedLogMetadata(event.metadata);
         return {
+          id: event.id,
           projectId: endpoint.project.id,
           environmentId: endpoint.environment.id,
           ...(cronBinding
@@ -71,8 +165,10 @@ export async function saveRuntimeLogs(
           createdAt: new Date(event.timestamp),
         };
       }),
+      skipDuplicates: true,
     });
-  await pruneRuntimeLogs(endpoint.environment.id, endpoint.environment);
+  if (options.prune !== false)
+    await pruneRuntimeLogs(endpoint.environment.id, endpoint.environment);
 }
 
 async function pruneRuntimeLogs(

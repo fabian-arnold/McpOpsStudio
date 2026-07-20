@@ -195,9 +195,10 @@ export async function registerDeploymentHistoryRoutes(
     const page = rows.slice(0, query.limit);
     const items = page.map((deployment) => {
       const failedLog = deployment.endpointDeployments[0]?.logs[0];
-      const failureMetadata = record(failedLog?.metadata);
+      const failureMetadata = record(deployment.failureMetadata ?? failedLog?.metadata);
       const loggedFunctions = deploymentFailureFunctions(failureMetadata);
-      const inferredFunction = inferFailedFunction(failedLog?.message, functionSources);
+      const failureCause = deployment.failureCause ?? failedLog?.message;
+      const inferredFunction = inferFailedFunction(failureCause, functionSources);
       const failedFunctions = loggedFunctions.length
         ? loggedFunctions
         : inferredFunction
@@ -229,7 +230,7 @@ export async function registerDeploymentHistoryRoutes(
         sourceProjectDeployment: deployment.sourceProjectDeployment ?? undefined,
         createdAt: deployment.createdAt,
         completedAt: deployment.completedAt ?? undefined,
-        failureCause: failedLog?.message.slice(0, 8_000) ?? undefined,
+        failureCause: failureCause?.slice(0, 8_000) ?? undefined,
         failedEndpointName:
           deployment.endpointDeployments[0]?.endpoint.name ?? undefined,
         failedFunctions,

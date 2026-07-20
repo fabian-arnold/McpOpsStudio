@@ -94,6 +94,7 @@ enum ScheduledRunOrigin {
 }
 
 enum ExecutionStatus {
+  running
   success
   error
   denied
@@ -764,6 +765,8 @@ model ProjectDeployment {
   status                    DeploymentStatus    @default(queued)
   snapshot                  Json                @default("{}")
   checksum                  String              @default("")
+  failureCause              String?
+  failureMetadata           Json?
   createdAt                 DateTime            @default(now())
   completedAt               DateTime?
   project                   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -861,6 +864,8 @@ model FunctionExecution {
   error                Json?
   durationMs           Int
   status               ExecutionStatus
+  heartbeatAt          DateTime?
+  completedAt          DateTime?
   parentExecutionId    String?             @db.Uuid
   rootExecutionId      String?             @db.Uuid
   createdAt            DateTime            @default(now())
@@ -885,6 +890,7 @@ model FunctionExecution {
   @@index([correlationId])
   @@index([parentExecutionId])
   @@index([rootExecutionId])
+  @@index([status, heartbeatAt])
   @@map("function_executions")
 }
 

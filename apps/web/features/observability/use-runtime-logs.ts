@@ -20,7 +20,7 @@ export function useRuntimeLogs() {
   const [level, setLevel] = useState("");
   const [environmentId, setEnvironmentId] = useState("");
   const [range, setRange] = useState<LogRange>("1h");
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(true);
   const [error, setError] = useState<string>();
   const requestGeneration = useRef(0);
 

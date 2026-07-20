@@ -19,7 +19,7 @@ export const executionListQuerySchema = z
     toolBindingId: z.string().uuid().optional(),
     httpRouteBindingId: z.string().uuid().optional(),
     status: z
-      .enum(["success", "error", "denied", "timeout", "validation_error"])
+      .enum(["running", "success", "error", "denied", "timeout", "validation_error"])
       .optional(),
     requestId: z.string().max(256).optional(),
     callerSubject: z.string().max(512).optional(),

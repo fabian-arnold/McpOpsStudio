@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Ajv, type ValidateFunction } from "ajv";
 import type { Redis } from "ioredis";
 import {
@@ -50,6 +51,7 @@ export class InvocationLogger implements SafeLogger {
     private readonly executionId: string,
     private readonly events: RuntimeLogEvent[],
     private readonly secrets: readonly string[],
+    private readonly onEvent?: (event: RuntimeLogEvent) => void,
   ) {}
   debug(message: string, metadata?: Record<string, unknown>): void {
     this.write("debug", message, metadata);
@@ -79,6 +81,7 @@ export class InvocationLogger implements SafeLogger {
     );
     this.events.push(event);
     process.stdout.write(JSON.stringify(event) + "\n");
+    this.onEvent?.(event);
   }
 }
 export function shouldWriteLog(
@@ -97,6 +100,7 @@ export function buildRuntimeLogEvent(
   secrets: readonly string[],
 ): RuntimeLogEvent {
   return {
+    id: randomUUID(),
     timestamp: new Date().toISOString(),
     level,
     message: redactSensitive(message, secrets),

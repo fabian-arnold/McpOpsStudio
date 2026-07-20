@@ -24,10 +24,14 @@ import type {
 import {
   getEncryptedSecret,
   getEncryptedSecretById,
+  beginExecution,
+  completeExecution,
+  EXECUTION_HEARTBEAT_INTERVAL_MS,
+  heartbeatExecution,
   saveAudit,
-  saveExecution,
   saveRuntimeLogs,
 } from "./repository.js";
+import type { ExecutionCompletion } from "./execution-repository.js";
 import type { RuntimeMetrics } from "./metrics.js";
 import {
   DatabaseStorage,
@@ -94,6 +98,7 @@ export type InvokeRequest = {
   suppressLogs?: boolean;
 };
 export type RuntimeLogEvent = {
+  id: string;
   timestamp: string;
   level: "debug" | "info" | "warn" | "error";
   message: unknown;
@@ -145,10 +150,36 @@ export class RuntimeInvoker {
     const logs: RuntimeLogEvent[] = [];
     const controller = new AbortController();
     const unlinkAbort = linkAbortSignal(request.abortSignal, controller);
-    let executionStatus: string;
+    let executionStatus: ExecutionCompletion["status"];
     let output: unknown;
     let recordedError: unknown;
     let secretValues: readonly string[] = [];
+    let logPersistence = Promise.resolve();
+    try {
+      await this.begin(request, executionId);
+    } catch (error) {
+      unlinkAbort();
+      throw error;
+    }
+    const heartbeatTimer = setInterval(
+      () =>
+        void heartbeatExecution(executionId).catch(() => {
+          process.stderr.write("Execution heartbeat persistence failed.\n");
+        }),
+      EXECUTION_HEARTBEAT_INTERVAL_MS,
+    );
+    heartbeatTimer.unref();
+    const persistLog = request.suppressLogs
+      ? undefined
+      : (event: RuntimeLogEvent) => {
+          logPersistence = logPersistence.then(() =>
+            saveRuntimeLogs(request.endpoint, [event], request.cronBinding, {
+              prune: false,
+            }).catch(() => {
+              process.stderr.write("Runtime log streaming failed.\n");
+            }),
+          );
+        };
     try {
       if (!request.skipPermissionAuthorization)
         authorizePermissions(
@@ -174,6 +205,7 @@ export class RuntimeInvoker {
         logs,
         controller.signal,
         secrets,
+        persistLog,
       );
       const execution = await this.executor.execute({
         compiledCode: request.fn.compiledCode,
@@ -209,6 +241,7 @@ export class RuntimeInvoker {
         : output;
       executionStatus = "success";
       const durationMs = Math.round(performance.now() - started);
+      await logPersistence;
       await this.record(
         request,
         executionId,
@@ -239,6 +272,7 @@ export class RuntimeInvoker {
               : "error";
       recordedError = safe.toJSON();
       const durationMs = Math.round(performance.now() - started);
+      await logPersistence;
       await this.record(
         request,
         executionId,
@@ -252,6 +286,7 @@ export class RuntimeInvoker {
       this.metrics.record(executionStatus, durationMs);
       return { ok: false, error: safe, durationMs, executionId, logs };
     } finally {
+      clearInterval(heartbeatTimer);
       unlinkAbort();
     }
   }
@@ -302,9 +337,16 @@ export class RuntimeInvoker {
     logs: RuntimeLogEvent[],
     abortSignal: AbortSignal,
     secrets: GrantedSecrets,
+    onLog?: (event: RuntimeLogEvent) => void,
   ): RuntimeContext {
     const scope = `${request.endpoint.project.id}:${request.endpoint.environment.id}:${request.fn.functionId}`;
-    const logger = new InvocationLogger(request, executionId, logs, secrets.values());
+    const logger = new InvocationLogger(
+      request,
+      executionId,
+      logs,
+      secrets.values(),
+      onLog,
+    );
     const audit = new InvocationAudit(request);
     const trigger = request.rootTrigger ?? this.trigger(request);
     const base = {
@@ -447,7 +489,7 @@ export class RuntimeInvoker {
   private async record(
     request: InvokeRequest,
     executionId: string,
-    status: string,
+    status: ExecutionCompletion["status"],
     durationMs: number,
     output: unknown,
     error: unknown,
@@ -457,25 +499,7 @@ export class RuntimeInvoker {
     const capturePayloads =
       !request.suppressPayloadCapture &&
       shouldCapturePayloads(request.endpoint.environment);
-    await saveExecution({
-      id: executionId,
-      projectId: request.endpoint.project.id,
-      ...(request.cronBinding
-        ? {
-            cronBindingId: request.cronBinding.id,
-            scheduleDeploymentId: request.cronBinding.scheduleDeploymentId,
-          }
-        : {
-            endpointId: request.endpoint.id,
-            deploymentId: request.endpoint.deployment.id,
-          }),
-      functionId: request.fn.functionId,
-      functionVersionId: request.fn.versionId,
-      ...(request.mcpBinding ? { mcpToolBindingId: request.mcpBinding.id } : {}),
-      ...(request.httpBinding ? { httpRouteBindingId: request.httpBinding.id } : {}),
-      requestId: request.requestId,
-      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
-      invocationSource: request.source,
+    await completeExecution(executionId, {
       callerIdentity: redactSensitive(request.caller, secrets),
       input: capturePayloads
         ? capturedPayload(request.input, secrets)
@@ -490,10 +514,6 @@ export class RuntimeInvoker {
       ...(error === undefined ? {} : { error: redactSensitive(error, secrets) }),
       durationMs,
       status,
-      ...(request.parentExecutionId
-        ? { parentExecutionId: request.parentExecutionId }
-        : {}),
-      rootExecutionId: request.rootExecutionId ?? executionId,
     });
     if (!request.suppressLogs)
       await saveRuntimeLogs(request.endpoint, logs, request.cronBinding).catch(() => {
@@ -523,6 +543,35 @@ export class RuntimeInvoker {
           deploymentVersion: request.endpoint.deployment.version,
         },
       });
+  }
+
+  private async begin(request: InvokeRequest, executionId: string): Promise<void> {
+    await beginExecution({
+      id: executionId,
+      projectId: request.endpoint.project.id,
+      ...(request.cronBinding
+        ? {
+            cronBindingId: request.cronBinding.id,
+            scheduleDeploymentId: request.cronBinding.scheduleDeploymentId,
+          }
+        : {
+            endpointId: request.endpoint.id,
+            deploymentId: request.endpoint.deployment.id,
+          }),
+      functionId: request.fn.functionId,
+      functionVersionId: request.fn.versionId,
+      ...(request.mcpBinding ? { mcpToolBindingId: request.mcpBinding.id } : {}),
+      ...(request.httpBinding ? { httpRouteBindingId: request.httpBinding.id } : {}),
+      requestId: request.requestId,
+      ...(request.correlationId ? { correlationId: request.correlationId } : {}),
+      invocationSource: request.source,
+      callerIdentity: redactSensitive(request.caller),
+      input: payloadCaptureDisabled,
+      ...(request.parentExecutionId
+        ? { parentExecutionId: request.parentExecutionId }
+        : {}),
+      rootExecutionId: request.rootExecutionId ?? executionId,
+    });
   }
 
   private trigger(request: InvokeRequest): RuntimeTrigger {

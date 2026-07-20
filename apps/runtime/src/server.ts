@@ -28,6 +28,7 @@ import {
 import { verifyApiKey } from "@mcpops/shared";
 import { authenticateWithPolicies, authorizeEndpointAccess } from "./auth.js";
 import { RuntimeInvoker } from "./invoke.js";
+import { startExecutionRecovery } from "./execution-repository.js";
 import { customAuthenticationInvoker } from "./custom-auth-invoker.js";
 import { RuntimeMetrics } from "./metrics.js";
 import { registerInternalRoutes } from "./internal-routes.js";
@@ -69,8 +70,8 @@ type RuntimeOptions = {
   requireInternalProxyAuth?: boolean;
   runtimeConcurrency?: number;
   executor?: FunctionExecutor;
+  recoverExecutions?: boolean;
 };
-
 export function createRuntimeRequestCapacity(limit: number) {
   const activeRequests = new WeakSet<object>();
   const capacity = Math.max(1, limit);
@@ -143,6 +144,9 @@ export async function buildRuntimeApp(
     metrics,
     executor,
   );
+  const stopExecutionRecovery = options.recoverExecutions
+    ? await startExecutionRecovery()
+    : undefined;
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(rateLimit, {
     max: 120,
@@ -196,7 +200,10 @@ export async function buildRuntimeApp(
     if (incomingCorrelation) reply.header("x-correlation-id", incomingCorrelation);
     return payload;
   });
-  app.addHook("onClose", async () => invoker.close());
+  app.addHook("onClose", async () => {
+    stopExecutionRecovery?.();
+    await invoker.close();
+  });
 
   const readiness = async () => {
     const result = await checkRuntimeReadiness({
@@ -482,6 +489,7 @@ async function main(): Promise<void> {
       : {}),
     requireInternalProxyAuth: process.env.REQUIRE_INTERNAL_PROXY_AUTH === "true",
     runtimeConcurrency: Number(process.env.RUNTIME_CONCURRENCY ?? 40),
+    recoverExecutions: true,
   });
   await app.listen({
     port: Number(process.env.RUNTIME_PORT ?? 8080),

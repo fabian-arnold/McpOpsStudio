@@ -5,6 +5,8 @@ export type Delegate = {
   findMany?(args: unknown): Promise<unknown>;
   findUnique?(args: unknown): Promise<unknown>;
   create(args: unknown): Promise<unknown>;
+  update?(args: unknown): Promise<unknown>;
+  updateMany?(args: unknown): Promise<{ count: number }>;
   upsert?(args: unknown): Promise<unknown>;
   delete?(args: unknown): Promise<unknown>;
   deleteMany?(args: unknown): Promise<unknown>;

@@ -1,7 +1,11 @@
 import { Ajv } from "ajv";
 import { prisma } from "@mcpops/db";
 import { resolveFunctionCallGraph } from "@mcpops/shared";
-import { attachCurrentFunctionVersions, bundleFunction } from "./function-bundler.js";
+import {
+  attachCurrentFunctionVersions,
+  bundleFunction,
+  type BuildFailure,
+} from "./function-bundler.js";
 import {
   deploymentChecksum,
   validateCachePolicy,
@@ -28,6 +32,7 @@ export async function buildScheduleDeployment(
       project: { include: { environments: true, libraries: true } },
     },
   });
+  let failureFunctions: BuildFailure[] = [];
   try {
     await prisma.$transaction([
       prisma.scheduleDeployment.update({
@@ -86,10 +91,20 @@ export async function buildScheduleDeployment(
         : [];
       const available = new Set(availableSecrets.map((secret) => secret.name));
       const missing = requiredSecrets.filter((name) => !available.has(name));
-      if (missing.length)
+      if (missing.length) {
+        failureFunctions = selected
+          .filter((fn) => fn.grants.some((grant) => missing.includes(grant.secretName)))
+          .map((fn) => ({
+            id: fn.id,
+            name: fn.name,
+            slug: fn.slug,
+            version: fn.versions[0]?.version ?? 0,
+          }));
         throw new Error(
           `Required function secrets are not configured in ${environment.name}: ${missing.join(", ")}`,
         );
+      }
+      failureFunctions = [];
       const functions = [];
       for (const fn of selected) {
         const version = fn.versions[0];
@@ -324,11 +339,46 @@ export async function buildScheduleDeployment(
     });
     await finalizeProjectDeployment(artifact.projectDeploymentId);
   } catch (error) {
-    await prisma.scheduleDeployment.update({
-      where: { id: scheduleDeploymentId },
-      data: { status: "failed", completedAt: new Date() },
-    });
+    const failure = scheduleDeploymentFailure(error, failureFunctions);
+    await prisma.$transaction([
+      prisma.scheduleDeployment.update({
+        where: { id: scheduleDeploymentId },
+        data: { status: "failed", completedAt: new Date() },
+      }),
+      prisma.projectDeployment.updateMany({
+        where: {
+          id: artifact.projectDeploymentId,
+          failureCause: null,
+        },
+        data: failure,
+      }),
+    ]);
     await finalizeProjectDeployment(artifact.projectDeploymentId);
     throw error;
   }
+}
+
+export function scheduleDeploymentFailure(
+  error: unknown,
+  functions: BuildFailure[],
+): { failureCause: string; failureMetadata?: { functions: object[] } } {
+  const failureCause = (error instanceof Error ? error.message : "Build failed").slice(
+    0,
+    8_000,
+  );
+  return {
+    failureCause,
+    ...(functions.length
+      ? {
+          failureMetadata: {
+            functions: functions.map((fn) => ({
+              functionId: fn.id,
+              functionName: fn.name,
+              functionSlug: fn.slug,
+              functionVersion: fn.version,
+            })),
+          },
+        }
+      : {}),
+  };
 }
